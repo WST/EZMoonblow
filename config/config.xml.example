@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<configuration>
+	<database engine="MySQL">
+		<host>localhost</host>
+		<username>izzy</username>
+		<password>******</password>
+		<dbname>izzy_php</dbname>
+	</database>
+	
+	<telegram>
+		<token>******</token>
+		<chat_id>******</chat_id>
+	</telegram>
+	
+	<exchanges>
+		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
+			<spot>
+				<pair ticker="BTC/USDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />
+			</spot>
+			<futures>
+				<!-- TODO -->
+			</futures>
+		</exchange>
+		<exchange name="Gate" key="..." secret="..." enabled="no" demo="yes">
+			<spot>
+				<!-- empty -->
+			</spot>
+			<futures>
+				<!-- TODO -->
+			</futures>
+		</exchange>
+	</exchanges>
+</configuration>
