@@ -16,11 +16,12 @@ class Market implements IMarket
 	private string $exchangeName;
 
 	/**
-	 * Тип маркета: спотовый или фьючерсный
+	 * Market type: spot or futures.
 	 */
 	private MarketTypeEnum $marketType;
 	
 	/**
+	 * Set of candles.
 	 * @var ICandle[]
 	 */
 	private array $candles;

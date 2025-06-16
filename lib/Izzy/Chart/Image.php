@@ -19,8 +19,7 @@ class Image
 	protected $chartArea; // Добавляем свойство для хранения области графика
 	protected $colors = []; // Кэш для цветов
 
-	public function __construct(int $width, int $height)
-	{
+	public function __construct(int $width, int $height) {
 		$this->width = $width;
 		$this->height = $height;
 		$this->image = imagecreatetruecolor($width, $height);
@@ -53,33 +52,27 @@ class Image
 		return $this->colors[$key];
 	}
 
-	public function setForegroundColor(int $r, int $g, int $b): void
-	{
+	public function setForegroundColor(int $r, int $g, int $b): void {
 		$this->foregroundColor = $this->color($r, $g, $b);
 	}
 
-	public function drawLine(int $x1, int $y1, int $x2, int $y2): void
-	{
+	public function drawLine(int $x1, int $y1, int $x2, int $y2): void {
 		imageline($this->image, $x1, $y1, $x2, $y2, $this->foregroundColor);
 	}
 
-	public function drawRectangle(int $x1, int $y1, int $x2, int $y2): void
-	{
+	public function drawRectangle(int $x1, int $y1, int $x2, int $y2): void {
 		imagerectangle($this->image, $x1, $y1, $x2, $y2, $this->foregroundColor);
 	}
 
-	public function fillRectangle(int $x1, int $y1, int $x2, int $y2): void
-	{
+	public function fillRectangle(int $x1, int $y1, int $x2, int $y2): void {
 		imagefilledrectangle($this->image, $x1, $y1, $x2, $y2, $this->foregroundColor);
 	}
 
-	public function drawText(int $x, int $y, string $text): void
-	{
+	public function drawText(int $x, int $y, string $text): void {
 		imagestring($this->image, 3, $x, $y, $text, $this->foregroundColor);
 	}
 
-	public function drawTTFText(int $x, int $y, string $text, float $size = 12, float $angle = 0): void
-	{
+	public function drawTTFText(int $x, int $y, string $text, float $size = 12, float $angle = 0): void {
 		imagettftext(
 			$this->image,
 			$size,
@@ -92,31 +85,26 @@ class Image
 		);
 	}
 
-	public function save(string $filename): void
-	{
+	public function save(string $filename): void {
 		imagepng($this->image, $filename);
 	}
 
-	public function getWidth(): int
-	{
+	public function getWidth(): int {
 		return $this->width;
 	}
 
-	public function getHeight(): int
-	{
+	public function getHeight(): int {
 		return $this->height;
 	}
 
-	public function getPadding(string $side = null): int|array
-	{
+	public function getPadding(string $side = null): int|array {
 		if ($side === null) {
 			return $this->padding;
 		}
 		return $this->padding[$side] ?? 0;
 	}
 
-	protected function updateChartArea(): void
-	{
+	protected function updateChartArea(): void {
 		$this->chartArea = [
 			'x' => $this->padding['left'],
 			'y' => $this->padding['top'],
@@ -125,13 +113,11 @@ class Image
 		];
 	}
 
-	public function getChartArea(): array
-	{
+	public function getChartArea(): array {
 		return $this->chartArea;
 	}
 
-	public function fillChartArea(int $r, int $g, int $b): void
-	{
+	public function fillChartArea(int $r, int $g, int $b): void {
 		$color = $this->color($r, $g, $b);
 		imagefilledrectangle(
 			$this->image,
@@ -143,8 +129,7 @@ class Image
 		);
 	}
 
-	public function drawGrid(int $horizontalLines, int $verticalLines, int $r = 240, int $g = 240, int $b = 240): void
-	{
+	public function drawGrid(int $horizontalLines, int $verticalLines, int $r = 240, int $g = 240, int $b = 240): void {
 		$color = $this->color($r, $g, $b);
 		
 		// Горизонтальные линии
@@ -176,8 +161,7 @@ class Image
 		}
 	}
 
-	public function drawVerticalText(int $x, int $y, string $text, float $size = 12, int $r = 200, int $g = 200, int $b = 200): void
-	{
+	public function drawVerticalText(int $x, int $y, string $text, float $size = 12, int $r = 200, int $g = 200, int $b = 200): void {
 		$this->setForegroundColor($r, $g, $b);
 		
 		// Получаем размеры текста при 0 градусов
@@ -205,14 +189,12 @@ class Image
 		);
 	}
 
-	public function drawHorizontalText(int $x, int $y, string $text, float $size = 12, int $r = 32, int $g = 32, int $b = 32): void
-	{
+	public function drawHorizontalText(int $x, int $y, string $text, float $size = 12, int $r = 32, int $g = 32, int $b = 32): void {
 		$this->setForegroundColor($r, $g, $b);
 		$this->drawTTFText($x, $y, $text, $size);
 	}
 
-	public function drawCandle(int $x, int $y, int $width, int $height, bool $isBullish, int $wickTop, int $wickBottom): void
-	{
+	public function drawCandle(int $x, int $y, int $width, int $height, bool $isBullish, int $wickTop, int $wickBottom): void {
 		// Устанавливаем цвет в зависимости от типа свечи
 		if ($isBullish) {
 			$this->setForegroundColor(0, 200, 0);
@@ -228,8 +210,7 @@ class Image
 		$this->fillRectangle($x, $y, $x + $width, $y + $height);
 	}
 
-	public function setPadding(array $padding): void
-	{
+	public function setPadding(array $padding): void {
 		$this->padding = array_merge($this->padding, $padding);
 		$this->updateChartArea();
 	}

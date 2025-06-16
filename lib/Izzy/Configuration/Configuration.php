@@ -5,6 +5,7 @@ namespace Izzy\Configuration;
 use DOMDocument;
 use DOMXPath;
 use Izzy\Database;
+use Izzy\Exchanges\Bybit;
 use Izzy\Interfaces\IExchangeDriver;
 
 class Configuration
@@ -25,6 +26,15 @@ class Configuration
 	public function connectExchanges(): array {
 		$exchanges = $this->xpath->query('//exchanges/exchange');
 		print_r($exchanges);
+		
+		$result = [];
+		foreach ($exchanges as $exchangeConfigurationNode) {
+			$exchangeName = $exchangeConfigurationNode->getAttribute('name');
+			if(!class_exists($exchangeName)) continue;
+			$exchangeConfiguration = new ExchangeConfiguration($exchangeConfigurationNode);
+			$result[$exchangeName] = new $exchangeName($exchangeConfiguration);
+		}
+		return $result;
 	}
 	
 	public function openDatabase(): Database {

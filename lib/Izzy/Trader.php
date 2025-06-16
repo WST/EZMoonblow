@@ -41,12 +41,9 @@ class Trader extends ConsoleApplication
 	}
 
 	private function runExchangeUpdaters(): int {
-		$updaters = [];
-
-		/** @var IExchangeDriver $exchange */
-		foreach($this->exchanges as $exchangeName => $exchange) {
-			$updaters[$exchangeName] = $exchange->run();
-		}
+		$updaters = array_map(function (IExchangeDriver $exchange) {
+			return $exchange->run();
+		}, $this->exchanges);
 
 		foreach ($updaters as $updater) {
 			$status = NULL;

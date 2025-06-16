@@ -4,6 +4,7 @@ namespace Izzy\Exchanges;
 
 use Izzy\Chart\Chart;
 use Izzy\Configuration\ExchangeConfiguration;
+use Izzy\Database;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Market;
 use Psr\Log\LoggerInterface;
@@ -20,6 +21,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	protected array $futuresPairs = [];
 	
 	protected LoggerInterface $logger;
+	private Database $database;
 
 	public function __construct(ExchangeConfiguration $config, LoggerInterface $logger) {
 		$this->config = $config;
@@ -81,11 +83,6 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		}
 	}
 
-	public function connect(): bool {
-		// Implementation of connect method
-		return true; // Placeholder return, actual implementation needed
-	}
-
 	protected function getMarket(Pair $pair): ?Market {
 		// Implementation of getMarketCandles method
 		return null; // Placeholder return, actual implementation needed
@@ -107,5 +104,32 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 	protected function updateSpotLimitOrders(): void {
 		// Implementation of updateSpotLimitOrders method
+	}
+
+	/**
+	 * Fork into a child process;
+	 * @return int
+	 */
+	public function run(): int {
+		$pid = pcntl_fork();
+		if($pid) {
+			return $pid;
+		}
+
+		if(!$this->connect()) {
+			return -1;
+		}
+
+		// Подключаемся к БД в новом процессе
+		$this->database->connect();
+
+		// Сообщим, что драйвер успешно загружен
+		$this->log("Драйвер для биржи {$this->exchangeName} загружен");
+
+		// Основной цикл
+		while(true) {
+			$timeout = $this->update();
+			sleep($timeout);
+		}
 	}
 }
