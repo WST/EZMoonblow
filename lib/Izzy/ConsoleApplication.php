@@ -2,11 +2,11 @@
 
 namespace Izzy;
 
-use Monolog\Logger;
-use Monolog\Level;
-use Monolog\Handler\StreamHandler;
 use Bramus\Monolog\Formatter\ColoredLineFormatter;
-use SingletonTrait;
+use Izzy\Traits\SingletonTrait;
+use Monolog\Handler\StreamHandler;
+use Monolog\Level;
+use Monolog\Logger;
 
 /**
  * Base class for all CLI applications.

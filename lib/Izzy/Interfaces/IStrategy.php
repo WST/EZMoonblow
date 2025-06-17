@@ -5,19 +5,19 @@ namespace Izzy\Interfaces;
 interface IStrategy
 {
 	/**
-	 * Метод должен вернуть true, чтобы обозначить, что стратегия «хочет» встать в лонг
-	 * или купить ресурс на споте.
+	 * This method should return true to indicate that the strategy “wants” to go long
+	 * or buy the resource on the spot.
 	 * @return bool
 	 */ 
 	public function shouldLong(): bool;
-	
+
 	/**
-	 * Метод должен вернуть true, чтобы обозначить, что стратегия «хочет» встать в шорт.
-	 * При спотовой торговле данный метод не вызывается.
-	 * @return bool 
+	 * This method should return true to indicate that the strategy “wants” to go short.
+	 * Never gets called on spot markets.
+	 * @return bool
 	 */
 	public function shouldShort(): bool;
-	
+
 	public function handleLong();
 	
 	public function handleShort();

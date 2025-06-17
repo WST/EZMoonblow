@@ -21,7 +21,7 @@ class Chart extends Image
 	/**
 	 * Space between nearby candlesticks. 
 	 */
-	protected $candleSpacing = 2;
+	protected int $candleSpacing = 2;
 
 	/**
 	 * Color of the bullish candlesticks. 

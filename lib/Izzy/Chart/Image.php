@@ -2,10 +2,23 @@
 
 namespace Izzy\Chart;
 
+use GdImage;
+
 class Image
 {
+	/**
+	 * Width of the image.
+	 */
 	protected int $width;
+
+	/**
+	 * Height of the image.
+	 */
 	protected int $height;
+
+	/**
+	 * @var mixed|false|GdImage|resource 
+	 */
 	protected mixed $image;
 	protected $backgroundColor;
 	protected $foregroundColor;
@@ -40,18 +53,18 @@ class Image
 		$this->updateChartArea();
 	}
 
-	public function __destruct() {
-		if (is_resource($this->image)) {
-			imagedestroy($this->image);
-		}
-	}
-
 	public function color(int $r, int $g, int $b): int {
 		$key = "{$r},{$g},{$b}";
 		if (!isset($this->colors[$key])) {
 			$this->colors[$key] = imagecolorallocate($this->image, $r, $g, $b);
 		}
 		return $this->colors[$key];
+	}
+
+	public function __destruct() {
+		if (is_resource($this->image)) {
+			imagedestroy($this->image);
+		}
 	}
 
 	public function setForegroundColor(int $r, int $g, int $b): void {
@@ -87,14 +100,27 @@ class Image
 		);
 	}
 
+	/**
+	 * Save the image into a file.
+	 * @param string $filename
+	 * @return bool
+	 */
 	public function save(string $filename): bool {
 		return imagepng($this->image, $filename);
 	}
 
+	/**
+	 * Get the width of the image.
+	 * @return int
+	 */
 	public function getWidth(): int {
 		return $this->width;
 	}
 
+	/**
+	 * Get the height of the image.
+	 * @return int
+	 */
 	public function getHeight(): int {
 		return $this->height;
 	}

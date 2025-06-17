@@ -3,7 +3,7 @@
 namespace Izzy\Enums;
 
 /**
- * 
+ * Timeframe enum.
  */
 enum TimeFrameEnum: string {
 	case TF_15MINUTES = '15m';
