@@ -2,46 +2,79 @@
 
 namespace Izzy\Chart;
 
+use Izzy\Candle;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Market;
 
 class Chart extends Image
 {
-	protected $market;
-	protected $candleWidth = 4;
-	protected $candleSpacing = 2;  // Изменено с 1 на 2
-	protected $bullishColor;
-	protected $bearishColor;
-	protected $wickColor;
-	protected $priceColor;  // Цвет для цен
-	protected $backgroundColor;      // Цвет фона всего изображения
-	protected $chartBackgroundColor; // Цвет фона области с графиком
-	protected $timeframe;  // Добавляем свойство для таймфрейма
+	/**
+	 * Related Market instance.
+	 */
+	protected Market $market;
 
-	public function __construct(Market $market, string $timeframe, int $height = 480) {
-		// Рассчитываем ширину на основе количества свечей
+	/**
+	 * Width of a candlestick in pixels.
+	 */
+	protected int $candleWidth = 4;
+
+	/**
+	 * Space between nearby candlesticks. 
+	 */
+	protected $candleSpacing = 2;
+
+	/**
+	 * Color of the bullish candlesticks. 
+	 */
+	protected $bullishColor;
+
+	/**
+	 * Color of the bearish candlesticks.
+	 */
+	protected $bearishColor;
+	
+	protected $wickColor;
+	protected $priceColor;
+	protected $backgroundColor;
+	protected $chartBackgroundColor;
+
+	/**
+	 * Selected timeframe for the chart.
+	 */
+	protected TimeFrameEnum $timeframe;
+
+	public function __construct(Market $market, int $height = 480) {
 		$candleCount = count($market->getCandles());
 		$width = $candleCount * ($this->candleWidth + $this->candleSpacing) + 110;  // 110 = left padding (30) + right padding (80)
 		
 		parent::__construct($width, $height);
 		
 		$this->market = $market;
-		$this->timeframe = $timeframe;
+		$this->timeframe = $market->getTimeFrame();
 
 		// Устанавливаем цвета
 		$this->backgroundColor = $this->color(240, 240, 240);      // Серый фон для всего изображения
 		$this->chartBackgroundColor = $this->color(255, 255, 255); // Белый фон для области графика
 	}
 
+	/**
+	 * Draw the chart.
+	 * @return void
+	 */
 	public function draw(): void {
 		$this->drawChartBackground();
 		$this->drawChartGrid();
-		$this->drawPriceScale();  // Сначала рисуем сетку и шкалу цен
-		$this->drawCandles();     // Потом рисуем свечи поверх
+		$this->drawPriceScale();
+		$this->drawCandles();
 		$this->drawTimeScale();
 		$this->drawTitle();
 		$this->drawWatermark();
 	}
 
+	/**
+	 * Draw the chart grid.
+	 * @return void
+	 */
 	public function drawChartGrid(): void {
 		$this->drawGrid(10, 10);
 	}
@@ -67,39 +100,54 @@ class Chart extends Image
 		return number_format($price, 1);
 	}
 
-	protected function drawCandles(): void {
-		$chartArea = $this->getChartArea();
+	public function drawCandles(): void {
 		$candles = $this->market->getCandles();
 		$candleCount = count($candles);
 		
-		if ($candleCount === 0) {
+		// If there are no candles, we have nothing to draw.
+		if (!$candleCount) {
 			return;
 		}
 
-		$priceRange = $this->market->getPriceRange();
-		$priceScale = $chartArea['height'] / $priceRange;
-
-		foreach ($candles as $i => $candle) {
-			// Рассчитываем позицию с учётом отступа между свечами
-			$x = $chartArea['x'] + $i * ($this->candleWidth + $this->candleSpacing);
-			
-			// Рассчитываем координаты свечи
-			$highY = $chartArea['y'] + $chartArea['height'] - ($candle->getHighPrice() - $this->market->getMinPrice()) * $priceScale;
-			$lowY = $chartArea['y'] + $chartArea['height'] - ($candle->getLowPrice() - $this->market->getMinPrice()) * $priceScale;
-			$openY = $chartArea['y'] + $chartArea['height'] - ($candle->getOpenPrice() - $this->market->getMinPrice()) * $priceScale;
-			$closeY = $chartArea['y'] + $chartArea['height'] - ($candle->getClosePrice() - $this->market->getMinPrice()) * $priceScale;
-			
-			// Рисуем свечу
-			$this->drawCandle(
-				$x,
-				min($openY, $closeY),
-				$this->candleWidth,
-				abs($closeY - $openY),
-				$candle->isBullish(),
-				$highY,
-				$lowY
-			);
+		/** @var Candle $candle */
+		foreach ($candles as $candle) {
+			$this->drawCandle($candle);
 		}
+	}
+
+	public function drawCandle(Candle $candle): void {
+		$priceRange = $this->market->getPriceRange();
+		$priceScale = $this->chartArea['height'] / $priceRange;
+		
+		// Calculate candlestick position.
+		$x = $this->chartArea['x'] + $i * ($this->candleWidth + $this->candleSpacing);
+
+		// Coordinates for the candlestick.
+		$highY = $this->chartArea['y'] + $this->chartArea['height'] 
+			- ($candle->getHighPrice() - $this->market->getMinPrice()) * $priceScale;
+		$lowY = $this->chartArea['y'] + $this->chartArea['height'] 
+			- ($candle->getLowPrice() - $this->market->getMinPrice()) * $priceScale;
+		$openY = $this->chartArea['y'] + $this->chartArea['height'] 
+			- ($candle->getOpenPrice() - $this->market->getMinPrice()) * $priceScale;
+		$closeY = $this->chartArea['y'] + $this->chartArea['height']
+			- ($candle->getClosePrice() - $this->market->getMinPrice()) * $priceScale;
+		
+		$y = min($openY, $closeY);
+		$height = abs($closeY - $openY);
+		
+		// Устанавливаем цвет в зависимости от типа свечи
+		if ($candle->isBullish()) {
+			$this->setForegroundColor(0, 200, 0);
+		} else {
+			$this->setForegroundColor(200, 0, 0);
+		}
+
+		// Рисуем фитиль
+		$wickX = $x + $this->candleWidth / 2;
+		$this->drawLine($wickX, $highY, $wickX, $lowY);
+
+		// Рисуем тело свечи
+		$this->fillRectangle($x, $y, $x + $this->candleWidth, $y + $height);
 	}
 
 	protected function drawTimeScale(): void {
@@ -137,7 +185,7 @@ class Chart extends Image
 	}
 
 	protected function drawTitle(): void {
-		$title = sprintf("%s %s %s", $this->market->getSymbol(), $this->timeframe, date('Y-m-d H:i:s'));
+		$title = sprintf("%s %s %s", $this->market->getTicker(), $this->timeframe, date('Y-m-d H:i:s'));
 		$this->drawHorizontalText($this->getPadding('left'), 25, $title, 14);
 	}
 
@@ -154,6 +202,10 @@ class Chart extends Image
 		$this->fillChartArea(255, 255, 255);
 	}
 
+	/**
+	 * Draw the price scale.
+	 * @return void
+	 */
 	protected function drawPriceScale(): void {
 		$chartArea = $this->getChartArea();
 		$priceRange = $this->market->getPriceRange();

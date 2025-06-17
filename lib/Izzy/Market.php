@@ -2,18 +2,27 @@
 
 namespace Izzy;
 
+use Izzy\Chart\Chart;
 use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\ICandle;
+use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
 
 class Market implements IMarket
 {
 	private string $ticker;
-	
-	private string $timeframe;
-	
-	private string $exchangeName;
+
+	/**
+	 * Selected timeframe for the market.
+	 */
+	private TimeFrameEnum $timeframe;
+
+	/**
+	 * The relevant exchange driver.
+	 */
+	private IExchangeDriver $exchange;
 
 	/**
 	 * Market type: spot or futures.
@@ -29,13 +38,13 @@ class Market implements IMarket
 	public function __construct(
 		string $ticker,
 		string $timeframe,
-		string $exchangeName,
+		IExchangeDriver $exchange,
 		MarketTypeEnum $marketType,
 		array $candles
 	) {
 		$this->ticker = $ticker;
 		$this->timeframe = $timeframe;
-		$this->exchangeName = $exchangeName;
+		$this->exchange = $exchange;
 		$this->marketType = $marketType;
 		$this->candles = $candles;
 
@@ -64,20 +73,16 @@ class Market implements IMarket
 		return $this->ticker;
 	}
 
-	public function getTimeframe(): string {
+	public function getTimeframe(): TimeFrameEnum {
 		return $this->timeframe;
 	}
 
-	public function getExchangeName(): string {
-		return $this->exchangeName;
+	public function getExchange(): IExchangeDriver {
+		return $this->exchange;
 	}
 
 	public function getMarketType(): MarketTypeEnum {
 		return $this->marketType;
-	}
-
-	public function getSymbol(): string {
-		return $this->ticker;
 	}
 
 	public function getMinPrice(): float {
@@ -128,5 +133,11 @@ class Market implements IMarket
 	 */
 	public function isHighPrice(): bool {
 		// TODO: Implement isHighPrice() method.
+	}
+
+	public function drawChart(TimeFrameEnum $timeframe): Chart {
+		$chart = new Chart($this, $timeframe);
+		$chart->draw();
+		return $chart;
 	}
 }

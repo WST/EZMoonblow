@@ -58,31 +58,6 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		return 60;
 	}
 
-	protected function updateChart(Pair $pair): void
-	{
-		$this->log("updateChart called for {$pair->getTicker()}");
-		$now = time();
-
-		$this->log("Checking chart update condition for {$pair->getTicker()}: lastChartDrawTime = " . ($this->lastChartDrawTime ?? 'null') . ", now = {$now}");
-		if ($this->lastChartDrawTime === null || ($now - $this->lastChartDrawTime) >= 300) { // Возвращаем 300 секунд
-			$this->lastChartDrawTime = $now;
-			$this->log("Chart update condition met for {$pair->getTicker()}. Drawing chart.");
-
-			$market = $this->getMarket($pair);
-			$this->log("getMarketCandles returned for {$pair->getTicker()}: " . ($market === null ? 'null' : 'Market object'));
-			if ($market === null) {
-				$this->log("Market is null for {$pair->getTicker()}, cannot draw chart.");
-				return;
-			}
-
-			$chart = new Chart($market, $pair->getTimeframe());
-			$chartId = str_replace('/', '_', $pair->getTicker());
-			$chartFileName = "charts/{$this->getName()}_{$chartId}.png";
-			$chart->draw();
-			$chart->save($chartFileName);
-		}
-	}
-
 	protected function getMarket(Pair $pair): ?Market {
 		// Implementation of getMarketCandles method
 		return null; // Placeholder return, actual implementation needed

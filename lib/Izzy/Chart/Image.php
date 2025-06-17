@@ -4,9 +4,9 @@ namespace Izzy\Chart;
 
 class Image
 {
-	protected $width;
-	protected $height;
-	protected $image;
+	protected int $width;
+	protected int $height;
+	protected mixed $image;
 	protected $backgroundColor;
 	protected $foregroundColor;
 	protected $padding = [
@@ -22,6 +22,8 @@ class Image
 	public function __construct(int $width, int $height) {
 		$this->width = $width;
 		$this->height = $height;
+		
+		// Create the image resource
 		$this->image = imagecreatetruecolor($width, $height);
 		
 		// Устанавливаем белый фон
@@ -85,8 +87,8 @@ class Image
 		);
 	}
 
-	public function save(string $filename): void {
-		imagepng($this->image, $filename);
+	public function save(string $filename): bool {
+		return imagepng($this->image, $filename);
 	}
 
 	public function getWidth(): int {
@@ -192,22 +194,6 @@ class Image
 	public function drawHorizontalText(int $x, int $y, string $text, float $size = 12, int $r = 32, int $g = 32, int $b = 32): void {
 		$this->setForegroundColor($r, $g, $b);
 		$this->drawTTFText($x, $y, $text, $size);
-	}
-
-	public function drawCandle(int $x, int $y, int $width, int $height, bool $isBullish, int $wickTop, int $wickBottom): void {
-		// Устанавливаем цвет в зависимости от типа свечи
-		if ($isBullish) {
-			$this->setForegroundColor(0, 200, 0);
-		} else {
-			$this->setForegroundColor(200, 0, 0);
-		}
-
-		// Рисуем фитиль
-		$wickX = $x + $width / 2;
-		$this->drawLine($wickX, $wickTop, $wickX, $wickBottom);
-
-		// Рисуем тело свечи
-		$this->fillRectangle($x, $y, $x + $width, $y + $height);
 	}
 
 	public function setPadding(array $padding): void {

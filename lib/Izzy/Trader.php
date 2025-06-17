@@ -5,41 +5,58 @@ namespace Izzy;
 use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
 
+/**
+ * Main class of the Trader application.
+ * This application is responsible for the actual trading process.
+ */
 class Trader extends ConsoleApplication
 {
-	private $exchanges;
+	/**
+	 * @var IExchangeDriver[] 
+	 */
+	private array $exchanges;
 
+	/**
+	 * Database manager.
+	 */
 	private Database $database;
+
+	/**
+	 * Configuration manager.
+	 */
 	private Configuration $configuration;
 
 	/**
-	 * Конструирует объект трейдера
+	 * Builds a Trader object.
 	 */
 	public function __construct() {
-		// Конструируем родителя
+		// Let’s build the parent.
 		parent::__construct('trader');
 		
-		// Загружаем конфигурацию
+		// Load the configuration.
 		$this->configuration = new Configuration(IZZY_CONFIG . "/config.xml");
 		
-		// Устанавливаем соединение с БД
+		// Connect to the database.
 		$this->database = $this->configuration->openDatabase();
 		$this->database->connect();
 		
-		// Получаем список бирж
+		// Finally, let’s load the currently active exchange drivers.
 		$this->exchanges = $this->configuration->connectExchanges();
 	}
 
 	public function run() {
-		// Отключимся от базы данных перед разделением
+		// We need to disconnect from the database before splitting.
 		$this->database->close();
 		unset($this->database);
 
-		// Запускаем обновляторы бирж
+		// Time to split!
 		$status = $this->runExchangeUpdaters();
 		die($status);
 	}
 
+	/**
+	 * Run the exchange updaters.
+	 */
 	private function runExchangeUpdaters(): int {
 		$updaters = array_map(function (IExchangeDriver $exchange) {
 			return $exchange->run();
@@ -51,13 +68,5 @@ class Trader extends ConsoleApplication
 		}
 
 		return 0;
-	}
-
-	public static function getInstance(): Trader {
-		static $instance = null;
-		if(is_null($instance)) {
-			$instance = new self;
-		}
-		return $instance;
 	}
 }

@@ -20,14 +20,6 @@ class Analyzer extends ConsoleApplication
 		$this->database->connect();
 	}
 
-	public static function getInstance(): Analyzer {
-		static $instance = null;
-		if(is_null($instance)) {
-			$instance = new self;
-		}
-		return $instance;
-	}
-
 	public function updateBalanceLog(Money $balance): void {
 		if(!file_exists(IZZY_RRD)) {
 			$minutesInYear = 525960;
