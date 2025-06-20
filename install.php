@@ -1,17 +1,15 @@
 #!/usr/bin/env php
 <?php
 
-use Izzy\Configuration\Configuration;
+use Izzy\Installer;
+
+// Check if vendor/autoload.php exists.
+if (!file_exists(__DIR__ . '/vendor/autoload.php')) {
+    die('Please run "composer install" first');
+}
 
 // EZMoonblow core file.
 require __DIR__ . '/lib/common.php';
 
-// Load the configuration file.
-$configuration = new Configuration(IZZY_CONFIG . "/config.xml");
-
-// Connect to the database.
-$db = $configuration->openDatabase();
-$db->connect();
-
-// Apply the migrations. 
-$db->runMigrations();
+$installer = Installer::getInstance();
+$installer->run();
