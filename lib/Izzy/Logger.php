@@ -5,7 +5,8 @@ namespace Izzy;
 final class Logger
 {
 	public function info(string $message): void {
-		echo "$message\n";
+		$timestamp = date('Y-m-d H:i:s');
+		echo "\033[32m$timestamp\033[0m $message\n";
 	}
 	
 	public static function getLogger(): self {

@@ -12,6 +12,8 @@ class DatabaseMigrationManager
 	 */
 	private int $padding = 0;
 
+	private int $paddingWidth = 2;
+
 	/**
 	 * Tracks current migration status: if one action fails, we consider the whole migration failed. 
 	 */
@@ -32,7 +34,7 @@ class DatabaseMigrationManager
 			$fields = [
 				'number' => 'INT UNSIGNED NOT NULL DEFAULT 0',
 			];
-			$this->createTable('migrations', $fields, 'InnoDB');
+			$this->createTable('migrations', $fields, [], 'InnoDB');
 		} else {
 			$rows = $this->db->selectAllRows('migrations');
 			foreach($rows as $row) {
@@ -42,8 +44,13 @@ class DatabaseMigrationManager
 		}
 	}
 	
-	protected function logOperation(string $description, bool $successful = true): void {
-		
+	protected function logDatabaseOperationWithStatus(string $description, bool $successful = true): void {
+		$status = $successful ? "\033[48;5;22;1m  OK  \033[0m" : "\033[41m fail \033[0m";
+		$this->logger->info(str_repeat(' ', $this->padding * $this->paddingWidth) . $status . ' ' . $description);
+	}
+
+	protected function logDatabaseOperation(string $description): void {
+		$this->logger->info(str_repeat(' ', $this->padding * $this->paddingWidth) . $description);
 	}
 
 	/**
@@ -62,31 +69,79 @@ class DatabaseMigrationManager
 		return $exists;
 	}
 	
-	public function createTable(string $table, array $fields, string $engine = 'InnoDB'): void {
-		$this->logger->info("Creating the table “{$table}”...");
-		$success = $this->db->createTable($table, $fields, $engine);
+	/**
+	 * Creates a new table in the database with specified fields and keys.
+	 * 
+	 * @param string $table Name of the table to create
+	 * @param array $fields Array of table fields
+	 * @param array $keys Array of table keys (optional)
+	 * @param string $engine Table engine (default: InnoDB)
+	 * 
+	 * Usage example:
+	 * ```php
+	 * $fields = [
+	 *   'id' => 'INT UNSIGNED NOT NULL AUTO_INCREMENT',
+	 *   'name' => 'VARCHAR(255) NOT NULL',
+	 *   'email' => 'VARCHAR(255) NOT NULL',
+	 *   'created_at' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
+	 * ];
+	 * 
+	 * $keys = [
+	 *   'PRIMARY KEY' => ['id'],
+	 *   'UNIQUE KEY email_idx' => ['email'],
+	 *   'KEY name_created_idx' => ['name', 'created_at']
+	 * ];
+	 * 
+	 * $manager->createTable('users', $fields, $keys, 'InnoDB');
+	 * ```
+	 */
+	public function createTable(string $table, array $fields, array $keys = [], string $engine = 'InnoDB'): void {
+		$success = $this->db->createTable($table, $fields, $keys, $engine);
 		if (!$success) {
 			$this->currentStatus = false;
 		}
-		$this->logOperation("Create table “{$table}”", $success);
+		$this->logDatabaseOperationWithStatus("Creating table “{$table}”...", $success);
 	}
 	
 	public function exec(): void {
 		
 	}
 
+	private function requireIfValid(string $filename): void {
+		$output = null;
+		$code = null;
+
+		exec('php -l ' . escapeshellarg($filename), $output, $code);
+		if ($code !== 0) {
+			$this->currentStatus = false;
+		}
+
+		// The variable "$manager" will be available within the migration body.
+		$manager = $this;
+		require $filename;
+	}
+
 	private function runMigration(int $number, string $filename): void {
+		// Inform the user.
+		$basename = basename($filename);
+		$this->logDatabaseOperation("Running migration {$basename}...");
+		$this->increasePadding();
+		
 		// By default, we assume successful execution.
 		$this->currentStatus = true;
 		
-		// The variable “$manager” will be available within the migration body.
-		$manager = $this;
-		require $filename;
+		// Pass the control to the migration file.
+		$this->requireIfValid($filename);
 		
 		// If the migration was successful, mark it as applied.
 		if ($this->currentStatus) {
 			$this->markApplied($number);
 		}
+		
+		// Report the migration status.
+		$statusText = $this->currentStatus ? 'finished' : 'failed';
+		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $this->currentStatus);
+		$this->resetPadding();
 	}
 
 	/**
@@ -123,7 +178,7 @@ class DatabaseMigrationManager
 			return is_file($migrationFile) && is_readable($migrationFile);
 		});
 
-		// Let’s build the array of the migration files.
+		// Let's build the array of the migration files.
 		$migrationFiles = [];
 		foreach ($phpFiles as $file) {
 			$matches = [];
@@ -145,7 +200,7 @@ class DatabaseMigrationManager
 			$this->logger->info("Database is up to date.");
 		}
 
-		// Finally, let’s execute the migrations.
+		// Finally, let's execute the migrations.
 		array_walk($migrationFiles, function($filename, $number) use ($manager) {
 			$manager->runMigration($number, $filename);
 		});
