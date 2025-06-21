@@ -13,7 +13,7 @@ class Installer extends ConsoleApplication
 	public function run(): void {
 		// Check if the configuration file exists.
 		if (!file_exists(IZZY_CONFIG_XML) || !is_readable(IZZY_CONFIG_XML)) {
-			die("Could not load configuration file: " . IZZY_CONFIG_XML);
+			die("Could not load configuration file: " . IZZY_CONFIG_XML . PHP_EOL);
 		}
 		
 		// Load the configuration file.
@@ -21,7 +21,10 @@ class Installer extends ConsoleApplication
 
 		// Connect to the database.
 		$db = $configuration->openDatabase();
-		$db->connect();
+		$status = $db->connect();
+		if (!$status) {
+			die("Failed to connect to the database" . PHP_EOL);
+		}
 
 		// Apply the migrations.
 		$manager = $db->migrationManager();
