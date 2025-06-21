@@ -8,6 +8,11 @@ class DatabaseMigrationManager
 	private Logger $logger;
 
 	/**
+	 * Padding for nicer console output. 
+	 */
+	private int $padding = 0;
+
+	/**
 	 * Tracks current migration status: if one action fails, we consider the whole migration failed. 
 	 */
 	private bool $currentStatus = true;
@@ -36,6 +41,10 @@ class DatabaseMigrationManager
 			}
 		}
 	}
+	
+	protected function logOperation(string $description, bool $successful = true): void {
+		
+	}
 
 	/**
 	 * Check if the given table exists and log the message.
@@ -59,9 +68,10 @@ class DatabaseMigrationManager
 		if (!$success) {
 			$this->currentStatus = false;
 		}
+		$this->logOperation("Create table “{$table}”", $success);
 	}
 	
-	public function runSQL() {
+	public function exec(): void {
 		
 	}
 
@@ -129,10 +139,27 @@ class DatabaseMigrationManager
 
 		// We should always execute migrations in correct order.
 		ksort($migrationFiles);
+		
+		// If there is no new migrations, inform the user that the database is OK.
+		if (empty($migrationFiles)) {
+			$this->logger->info("Database is up to date.");
+		}
 
 		// Finally, let’s execute the migrations.
 		array_walk($migrationFiles, function($filename, $number) use ($manager) {
 			$manager->runMigration($number, $filename);
 		});
+	}
+	
+	public function increasePadding(): void {
+		$this->padding ++;
+	}
+	
+	public function decreasePadding(): void {
+		$this->padding --;
+	}
+	
+	public function resetPadding(): void {
+		$this->padding = 0;
 	}
 }

@@ -4,6 +4,7 @@ namespace Izzy;
 
 use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
+use JetBrains\PhpStorm\NoReturn;
 
 /**
  * Main class of the Trader application.
@@ -44,7 +45,8 @@ class Trader extends ConsoleApplication
 		$this->exchanges = $this->configuration->connectExchanges();
 	}
 
-	public function run() {
+	#[NoReturn]
+	public function run(): void {
 		// We need to disconnect from the database before splitting.
 		$this->database->close();
 		unset($this->database);

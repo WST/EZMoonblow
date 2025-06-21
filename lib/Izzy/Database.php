@@ -36,13 +36,48 @@ class Database
 	public function close(): void {
 		unset($this->pdo);
 	}
-	
-	public function selectOneRow() {
-		
+
+	public function queryOneRow(string $sql): ?array {
+		$statement = $this->pdo->query($sql);
+		if (!$statement) return null;
+		$row = $statement->fetch(PDO::FETCH_ASSOC);
+		return $row !== false ? $row : null;
 	}
-	
-	public function selectAllRows(): array {
-		
+
+	public function queryAllRows(string $sql): array {
+		$statement = $this->pdo->query($sql);
+		if (!$statement) return [];
+		return $statement->fetchAll(PDO::FETCH_ASSOC);
+	}
+
+	public function selectOneRow(string $table, string $what = '*', ?string $where = null): ?array {
+		$where = $where ?? '';
+		$sql = "SELECT $what FROM `$table` WHERE $where";
+		return $this->queryOneRow($sql);
+	}
+
+	public function selectAllRows(
+		string $table,
+		string $what = '*',
+		string $where = '1',
+		string $order = '',
+		?int $limit = null,
+		?int $offset = null,
+	): ?array {
+		$sql = "SELECT $what FROM `$table` WHERE $where";
+
+		if (!empty($order)) {
+			$sql .= " ORDER BY $order";
+		}
+
+		if (!is_null($limit)) {
+			$sql .= " LIMIT $limit";
+			if (!is_null($offset)) {
+				$sql .= " OFFSET $offset";
+			}
+		}
+
+		return $this->queryAllRows($sql);
 	}
 	
 	public function tableExists(string $table): bool {
@@ -95,7 +130,26 @@ class Database
 		return new DatabaseMigrationManager($this);
 	}
 
-	public function insert(string $table, array $data) {
-		
+	public function insert(string $table, array $data): bool {
+		// If the data is empty, we consider our insert successful.
+		if (empty($data)) {
+			return true;
+		}
+
+		$columns = array_keys($data);
+		$placeholders = array_map(fn($col) => ":$col", $columns);
+		$escapedColumns = array_map(fn($col) => "`$col`", $columns);
+
+		// Let’s build SQL.
+		$sql = sprintf(
+			"INSERT INTO `%s` (%s) VALUES (%s)",
+			$table,
+			implode(', ', $escapedColumns),
+			implode(', ', $placeholders)
+		);
+
+		// Prepare and execute.
+		$stmt = $this->pdo->prepare($sql);
+		return $stmt->execute($data);
 	}
 }
