@@ -24,4 +24,12 @@ class BingX extends AbstractExchangeDriver
 		$bingxBalance = new Money(0.0, "USDT");
 		$this->setBalance($bingxBalance);
 	}
+
+	protected function updateBalance(): void {
+
+	}
+
+	protected function updateMarkets(): void {
+
+	}
 }

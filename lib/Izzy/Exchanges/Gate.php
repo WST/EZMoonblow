@@ -165,4 +165,12 @@ class Gate extends AbstractExchangeDriver
 			return [];
 		}
 	}
+	
+	protected function updateBalance(): void {
+		
+	}
+	
+	protected function updateMarkets(): void {
+		
+	}
 }

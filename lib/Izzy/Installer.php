@@ -10,7 +10,7 @@ class Installer extends ConsoleApplication
 		parent::__construct('analyzer');
 	}
 	
-	public function run() {
+	public function run(): void {
 		// Check if the configuration file exists.
 		if (!file_exists(IZZY_CONFIG_XML) || !is_readable(IZZY_CONFIG_XML)) {
 			die("Could not load configuration file: " . IZZY_CONFIG_XML);
@@ -23,7 +23,8 @@ class Installer extends ConsoleApplication
 		$db = $configuration->openDatabase();
 		$db->connect();
 
-		// Apply the migrations. 
-		$db->runMigrations();
+		// Apply the migrations.
+		$manager = $db->migrationManager();
+		$manager->runMigrations();
 	}
 }

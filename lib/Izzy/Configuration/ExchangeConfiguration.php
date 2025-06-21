@@ -3,6 +3,7 @@
 namespace Izzy\Configuration;
 
 use DOMElement;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Interfaces\IExchangeDriver;
 
 class ExchangeConfiguration
@@ -30,6 +31,10 @@ class ExchangeConfiguration
 	}
 	
 	public function connectToExchange(): IExchangeDriver {
+		
+	}
+	
+	public function getPairs(MarketTypeEnum $marketType = MarketTypeEnum::SPOT): array {
 		
 	}
 }

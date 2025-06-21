@@ -41,7 +41,7 @@ class Database
 		
 	}
 	
-	public function selectAllRows() {
+	public function selectAllRows(): array {
 		
 	}
 	
@@ -49,40 +49,6 @@ class Database
 		$statement = $this->pdo->prepare("SHOW TABLES LIKE :table");
 		$statement->execute(['table' => $table]);
 		return $statement->fetchColumn() !== false;
-	}
-
-	/**
-	 * Execute the set of database migrations.
-	 * @return void
-	 */
-	public function runMigrations(): void {
-		// First, create a Migration Manager instance.
-		$manager = new DatabaseMigrationManager($this);
-		
-		// Our database migrations.
-		$phpFiles = glob(IZZY_MIGRATIONS . '/*.php');
-
-		// Some checks to exclude obviously non-migration files.
-		$phpFiles = array_filter($phpFiles, function($migrationFile) {
-			return is_file($migrationFile) && is_readable($migrationFile);
-		});
-
-		// Let’s build the array of the migration files.
-		$migrationFiles = [];
-		foreach ($phpFiles as $file) {
-			$matches = [];
-			if (!preg_match('#(\\d{10})\-[0-9a-z\-_]+\.php$#', $file, $matches)) continue;
-			$timestamp = (int)$matches[1];
-			$migrationFiles[$timestamp] = $file;
-		}
-
-		// We should always execute migrations in correct order.
-		ksort($migrationFiles);
-		
-		// Finally, let’s execute the migrations.
-		array_walk($migrationFiles, function(& $file) use ($manager) {
-			require $file;
-		});
 	}
 
 	/**
@@ -123,5 +89,13 @@ class Database
 		// Execute the query.
 		$result = $this->exec($sql);
 		return is_int($result);
+	}
+	
+	public function migrationManager(): DatabaseMigrationManager {
+		return new DatabaseMigrationManager($this);
+	}
+
+	public function insert(string $table, array $data) {
+		
 	}
 }

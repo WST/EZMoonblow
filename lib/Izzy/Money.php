@@ -2,9 +2,10 @@
 
 namespace Izzy;
 
-class Money {
-	private $amount;
-	private $currency;
+class Money
+{
+	private float $amount;
+	private string $currency;
 
 	public function __construct(float $amount, string $currency = 'USDT') {
 		$this->amount = $amount;

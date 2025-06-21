@@ -25,14 +25,14 @@ class Configuration
 	 */
 	public function connectExchanges(): array {
 		$exchanges = $this->xpath->query('//exchanges/exchange');
-		print_r($exchanges);
-		
 		$result = [];
 		foreach ($exchanges as $exchangeConfigurationNode) {
 			$exchangeName = $exchangeConfigurationNode->getAttribute('name');
 			if(!class_exists($exchangeName)) continue;
 			$exchangeConfiguration = new ExchangeConfiguration($exchangeConfigurationNode);
 			$result[$exchangeName] = new $exchangeName($exchangeConfiguration);
+			$result[$exchangeName]->connect();
+			$result[$exchangeName]->run();
 		}
 		return $result;
 	}

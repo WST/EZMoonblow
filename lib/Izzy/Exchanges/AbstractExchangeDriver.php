@@ -5,8 +5,10 @@ namespace Izzy\Exchanges;
 use Izzy\Chart\Chart;
 use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Database;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Market;
+use Izzy\Pair;
 use Psr\Log\LoggerInterface;
 
 /**
@@ -40,20 +42,18 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Обновить информацию с биржи / на бирже
 	 * @return int на сколько секунд заснуть после обновления
 	 */
-	public function update(): int
-	{
+	public function update(): int {
 		$this->log("Обновляем баланс на {$this->getName()}");
 		$this->updateBalance();
+		
+		// Update markets.
+		$this->updateMarkets();
 
 		if ($this->shouldUpdateOrders()) {
 			$this->log("Обновляем лимитные спотовые ордеры на {$this->getName()}");
 			$this->updateSpotLimitOrders();
 		}
 
-		// Обновляем графики для всех пар
-		foreach ($this->config->getAllPairs() as $pair) {
-			$this->updateChart($pair);
-		}
 		// По умолчанию просим запустить себя через 60 секунд
 		return 60;
 	}

@@ -18,8 +18,7 @@ class Candle implements ICandle
 	protected ?ICandle $previousCandle;
 	protected ?ICandle $nextCandle;
 
-	public function __construct(int $timestamp, float $open, float $high, float $low, float $close, float $volume, Market $market = null)
-	{
+	public function __construct(int $timestamp, float $open, float $high, float $low, float $close, float $volume, Market $market = null) {
 		$this->timestamp = $timestamp;
 		$this->open = $open;
 		$this->high = $high;

@@ -12,12 +12,10 @@ use Izzy\Interfaces\IStrategy;
 
 class Market implements IMarket
 {
-	private string $ticker;
-
 	/**
-	 * Selected timeframe for the market.
+	 * Active pair.
 	 */
-	private TimeFrameEnum $timeframe;
+	private Pair $pair;
 
 	/**
 	 * The relevant exchange driver.
@@ -36,22 +34,11 @@ class Market implements IMarket
 	private array $candles;
 
 	public function __construct(
-		string $ticker,
-		string $timeframe,
-		IExchangeDriver $exchange,
-		MarketTypeEnum $marketType,
-		array $candles
+		Pair $pair,
+		IExchangeDriver $exchange
 	) {
-		$this->ticker = $ticker;
-		$this->timeframe = $timeframe;
 		$this->exchange = $exchange;
-		$this->marketType = $marketType;
-		$this->candles = $candles;
-
-		// Устанавливаем текущий рынок для каждой свечи
-		foreach ($this->candles as $candle) {
-			$candle->setMarket($this);
-		}
+		$this->marketType = $pair->getMarketType();
 	}
 
 	/**
@@ -139,5 +126,14 @@ class Market implements IMarket
 		$chart = new Chart($this, $timeframe);
 		$chart->draw();
 		return $chart;
+	}
+
+	public function setCandles(array $candlesData) {
+		$this->candles = $candlesData;
+
+		// Устанавливаем текущий рынок для каждой свечи
+		foreach ($this->candles as $candle) {
+			$candle->setMarket($this);
+		}
 	}
 }

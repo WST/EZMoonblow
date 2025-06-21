@@ -2,7 +2,7 @@
 
 namespace Izzy\Interfaces;
 
-interface IMarket
+interface IMarket extends IHasMarketType
 {
 	/**
 	 * @return ICandle[]
