@@ -52,13 +52,13 @@ class Bybit extends AbstractExchangeDriver
 			]);
 			
 			if (!isset($testResponse['list'])) {
-				$this->log("Не удалось получить тестовые данные от Bybit, подключение не установлено.");
+				$this->logger->error("Не удалось получить тестовые данные от Bybit, подключение не установлено.");
 				return false;
 			}
 			
 			return true;
 		} catch (\Exception $e) {
-			$this->log("Не удалось подключиться к бирже {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Не удалось подключиться к бирже {$this->exchangeName}: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -73,7 +73,7 @@ class Bybit extends AbstractExchangeDriver
 			$info = $this->api->accountApi()->getWalletBalance($params);
 			
 			if (!isset($info['list'][0]['totalEquity'])) {
-				$this->log("Не удалось получить баланс: неверный формат ответа от Bybit");
+				$this->logger->error("Не удалось получить баланс: неверный формат ответа от Bybit");
 				return;
 			}
 			
@@ -83,11 +83,11 @@ class Bybit extends AbstractExchangeDriver
 			} else {
 				$this->totalBalance->setAmount($value);
 			}
-			$this->log("Баланс на {$this->exchangeName}: {$this->totalBalance}");
+			$this->logger->info("Баланс на {$this->exchangeName}: {$this->totalBalance}");
 		} catch (HttpException $exception) {
-			$this->log("Не удалось обновить баланс кошелька на {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Не удалось обновить баланс кошелька на {$this->exchangeName}: " . $exception->getMessage());
 		} catch (\Exception $e) {
-			$this->log("Неожиданная ошибка при обновлении баланса на {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Неожиданная ошибка при обновлении баланса на {$this->exchangeName}: " . $e->getMessage());
 		}
 	}
 
@@ -102,7 +102,7 @@ class Bybit extends AbstractExchangeDriver
 		$bybitInterval = $this->timeframeToBybitInterval($timeframe);
 		
 		if (!$bybitInterval) {
-			$this->log("Неизвестный таймфрейм {$timeframe} для Bybit.");
+			$this->logger->error("Неизвестный таймфрейм {$timeframe} для Bybit.");
 			return null;
 		}
 
@@ -112,7 +112,7 @@ class Bybit extends AbstractExchangeDriver
 		} else if ($marketType->isFutures()) {
 			$bybitCategory = 'spot';
 		} else {
-			$this->log("The selected market type for exchange Bybit, pair {$ticker} is not supported.");
+			$this->logger->error("The selected market type for exchange Bybit, pair {$ticker} is not supported.");
 		}
 
 		$candlesData = $this->getCandles($this->formatPair($ticker), $bybitInterval, $bybitCategory, 200);
@@ -173,7 +173,7 @@ class Bybit extends AbstractExchangeDriver
 				$params['end'] = $endTime;
 			}
 
-			$this->log("Sending getKline request to Bybit with params: " . json_encode($params));
+			$this->logger->info("Sending getKline request to Bybit with params: " . json_encode($params));
 			$response = $this->api->marketApi()->getKline($params);
 			$candles = [];
 
@@ -199,10 +199,10 @@ class Bybit extends AbstractExchangeDriver
 
 			return $candles;
 		} catch (HttpException $exception) {
-			$this->log("Не удалось получить свечи для {$symbol} на {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Не удалось получить свечи для {$symbol} на {$this->exchangeName}: " . $exception->getMessage());
 			return [];
 		} catch (\Exception $e) {
-			$this->log("Неожиданная ошибка при получении свечей для {$symbol} на {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Неожиданная ошибка при получении свечей для {$symbol} на {$this->exchangeName}: " . $e->getMessage());
 			return [];
 		}
 	}

@@ -24,7 +24,7 @@ class Money
 		return $this->format();
 	}
 
-	public function setAmount(float $amount) {
+	public function setAmount(float $amount): void {
 		$this->amount = $amount;
 	}
 }

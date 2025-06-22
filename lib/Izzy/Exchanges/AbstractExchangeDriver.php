@@ -4,12 +4,13 @@ namespace Izzy\Exchanges;
 
 use Izzy\Chart\Chart;
 use Izzy\Configuration\ExchangeConfiguration;
+use Izzy\ConsoleApplication;
 use Izzy\Database;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\IExchangeDriver;
+use Izzy\Logger;
 use Izzy\Market;
 use Izzy\Pair;
-use Psr\Log\LoggerInterface;
 
 /**
  * Абстрактный класс криптобиржи.
@@ -22,16 +23,14 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	protected array $spotPairs = [];
 	protected array $futuresPairs = [];
 	
-	protected LoggerInterface $logger;
 	private Database $database;
+	
+	protected Logger $logger;
 
-	public function __construct(ExchangeConfiguration $config, LoggerInterface $logger) {
+	public function __construct(ExchangeConfiguration $config, ConsoleApplication $application) {
 		$this->config = $config;
-		$this->logger = $logger;
-	}
-
-	protected function log(string $message, string $level = 'info'): void {
-		$this->logger->$level($message);
+		$this->logger = Logger::getLogger();
+		$this->database = $application->getDatabase();
 	}
 
 	public function getName(): string {
@@ -43,14 +42,14 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * @return int на сколько секунд заснуть после обновления
 	 */
 	public function update(): int {
-		$this->log("Обновляем баланс на {$this->getName()}");
+		$this->logger->info("Обновляем баланс на {$this->getName()}");
 		$this->updateBalance();
 		
 		// Update markets.
 		$this->updateMarkets();
 
 		if ($this->shouldUpdateOrders()) {
-			$this->log("Обновляем лимитные спотовые ордеры на {$this->getName()}");
+			$this->logger->info("Обновляем лимитные спотовые ордеры на {$this->getName()}");
 			$this->updateSpotLimitOrders();
 		}
 
@@ -99,7 +98,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$this->database->connect();
 
 		// Сообщим, что драйвер успешно загружен
-		$this->log("Драйвер для биржи {$this->exchangeName} загружен");
+		$this->logger->info("Драйвер для биржи {$this->exchangeName} загружен");
 
 		// Основной цикл
 		while(true) {

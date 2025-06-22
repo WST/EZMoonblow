@@ -6,7 +6,17 @@ final class Logger
 {
 	public function info(string $message): void {
 		$timestamp = date('Y-m-d H:i:s');
-		echo "\033[32m$timestamp\033[0m $message\n";
+		echo "\033[32m$timestamp\033[0m Info: $message\n";
+	}
+	
+	public function warning(string $message): void {
+		$timestamp = date('Y-m-d H:i:s');
+		echo "\033[32m$timestamp\033[0m Warning: $message\n";
+	}
+
+	public function error(string $string): void {
+		$timestamp = date('Y-m-d H:i:s');
+		echo "\033[31m$timestamp\033[0m Error: $string\n";
 	}
 	
 	public static function getLogger(): self {

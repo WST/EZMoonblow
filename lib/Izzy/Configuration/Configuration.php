@@ -4,6 +4,7 @@ namespace Izzy\Configuration;
 
 use DOMDocument;
 use DOMXPath;
+use Izzy\ConsoleApplication;
 use Izzy\Database;
 use Izzy\Exchanges\Bybit;
 use Izzy\Interfaces\IExchangeDriver;
@@ -23,16 +24,16 @@ class Configuration
 	 * Создать драйверы бирж.
 	 * @return IExchangeDriver[]
 	 */
-	public function connectExchanges(): array {
+	public function connectExchanges(ConsoleApplication $application): array {
 		$exchanges = $this->xpath->query('//exchanges/exchange');
 		$result = [];
 		foreach ($exchanges as $exchangeConfigurationNode) {
 			$exchangeName = $exchangeConfigurationNode->getAttribute('name');
-			if(!class_exists($exchangeName)) continue;
 			$exchangeConfiguration = new ExchangeConfiguration($exchangeConfigurationNode);
-			$result[$exchangeName] = new $exchangeName($exchangeConfiguration);
-			$result[$exchangeName]->connect();
-			$result[$exchangeName]->run();
+			$exchange = $exchangeConfiguration->connectToExchange($application);
+			if ($exchange) {
+				$result[$exchange->getName()] = $exchange;
+			}
 		}
 		return $result;
 	}

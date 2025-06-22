@@ -25,18 +25,6 @@ interface IMarket extends IHasMarketType
 	 * @return void
 	 */
 	public function setStrategy(IStrategy $strategy): void;
-
-	/**
-	 * Возвращает true, если это спотовый рынок
-	 * @return bool
-	 */
-	public function isSpot(): bool;
-
-	/**
-	 * Возвращает true, если это фьючерсный рынок
-	 * @return bool
-	 */
-	public function isFutures(): bool;
 	
 	public function getTicker(): string;
 
