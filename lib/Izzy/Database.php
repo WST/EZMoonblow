@@ -379,4 +379,16 @@ class Database
 		$result = $stmt->fetch(PDO::FETCH_ASSOC);
 		return $result ? (int) $result['count'] : 0;
 	}
+	
+	public function quote(string $string): string {
+		return $this->pdo->quote($string);
+	}
+
+	public function setExchangeBalance(string $exchangeName, ?Money $totalBalance): bool {
+		if (is_null($totalBalance)) return false;
+		$exchangeNameQuoted = $this->quote($exchangeName);
+		$totalBalanceQuoted = $this->quote($totalBalance->format());
+		$this->exec("REPLACE INTO exchange_balances (name, balance) VALUES ($exchangeNameQuoted, $totalBalanceQuoted)");
+		return true;
+	}
 }

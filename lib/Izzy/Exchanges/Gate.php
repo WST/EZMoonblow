@@ -7,6 +7,7 @@ use GateApi\Api\WalletApi;
 use GateApi\ApiException;
 use GateApi\Configuration;
 use Izzy\Candle;
+use Izzy\Money;
 
 /**
  * Драйвер для работы с биржей Gate
@@ -22,10 +23,11 @@ class Gate extends AbstractExchangeDriver
 	protected function refreshAccountBalance(): void {
 		try {
 			$info = $this->walletApi->getTotalBalance(['currency' => 'USDT']);
-			$value = $info->getTotal()->getAmount();
-			$this->log("Баланс на {$this->exchangeName}: {$value} USDT");
+			$value = new Money($info->getTotal()->getAmount());
+			$this->logger->info("Баланс на {$this->exchangeName}: {$value} USDT");
+			$this->database->setExchangeBalance($this->exchangeName, $value);
 		} catch (ApiException $exception) {
-			$this->log("Не удалось обновить баланс кошелька на {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Не удалось обновить баланс кошелька на {$this->exchangeName}: " . $exception->getMessage());
 		}
 	}
 
@@ -111,8 +113,7 @@ class Gate extends AbstractExchangeDriver
 		return $market;
 	}
 
-	private function convertTimeframeToGateInterval(string $timeframe): ?string
-	{
+	private function timeframeToGateInterval(string $timeframe): ?string {
 		switch ($timeframe) {
 			case '10s': return '10s';
 			case '1m': return '1m';
@@ -167,7 +168,7 @@ class Gate extends AbstractExchangeDriver
 	}
 	
 	protected function updateBalance(): void {
-		
+		$this->refreshAccountBalance();
 	}
 	
 	protected function updateMarkets(): void {

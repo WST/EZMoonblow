@@ -23,7 +23,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	protected array $spotPairs = [];
 	protected array $futuresPairs = [];
 	
-	private Database $database;
+	protected Database $database;
 	
 	protected Logger $logger;
 

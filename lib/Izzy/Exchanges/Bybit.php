@@ -67,6 +67,11 @@ class Bybit extends AbstractExchangeDriver
 		// TODO: Implement disconnect() method.
 	}
 
+	/**
+	 * Refresh total account balance info.
+	 * NOTE: Earn API is not implemented in the SDK.
+	 * @return void
+	 */
 	protected function updateBalance(): void {
 		try {
 			$params = ['accountType' => AccountType::UNIFIED];
@@ -84,6 +89,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->totalBalance->setAmount($value);
 			}
 			$this->logger->info("Баланс на {$this->exchangeName}: {$this->totalBalance}");
+			$this->database->setExchangeBalance($this->exchangeName, $this->totalBalance);
 		} catch (HttpException $exception) {
 			$this->logger->error("Не удалось обновить баланс кошелька на {$this->exchangeName}: " . $exception->getMessage());
 		} catch (\Exception $e) {

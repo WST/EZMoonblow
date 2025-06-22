@@ -57,11 +57,11 @@ class Market implements IMarket
 	}
 
 	public function getTicker(): string {
-		return $this->ticker;
+		return $this->pair->getTicker();
 	}
 
 	public function getTimeframe(): TimeFrameEnum {
-		return $this->timeframe;
+		return $this->pair->getTimeframe();
 	}
 
 	public function getExchange(): IExchangeDriver {
