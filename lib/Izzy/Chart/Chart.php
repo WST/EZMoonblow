@@ -2,9 +2,9 @@
 
 namespace Izzy\Chart;
 
-use Izzy\Candle;
 use Izzy\Enums\TimeFrameEnum;
-use Izzy\Market;
+use Izzy\Financial\Candle;
+use Izzy\Financial\Market;
 
 class Chart extends Image
 {

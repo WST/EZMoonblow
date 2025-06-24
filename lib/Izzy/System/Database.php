@@ -1,7 +1,8 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\System;
 
+use Izzy\Financial\Money;
 use PDO;
 use PDOException;
 

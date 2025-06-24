@@ -6,8 +6,8 @@ use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
 use GateApi\Configuration;
-use Izzy\Candle;
-use Izzy\Money;
+use Izzy\Financial\Candle;
+use Izzy\Financial\Money;
 
 /**
  * Драйвер для работы с биржей Gate
@@ -82,10 +82,10 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Получить рынок (Market) по объекту Pair
-	 * @param \Izzy\Pair $pair
-	 * @return \Izzy\Market|null
+	 * @param \Izzy\Financial\Pair $pair
+	 * @return \Izzy\Financial\Market|null
 	 */
-	public function getMarket(\Izzy\Pair $pair): ?\Izzy\Market
+	public function getMarket(\Izzy\Financial\Pair $pair): ?\Izzy\Financial\Market
 	{
 		$ticker = $pair->getTicker();
 		$timeframe = $pair->getTimeframe();
@@ -109,7 +109,7 @@ class Gate extends AbstractExchangeDriver
 			return null;
 		}
 		
-		$market = new \Izzy\Market($ticker, $timeframe, $this->exchangeName, $marketType, $candlesData);
+		$market = new \Izzy\Financial\Market($ticker, $timeframe, $this->exchangeName, $marketType, $candlesData);
 		return $market;
 	}
 

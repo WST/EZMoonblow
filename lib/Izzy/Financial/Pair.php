@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\Financial;
 
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;

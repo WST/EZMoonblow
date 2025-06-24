@@ -2,8 +2,7 @@
 
 namespace Izzy\Exchanges;
 
-use Izzy\Exchanges\AbstractExchangeDriver;
-use Izzy\Money;
+use Izzy\Financial\Money;
 
 /**
  * Драйвер для работы с биржей BingX

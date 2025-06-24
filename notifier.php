@@ -1,9 +1,9 @@
 #!/usr/bin/env php
 <?php
 
-use Izzy\RealApplications\Trader;
+use Izzy\RealApplications\Notifier;
 
 require __DIR__ . '/lib/common.php';
 
-$trader = Trader::getInstance();
+$trader = Notifier::getInstance();
 $trader->run();

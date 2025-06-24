@@ -4,10 +4,9 @@ namespace Izzy\Configuration;
 
 use DOMDocument;
 use DOMXPath;
-use Izzy\ConsoleApplication;
-use Izzy\Database;
-use Izzy\Exchanges\Bybit;
+use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Interfaces\IExchangeDriver;
+use Izzy\System\Database;
 
 class Configuration
 {

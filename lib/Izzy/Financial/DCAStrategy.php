@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\Financial;
 
 /**
  * Базовый класс DCA-стратегии, реализующей логику усреднений при просадках

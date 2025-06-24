@@ -1,6 +1,8 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\RealApplications;
+
+use Izzy\AbstractApplications\ConsoleApplication;
 
 class Notifier extends ConsoleApplication
 {

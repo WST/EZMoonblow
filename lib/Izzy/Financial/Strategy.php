@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\Financial;
 
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;

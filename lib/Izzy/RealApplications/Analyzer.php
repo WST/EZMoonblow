@@ -1,23 +1,16 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\RealApplications;
 
+use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Configuration\Configuration;
+use Izzy\Financial\Money;
+use Izzy\System\Database;
 
 class Analyzer extends ConsoleApplication
 {
-    private Database $database;
-	private Configuration $configuration;
-
 	public function __construct() {
 		parent::__construct('analyzer');
-		
-		// Загружаем конфигурацию
-		$this->configuration = new Configuration(IZZY_CONFIG . "/config.xml");
-
-		// Устанавливаем соединение с БД
-		$this->database = $this->configuration->openDatabase();
-		$this->database->connect();
 	}
 
 	public function updateBalanceLog(Money $balance): void {

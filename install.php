@@ -1,7 +1,7 @@
 #!/usr/bin/env php
 <?php
 
-use Izzy\Installer;
+use Izzy\RealApplications\Installer;
 
 // Check if vendor/autoload.php exists.
 if (!file_exists(__DIR__ . '/vendor/autoload.php')) {

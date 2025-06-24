@@ -1,7 +1,8 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\RealApplications;
 
+use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Configuration\Configuration;
 
 class Installer extends ConsoleApplication

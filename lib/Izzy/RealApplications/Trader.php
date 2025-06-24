@@ -1,8 +1,8 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\RealApplications;
 
-use Izzy\Configuration\Configuration;
+use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Interfaces\IExchangeDriver;
 use JetBrains\PhpStorm\NoReturn;
 

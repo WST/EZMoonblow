@@ -1,7 +1,8 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\Financial;
 
+use Izzy\IMarket;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IFVG;
 

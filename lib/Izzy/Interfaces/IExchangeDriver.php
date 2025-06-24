@@ -2,8 +2,6 @@
 
 namespace Izzy\Interfaces;
 
-use Izzy\Money;
-
 /**
  * Интерфейс криптобиржи
  */

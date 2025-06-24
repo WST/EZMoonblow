@@ -1,8 +1,9 @@
 #!/usr/bin/env php
 <?php
 
-require __DIR__ . '/vendor/autoload.php';
+use Izzy\RealApplications\Analyzer;
+
 require __DIR__ . '/lib/common.php';
 
-$analyzer = Izzy\Analyzer::getInstance();
+$analyzer = Analyzer::getInstance();
 $analyzer->run();

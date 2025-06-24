@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\System;
 
 final class Logger
 {

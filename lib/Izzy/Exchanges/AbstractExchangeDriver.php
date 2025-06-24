@@ -2,15 +2,13 @@
 
 namespace Izzy\Exchanges;
 
-use Izzy\Chart\Chart;
+use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Configuration\ExchangeConfiguration;
-use Izzy\ConsoleApplication;
-use Izzy\Database;
-use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\Market;
+use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
-use Izzy\Logger;
-use Izzy\Market;
-use Izzy\Pair;
+use Izzy\System\Database;
+use Izzy\System\Logger;
 
 /**
  * Абстрактный класс криптобиржи.

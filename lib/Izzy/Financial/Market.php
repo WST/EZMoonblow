@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\Financial;
 
 use Izzy\Chart\Chart;
 use Izzy\Enums\MarketTypeEnum;
@@ -9,6 +9,7 @@ use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
+use Izzy\IPosition;
 
 class Market implements IMarket
 {
@@ -135,5 +136,9 @@ class Market implements IMarket
 		foreach ($this->candles as $candle) {
 			$candle->setMarket($this);
 		}
+	}
+	
+	public function getPosition(): ?IPosition {
+		
 	}
 }

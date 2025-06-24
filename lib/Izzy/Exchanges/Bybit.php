@@ -5,12 +5,12 @@ namespace Izzy\Exchanges;
 use ByBit\SDK\ByBitApi;
 use ByBit\SDK\Enums\AccountType;
 use ByBit\SDK\Exceptions\HttpException;
-use Izzy\Candle;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\Candle;
+use Izzy\Financial\Market;
+use Izzy\Financial\Money;
+use Izzy\Financial\Pair;
 use Izzy\Interfaces\IMarket;
-use Izzy\Market;
-use Izzy\Money;
-use Izzy\Pair;
 
 /**
  * Драйвер для работы с биржей Bybit

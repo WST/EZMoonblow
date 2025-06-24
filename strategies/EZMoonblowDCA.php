@@ -1,6 +1,6 @@
 <?php
 
-use Izzy\DCAStrategy;
+use Izzy\Financial\DCAStrategy;
 
 class EZMoonblowDCA extends DCAStrategy
 {

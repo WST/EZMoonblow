@@ -1,8 +1,10 @@
 <?php
 
-namespace Izzy;
+namespace Izzy\AbstractApplications;
 
 use Izzy\Configuration\Configuration;
+use Izzy\System\Database;
+use Izzy\System\Logger;
 use Izzy\Traits\SingletonTrait;
 
 /**

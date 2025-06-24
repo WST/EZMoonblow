@@ -2,12 +2,10 @@
 
 namespace Izzy\Exchanges;
 
-use Izzy\Money;
+use Izzy\Financial\Money;
+use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;
-use KuCoin\SDK\Exceptions\HttpException;
-use KuCoin\SDK\Exceptions\BusinessException;
-use KuCoin\SDK\Auth;
 use KuCoin\SDK\PublicApi\Currency;
 
 /**

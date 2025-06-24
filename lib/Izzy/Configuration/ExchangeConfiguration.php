@@ -3,12 +3,11 @@
 namespace Izzy\Configuration;
 
 use DOMElement;
-use DOMXPath;
-use Izzy\ConsoleApplication;
+use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
-use Izzy\Pair;
 
 class ExchangeConfiguration
 {
