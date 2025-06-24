@@ -5,6 +5,7 @@ namespace Izzy\Financial;
 use Izzy\Chart\Chart;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Indicators\IndicatorFactory;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IIndicator;
@@ -46,6 +47,16 @@ class Market implements IMarket
 	 * @var IndicatorResult[]
 	 */
 	private array $indicatorResults = [];
+
+	/**
+	 * Active strategy for this market.
+	 */
+	private ?IStrategy $strategy = null;
+
+	/**
+	 * Indicator factory for creating indicators.
+	 */
+	private ?IndicatorFactory $indicatorFactory = null;
 
 	public function __construct(
 		Pair $pair,
@@ -110,7 +121,51 @@ class Market implements IMarket
 	}
 
 	public function setStrategy(IStrategy $strategy): void {
-		// TODO: Implement setStrategy() method.
+		$this->strategy = $strategy;
+		$this->strategy->setMarket($this);
+		
+		// Initialize indicators from strategy
+		$this->initializeStrategyIndicators();
+	}
+
+	/**
+	 * Get active strategy for this market.
+	 * 
+	 * @return IStrategy|null Active strategy or null if not set.
+	 */
+	public function getStrategy(): ?IStrategy
+	{
+		return $this->strategy;
+	}
+
+	/**
+	 * Initialize indicators from strategy configuration.
+	 * 
+	 * @return void
+	 */
+	private function initializeStrategyIndicators(): void
+	{
+		if (!$this->strategy) {
+			return;
+		}
+
+		// Initialize indicator factory if not set
+		if (!$this->indicatorFactory) {
+			$this->indicatorFactory = new IndicatorFactory();
+		}
+
+		// Get indicator classes from strategy
+		$indicatorClasses = $this->strategy->useIndicators();
+		
+		foreach ($indicatorClasses as $indicatorClass) {
+			try {
+				$indicator = $this->indicatorFactory->createIndicator($indicatorClass);
+				$this->addIndicator($indicator);
+			} catch (\Exception $e) {
+				// Log error but continue with other indicators
+				error_log("Failed to initialize indicator {$indicatorClass}: " . $e->getMessage());
+			}
+		}
 	}
 
 	public function isSpot(): bool {
@@ -123,22 +178,6 @@ class Market implements IMarket
 
 	public function isInverseFutures(): bool {
 		return $this->marketType->isInverseFutures();
-	}
-
-	/**
-	 * @inheritDoc
-	 * @return bool
-	 */
-	public function isLowPrice(): bool {
-		// TODO: Implement isLowPrice() method.
-	}
-
-	/**
-	 * @inheritDoc
-	 * @return bool
-	 */
-	public function isHighPrice(): bool {
-		// TODO: Implement isHighPrice() method.
 	}
 
 	public function drawChart(TimeFrameEnum $timeframe): Chart {

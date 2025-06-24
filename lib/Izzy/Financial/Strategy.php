@@ -2,6 +2,7 @@
 
 namespace Izzy\Financial;
 
+use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
 
@@ -19,5 +20,12 @@ abstract class Strategy implements IStrategy
 
 	public function setMarket(?IMarket $market): void {
 		$this->market = $market;
+	}
+	
+	/**
+	 * @inheritDoc
+	 */
+	public function useIndicators(): array {
+		return [];
 	}
 }

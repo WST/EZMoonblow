@@ -5,12 +5,14 @@ namespace Izzy\Exchanges;
 use ByBit\SDK\ByBitApi;
 use ByBit\SDK\Enums\AccountType;
 use ByBit\SDK\Exceptions\HttpException;
+use InvalidArgumentException;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IPosition;
 
 /**
  * Driver for working with Bybit exchange.
@@ -244,7 +246,7 @@ class Bybit extends AbstractExchangeDriver
 	 * 
 	 * @param Pair $pair Trading pair.
 	 * @return string Bybit category string.
-	 * @throws \InvalidArgumentException If pair type is unknown.
+	 * @throws InvalidArgumentException If pair type is unknown.
 	 */
 	private function getBybitCategory(Pair $pair): string {
 		if ($pair->isSpot()) {
@@ -254,7 +256,414 @@ class Bybit extends AbstractExchangeDriver
 		} elseif ($pair->isInverseFutures()) {
 			return 'inverse';
 		} else {
-			throw new \InvalidArgumentException("Unknown pair type for Bybit: " . $pair->getMarketType()->toString());
+			throw new InvalidArgumentException("Unknown pair type for Bybit: " . $pair->getMarketType()->toString());
 		}
+	}
+
+	/**
+	 * Get current market price for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return float|null Current price or null if not available.
+	 */
+	public function getCurrentPrice(string $ticker): ?float
+	{
+		try {
+			// Determine category based on ticker (simplified approach)
+			$category = 'spot'; // Default to spot, could be enhanced to detect futures
+			
+			$params = [
+				'category' => $category,
+				'symbol' => $ticker
+			];
+
+			$response = $this->api->marketApi()->getTickers($params);
+			
+			if (empty($response['list'])) {
+				$this->logger->error("Failed to get current price for {$ticker}: empty response");
+				return null;
+			}
+
+			// Find the ticker in the response
+			foreach ($response['list'] as $tickerData) {
+				if ($tickerData['symbol'] === $ticker) {
+					return (float)$tickerData['lastPrice'];
+				}
+			}
+
+			$this->logger->error("Ticker {$ticker} not found in response");
+			return null;
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Get current position for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return IPosition|null Current position or null if no position.
+	 */
+	public function getCurrentPosition(string $ticker): ?IPosition
+	{
+		try {
+			// For spot trading, we need to check account balance
+			// For futures, we can get position directly
+			$category = 'spot'; // Default to spot
+			
+			if ($category === 'spot') {
+				// For spot, check if we have any balance of the base currency
+				$accountInfo = $this->api->accountApi()->getWalletBalance(['accountType' => 'UNIFIED']);
+				
+				if (!isset($accountInfo['list'][0]['coin'])) {
+					return null;
+				}
+
+				// Extract base currency from ticker (e.g., BTCUSDT -> BTC)
+				$baseCurrency = str_replace('USDT', '', $ticker);
+				
+				foreach ($accountInfo['list'][0]['coin'] as $coin) {
+					if ($coin['coin'] === $baseCurrency && (float)$coin['walletBalance'] > 0) {
+						// We have a position in this currency
+						$currentPrice = $this->getCurrentPrice($ticker);
+						if (!$currentPrice) {
+							return null;
+						}
+
+						return new \Izzy\Financial\Position(
+							new Money((float)$coin['walletBalance'], $baseCurrency),
+							'long',
+							$currentPrice, // Approximate entry price
+							$currentPrice,
+							'open',
+							''
+						);
+					}
+				}
+				
+				return null;
+			} else {
+				// For futures, get position directly
+				$params = [
+					'category' => $category,
+					'symbol' => $ticker
+				];
+
+				$response = $this->api->positionApi()->getPositionInfo($params);
+				
+				if (empty($response['list'])) {
+					return null;
+				}
+
+				foreach ($response['list'] as $positionData) {
+					if ($positionData['symbol'] === $ticker && (float)$positionData['size'] > 0) {
+						$direction = (float)$positionData['size'] > 0 ? 'long' : 'short';
+						
+						return new \Izzy\Financial\Position(
+							new Money(abs((float)$positionData['size']), 'USDT'),
+							$direction,
+							(float)$positionData['avgPrice'],
+							(float)$positionData['markPrice'],
+							'open',
+							$positionData['positionIdx'] ?? ''
+						);
+					}
+				}
+				
+				return null;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Open a long position.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openLong(string $ticker, Money $amount, ?float $price = null): bool
+	{
+		try {
+			// Safety check: limit position size to $100
+			if ($amount->getAmount() > 100.0) {
+				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
+				$amount = new Money(100.0, $amount->getCurrency());
+			}
+
+			$category = 'spot'; // Default to spot
+			$side = 'Buy';
+			$orderType = $price ? 'Limit' : 'Market';
+			
+			$params = [
+				'category' => $category,
+				'symbol' => $ticker,
+				'side' => $side,
+				'orderType' => $orderType,
+				'qty' => $this->calculateQuantity($ticker, $amount, $price),
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->api->orderApi()->submitOrder($params);
+			
+			if (isset($response['result']['orderId'])) {
+				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}");
+				
+				// Save position to database
+				$currentPrice = $this->getCurrentPrice($ticker);
+				if ($currentPrice) {
+					$this->database->savePosition(
+						$this->exchangeName,
+						$ticker,
+						'spot',
+						'long',
+						$currentPrice,
+						$currentPrice,
+						$amount->getAmount(),
+						$amount->getCurrency(),
+						'open',
+						$response['result']['orderId'],
+						$response['result']['orderId']
+					);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to open long position for {$ticker}: " . json_encode($response));
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to open long position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Open a short position (futures only).
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openShort(string $ticker, Money $amount, ?float $price = null): bool
+	{
+		try {
+			// Safety check: limit position size to $100
+			if ($amount->getAmount() > 100.0) {
+				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
+				$amount = new Money(100.0, $amount->getCurrency());
+			}
+
+			$category = 'linear'; // Futures only
+			$side = 'Sell';
+			$orderType = $price ? 'Limit' : 'Market';
+			
+			$params = [
+				'category' => $category,
+				'symbol' => $ticker,
+				'side' => $side,
+				'orderType' => $orderType,
+				'qty' => $this->calculateQuantity($ticker, $amount, $price),
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->api->orderApi()->submitOrder($params);
+			
+			if (isset($response['result']['orderId'])) {
+				$this->logger->info("Successfully opened short position for {$ticker}: {$amount}");
+				
+				// Save position to database
+				$currentPrice = $this->getCurrentPrice($ticker);
+				if ($currentPrice) {
+					$this->database->savePosition(
+						$this->exchangeName,
+						$ticker,
+						'futures',
+						'short',
+						$currentPrice,
+						$currentPrice,
+						$amount->getAmount(),
+						$amount->getCurrency(),
+						'open',
+						$response['result']['orderId'],
+						$response['result']['orderId']
+					);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to open short position for {$ticker}: " . json_encode($response));
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to open short position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Close an existing position.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function closePosition(string $ticker, ?float $price = null): bool
+	{
+		try {
+			$currentPosition = $this->getCurrentPosition($ticker);
+			if (!$currentPosition) {
+				$this->logger->warning("No position to close for {$ticker}");
+				return true; // Consider it successful if no position exists
+			}
+
+			$category = $currentPosition->getDirection() === 'long' ? 'spot' : 'linear';
+			$side = $currentPosition->getDirection() === 'long' ? 'Sell' : 'Buy';
+			$orderType = $price ? 'Limit' : 'Market';
+			
+			$params = [
+				'category' => $category,
+				'symbol' => $ticker,
+				'side' => $side,
+				'orderType' => $orderType,
+				'qty' => (string)$currentPosition->getVolume()->getAmount(),
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->api->orderApi()->submitOrder($params);
+			
+			if (isset($response['result']['orderId'])) {
+				$this->logger->info("Successfully closed position for {$ticker}");
+				
+				// Update position status in database
+				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
+				if ($dbPosition) {
+					$this->database->closePosition($dbPosition['id']);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to close position for {$ticker}: " . json_encode($response));
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Place a market order to buy additional volume (DCA).
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to buy.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function buyAdditional(string $ticker, Money $amount): bool
+	{
+		try {
+			// Safety check: limit DCA amount to $50
+			if ($amount->getAmount() > 50.0) {
+				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50");
+				$amount = new Money(50.0, $amount->getCurrency());
+			}
+
+			$params = [
+				'category' => 'spot',
+				'symbol' => $ticker,
+				'side' => 'Buy',
+				'orderType' => 'Market',
+				'qty' => $this->calculateQuantity($ticker, $amount, null),
+			];
+
+			$response = $this->api->orderApi()->submitOrder($params);
+			
+			if (isset($response['result']['orderId'])) {
+				$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
+				return true;
+			} else {
+				$this->logger->error("Failed to execute DCA buy for {$ticker}: " . json_encode($response));
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Place a market order to sell additional volume.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to sell.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function sellAdditional(string $ticker, Money $amount): bool
+	{
+		try {
+			// Safety check: limit sell amount to $50
+			if ($amount->getAmount() > 50.0) {
+				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50");
+				$amount = new Money(50.0, $amount->getCurrency());
+			}
+
+			$params = [
+				'category' => 'spot',
+				'symbol' => $ticker,
+				'side' => 'Sell',
+				'orderType' => 'Market',
+				'qty' => $this->calculateQuantity($ticker, $amount, null),
+			];
+
+			$response = $this->api->orderApi()->submitOrder($params);
+			
+			if (isset($response['result']['orderId'])) {
+				$this->logger->info("Successfully executed sell for {$ticker}: {$amount}");
+				return true;
+			} else {
+				$this->logger->error("Failed to execute sell for {$ticker}: " . json_encode($response));
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Calculate quantity based on amount and price.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount in USDT.
+	 * @param float|null $price Price per unit.
+	 * @return string Quantity as string.
+	 */
+	private function calculateQuantity(string $ticker, Money $amount, ?float $price): string
+	{
+		if ($price) {
+			$quantity = $amount->getAmount() / $price;
+		} else {
+			// For market orders, use a rough estimate
+			$currentPrice = $this->getCurrentPrice($ticker);
+			$quantity = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
+		}
+		
+		// Round to 6 decimal places for most cryptocurrencies
+		return number_format($quantity, 6, '.', '');
 	}
 }

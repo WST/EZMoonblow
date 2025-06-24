@@ -23,4 +23,10 @@ interface IStrategy
 	public function handleShort();
 	
 	public function updatePosition(): void;
+
+	/**
+	 * Returns the list of indicators used by this strategy.
+	 * @return IIndicator[]
+	 */
+	public function useIndicators(): array;
 }

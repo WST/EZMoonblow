@@ -2,18 +2,18 @@
 
 namespace Izzy\Financial;
 
+use Izzy\Financial\Money;
+
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
  */
 abstract class DCAStrategy extends Strategy
 {
 	/**
-	 * In this base strategy, we always long.
+	 * This method should be implemented by child classes to determine when to enter long position.
 	 * @return bool
 	 */
-	public function shouldLong(): bool {
-		return true;
-	}
+	abstract public function shouldLong(): bool;
 
 	/**
 	 * In this base strategy, we never short.
@@ -44,6 +44,35 @@ abstract class DCAStrategy extends Strategy
 	 * @return void
 	 */
 	public function updatePosition(): void {
+		if (!$this->market) {
+			return;
+		}
+
 		$dcaLevels = $this->getDCALevels();
+		$currentPosition = $this->market->getPosition();
+		
+		if (!$currentPosition || !$currentPosition->isOpen()) {
+			return;
+		}
+
+		$entryPrice = $currentPosition->getEntryPrice();
+		$currentPrice = $currentPosition->getCurrentPrice();
+		
+		// Calculate current price drop percentage
+		$priceDropPercent = (($currentPrice - $entryPrice) / $entryPrice) * 100;
+		
+		// Check if we should execute DCA
+		foreach ($dcaLevels as $level) {
+			if ($priceDropPercent <= $level) {
+				// Execute DCA buy order
+				$exchange = $this->market->getExchange();
+				$dcaAmount = new Money(5.0, 'USDT'); // $5 DCA amount
+				
+				if ($exchange instanceof \Izzy\Interfaces\IExchangeDriver) {
+					$exchange->buyAdditional($this->market->getTicker(), $dcaAmount);
+				}
+				break;
+			}
+		}
 	}
 }

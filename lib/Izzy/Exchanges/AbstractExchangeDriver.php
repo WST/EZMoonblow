@@ -11,6 +11,8 @@ use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
+use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IStrategy;
 use Izzy\System\Database;
 use Izzy\System\Logger;
 
@@ -115,6 +117,10 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		// Update markets.
 		$this->logger->info("Updating market data for {$this->getName()}");
 		$this->updateMarkets();
+		
+		// Process trading signals.
+		$this->logger->info("Processing trading signals for {$this->getName()}");
+		$this->processMarkets();
 		
 		// Update charts for all markets.
 		$this->logger->info("Updating charts for all markets on {$this->getName()}");
@@ -236,6 +242,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 					$pair = $this->spotPairs[$ticker];
 					$candles = $this->getCandles($pair);
 					$market->setCandles($candles);
+					
+					// Set strategy for this market if not already set
+					$this->setupStrategyForMarket($market, $pair);
 				}
 			}
 			
@@ -245,6 +254,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 					$pair = $this->futuresPairs[$ticker];
 					$candles = $this->getCandles($pair);
 					$market->setCandles($candles);
+					
+					// Set strategy for this market if not already set
+					$this->setupStrategyForMarket($market, $pair);
 				}
 			}
 			
@@ -253,6 +265,34 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			
 			// Calculate all indicators.
 			$market->calculateIndicators();
+		}
+	}
+
+	/**
+	 * Setup strategy for a specific market based on pair configuration.
+	 * 
+	 * @param Market $market Market instance.
+	 * @param Pair $pair Trading pair.
+	 * @return void
+	 */
+	protected function setupStrategyForMarket(Market $market, Pair $pair): void
+	{
+		// Skip if strategy is already set
+		if ($market->getStrategy()) {
+			return;
+		}
+		
+		$strategyName = $pair->getStrategyName();
+		if (empty($strategyName)) {
+			return;
+		}
+		
+		try {
+			$strategy = \Izzy\Financial\StrategyFactory::create($strategyName, $market);
+			$market->setStrategy($strategy);
+			$this->logger->info("Set strategy {$strategyName} for market {$pair->getTicker()}");
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to set strategy {$strategyName} for market {$pair->getTicker()}: " . $e->getMessage());
 		}
 	}
 
@@ -311,5 +351,264 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		
 		// Return empty array if no configuration found
 		return [];
+	}
+
+	/**
+	 * Process all markets for trading signals.
+	 * This method is called periodically to check for trading opportunities.
+	 * 
+	 * @return void
+	 */
+	public function processMarkets(): void
+	{
+		foreach ($this->markets as $ticker => $market) {
+			try {
+				$this->checkStrategySignals($market, $ticker);
+			} catch (\Exception $e) {
+				$this->logger->error("Error processing market {$ticker}: " . $e->getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Check strategy signals for a specific market.
+	 * 
+	 * @param Market $market Market instance.
+	 * @param string $ticker Trading pair ticker.
+	 * @return void
+	 */
+	protected function checkStrategySignals(Market $market, string $ticker): void
+	{
+		$strategy = $market->getStrategy();
+		if (!$strategy) {
+			return;
+		}
+
+		// Get current position
+		$currentPosition = $this->getCurrentPosition($ticker);
+		
+		// If no position is open, check for entry signals
+		if (!$currentPosition || !$currentPosition->isOpen()) {
+			$this->checkEntrySignals($market, $ticker, $strategy);
+		} else {
+			// If position is open, update it (check for DCA, etc.)
+			$this->updatePosition($market, $ticker, $strategy, $currentPosition);
+		}
+	}
+
+	/**
+	 * Check for entry signals (shouldLong, shouldShort).
+	 * 
+	 * @param Market $market Market instance.
+	 * @param string $ticker Trading pair ticker.
+	 * @param IStrategy $strategy Strategy instance.
+	 * @return void
+	 */
+	protected function checkEntrySignals(Market $market, string $ticker, IStrategy $strategy): void
+	{
+		// Check for long entry signal
+		if ($strategy->shouldLong()) {
+			$this->logger->info("Long signal detected for {$ticker}");
+			$this->executeLongEntry($market, $ticker);
+			return;
+		}
+
+		// Check for short entry signal (only for futures)
+		if ($market->isFutures() && $strategy->shouldShort()) {
+			$this->logger->info("Short signal detected for {$ticker}");
+			$this->executeShortEntry($market, $ticker);
+			return;
+		}
+	}
+
+	/**
+	 * Update existing position (DCA, etc.).
+	 * 
+	 * @param Market $market Market instance.
+	 * @param string $ticker Trading pair ticker.
+	 * @param IStrategy $strategy Strategy instance.
+	 * @param IPosition $position Current position.
+	 * @return void
+	 */
+	protected function updatePosition(Market $market, string $ticker, IStrategy $strategy, IPosition $position): void
+	{
+		// Update current price for position
+		$currentPrice = $this->getCurrentPrice($ticker);
+		if ($currentPrice) {
+			$position->updateCurrentPrice($currentPrice);
+		}
+
+		// Let strategy update position (DCA logic, etc.)
+		$strategy->updatePosition();
+	}
+
+	/**
+	 * Execute long entry order.
+	 * 
+	 * @param Market $market Market instance.
+	 * @param string $ticker Trading pair ticker.
+	 * @return void
+	 */
+	protected function executeLongEntry(Market $market, string $ticker): void
+	{
+		// Get current price
+		$currentPrice = $this->getCurrentPrice($ticker);
+		if (!$currentPrice) {
+			$this->logger->error("Failed to get current price for {$ticker}");
+			return;
+		}
+
+		// Calculate position size (for now, use a fixed amount)
+		// TODO: Make this configurable
+		$positionSize = new Money(10.0, 'USDT'); // $10 position size
+
+		// Open long position
+		if ($this->openLong($ticker, $positionSize)) {
+			$this->logger->info("Successfully opened long position for {$ticker} at price {$currentPrice}");
+		} else {
+			$this->logger->error("Failed to open long position for {$ticker}");
+		}
+	}
+
+	/**
+	 * Execute short entry order.
+	 * 
+	 * @param Market $market Market instance.
+	 * @param string $ticker Trading pair ticker.
+	 * @return void
+	 */
+	protected function executeShortEntry(Market $market, string $ticker): void
+	{
+		// Get current price
+		$currentPrice = $this->getCurrentPrice($ticker);
+		if (!$currentPrice) {
+			$this->logger->error("Failed to get current price for {$ticker}");
+			return;
+		}
+
+		// Calculate position size (for now, use a fixed amount)
+		// TODO: Make this configurable
+		$positionSize = new Money(10.0, 'USDT'); // $10 position size
+
+		// Open short position
+		if ($this->openShort($ticker, $positionSize)) {
+			$this->logger->info("Successfully opened short position for {$ticker} at price {$currentPrice}");
+		} else {
+			$this->logger->error("Failed to open short position for {$ticker}");
+		}
+	}
+
+	/**
+	 * Execute DCA (Dollar Cost Averaging) buy order.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to buy.
+	 * @return void
+	 */
+	protected function executeDCA(string $ticker, Money $amount): void
+	{
+		if ($this->buyAdditional($ticker, $amount)) {
+			$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
+		} else {
+			$this->logger->error("Failed to execute DCA buy for {$ticker}: {$amount}");
+		}
+	}
+
+	/**
+	 * Get current position for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return IPosition|null Current position or null if no position.
+	 */
+	public function getCurrentPosition(string $ticker): ?IPosition
+	{
+		// This method should be implemented by concrete exchange drivers
+		// to fetch actual position from the exchange
+		return null;
+	}
+
+	/**
+	 * Get current market price for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return float|null Current price or null if not available.
+	 */
+	public function getCurrentPrice(string $ticker): ?float
+	{
+		// This method should be implemented by concrete exchange drivers
+		// to fetch current price from the exchange
+		return null;
+	}
+
+	/**
+	 * Open a long position.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openLong(string $ticker, Money $amount, ?float $price = null): bool
+	{
+		// This method should be implemented by concrete exchange drivers
+		$this->logger->info("Opening long position for {$ticker}: {$amount}" . ($price ? " at price {$price}" : " at market"));
+		return false;
+	}
+
+	/**
+	 * Open a short position (futures only).
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openShort(string $ticker, Money $amount, ?float $price = null): bool
+	{
+		// This method should be implemented by concrete exchange drivers
+		$this->logger->info("Opening short position for {$ticker}: {$amount}" . ($price ? " at price {$price}" : " at market"));
+		return false;
+	}
+
+	/**
+	 * Close an existing position.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function closePosition(string $ticker, ?float $price = null): bool
+	{
+		// This method should be implemented by concrete exchange drivers
+		$this->logger->info("Closing position for {$ticker}" . ($price ? " at price {$price}" : " at market"));
+		return false;
+	}
+
+	/**
+	 * Place a market order to buy additional volume (DCA).
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to buy.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function buyAdditional(string $ticker, Money $amount): bool
+	{
+		// This method should be implemented by concrete exchange drivers
+		$this->logger->info("Buying additional {$amount} for {$ticker}");
+		return false;
+	}
+
+	/**
+	 * Place a market order to sell additional volume.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to sell.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function sellAdditional(string $ticker, Money $amount): bool
+	{
+		// This method should be implemented by concrete exchange drivers
+		$this->logger->info("Selling additional {$amount} for {$ticker}");
+		return false;
 	}
 }

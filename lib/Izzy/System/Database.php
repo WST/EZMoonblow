@@ -414,6 +414,121 @@ class Database
 		return new Money(0.0);
 	}
 
+	/**
+	 * Save position information to database.
+	 * 
+	 * @param string $exchangeName Exchange name.
+	 * @param string $ticker Trading pair ticker.
+	 * @param string $marketType Market type (spot/futures).
+	 * @param string $direction Position direction (long/short).
+	 * @param float $entryPrice Entry price.
+	 * @param float $currentPrice Current price.
+	 * @param float $volume Position volume.
+	 * @param string $currency Currency.
+	 * @param string $status Position status.
+	 * @param string|null $positionId Position ID from exchange.
+	 * @param string|null $orderId Order ID from exchange.
+	 * @return bool True if saved successfully, false otherwise.
+	 */
+	public function savePosition(
+		string $exchangeName,
+		string $ticker,
+		string $marketType,
+		string $direction,
+		float $entryPrice,
+		float $currentPrice,
+		float $volume,
+		string $currency,
+		string $status,
+		?string $positionId = null,
+		?string $orderId = null
+	): bool {
+		$data = [
+			'exchange_name' => $exchangeName,
+			'ticker' => $ticker,
+			'market_type' => $marketType,
+			'direction' => $direction,
+			'entry_price' => $entryPrice,
+			'current_price' => $currentPrice,
+			'volume' => $volume,
+			'currency' => $currency,
+			'status' => $status,
+			'position_id' => $positionId,
+			'order_id' => $orderId
+		];
+
+		return $this->insert('positions', $data);
+	}
+
+	/**
+	 * Update position information in database.
+	 * 
+	 * @param int $positionId Database position ID.
+	 * @param array $data Data to update.
+	 * @return bool True if updated successfully, false otherwise.
+	 */
+	public function updatePosition(int $positionId, array $data): bool {
+		return $this->update('positions', $data, ['id' => $positionId]);
+	}
+
+	/**
+	 * Get current position for a trading pair.
+	 * 
+	 * @param string $exchangeName Exchange name.
+	 * @param string $ticker Trading pair ticker.
+	 * @return array|null Position data or null if not found.
+	 */
+	public function getCurrentPosition(string $exchangeName, string $ticker): ?array {
+		return $this->selectOneRow(
+			'positions',
+			'*',
+			[
+				'exchange_name' => $exchangeName,
+				'ticker' => $ticker,
+				'status' => 'open'
+			]
+		);
+	}
+
+	/**
+	 * Get all open positions for an exchange.
+	 * 
+	 * @param string $exchangeName Exchange name.
+	 * @return array Array of open positions.
+	 */
+	public function getOpenPositions(string $exchangeName): array {
+		return $this->selectAllRows(
+			'positions',
+			'*',
+			[
+				'exchange_name' => $exchangeName,
+				'status' => 'open'
+			],
+			'created_at DESC'
+		);
+	}
+
+	/**
+	 * Close position by setting status to 'closed'.
+	 * 
+	 * @param int $positionId Database position ID.
+	 * @return bool True if closed successfully, false otherwise.
+	 */
+	public function closePosition(int $positionId): bool {
+		return $this->update('positions', ['status' => 'closed'], ['id' => $positionId]);
+	}
+
+	/**
+	 * Update position current price.
+	 * 
+	 * @param int $positionId Database position ID.
+	 * @param float $currentPrice New current price.
+	 * @return bool True if updated successfully, false otherwise.
+	 */
+	public function updatePositionPrice(int $positionId, float $currentPrice): bool {
+		return $this->update('positions', ['current_price' => $currentPrice], ['id' => $positionId]);
+	}
+
 	private function setError(PDOException|\Exception $e): void {
 		$this->errorMessage = $e->getMessage();
 	}

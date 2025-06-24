@@ -37,6 +37,26 @@ class IndicatorFactory
     }
     
     /**
+     * Create indicator instance by class name.
+     * 
+     * @param string $className Full class name of the indicator.
+     * @param array $parameters Indicator parameters.
+     * @return IIndicator Indicator instance.
+     * @throws \InvalidArgumentException If class doesn't exist or doesn't implement IIndicator.
+     */
+    public function createIndicator(string $className, array $parameters = []): IIndicator {
+        if (!class_exists($className)) {
+            throw new \InvalidArgumentException("Indicator class does not exist: $className");
+        }
+        
+        if (!is_subclass_of($className, IIndicator::class)) {
+            throw new \InvalidArgumentException("Class $className does not implement IIndicator interface");
+        }
+        
+        return new $className($parameters);
+    }
+    
+    /**
      * Get list of available indicator types.
      * 
      * @return array Array of available indicator types.

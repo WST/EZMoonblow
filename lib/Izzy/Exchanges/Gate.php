@@ -11,6 +11,7 @@ use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
+use Izzy\Interfaces\IPosition;
 
 /**
  * Driver for working with Gate exchange.
@@ -202,7 +203,6 @@ class Gate extends AbstractExchangeDriver
 	
 	/**
 	 * Update market information for all markets.
-	 * Fetches fresh candle data for each configured market.
 	 */
 	protected function updateMarkets(): void {
 		foreach ($this->markets as $ticker => $market) {
@@ -211,21 +211,327 @@ class Gate extends AbstractExchangeDriver
 			
 			// If the market type is spot, we need to fetch spot candles.
 			if ($marketType->isSpot()) {
-				if (isset($this->spotPairs[$ticker])) {
-					$pair = $this->spotPairs[$ticker];
-					$candles = $this->getCandles($pair);
-					$market->setCandles($candles);
-				}
+				$pair = $this->spotPairs[$ticker];
+				$candles = $this->getCandles($pair);
+				$market->setCandles($candles);
 			}
 			
 			// If the market type is futures, we need to fetch futures candles.
 			if ($marketType->isFutures()) {
-				if (isset($this->futuresPairs[$ticker])) {
-					$pair = $this->futuresPairs[$ticker];
-					$candles = $this->getCandles($pair);
-					$market->setCandles($candles);
-				}
+				$pair = $this->futuresPairs[$ticker];
+				$candles = $this->getCandles($pair);
+				$market->setCandles($candles);
 			}
 		}
+	}
+
+	/**
+	 * Get current market price for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return float|null Current price or null if not available.
+	 */
+	public function getCurrentPrice(string $ticker): ?float
+	{
+		try {
+			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
+			$symbol = str_replace('USDT', '_USDT', $ticker);
+			
+			$params = [
+				'currency_pair' => $symbol
+			];
+
+			$response = $this->spotApi->getTicker($params);
+			
+			if ($response && !empty($response->getLast())) {
+				return (float)$response->getLast();
+			}
+
+			$this->logger->error("Failed to get current price for {$ticker}: invalid response");
+			return null;
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Get current position for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return IPosition|null Current position or null if no position.
+	 */
+	public function getCurrentPosition(string $ticker): ?IPosition
+	{
+		try {
+			// For Gate, we need to check account balance for spot trading
+			// Extract base currency from ticker (e.g., BTCUSDT -> BTC)
+			$baseCurrency = str_replace('USDT', '', $ticker);
+			
+			$params = [
+				'currency' => $baseCurrency
+			];
+
+			$response = $this->walletApi->getTotalBalance($params);
+			
+			if ($response && $response->getTotal() && (float)$response->getTotal()->getAmount() > 0) {
+				// We have a position in this currency
+				$currentPrice = $this->getCurrentPrice($ticker);
+				if (!$currentPrice) {
+					return null;
+				}
+
+				return new \Izzy\Financial\Position(
+					new Money((float)$response->getTotal()->getAmount(), $baseCurrency),
+					'long',
+					$currentPrice, // Approximate entry price
+					$currentPrice,
+					'open',
+					''
+				);
+			}
+			
+			return null;
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage());
+			return null;
+		}
+	}
+
+	/**
+	 * Open a long position.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openLong(string $ticker, Money $amount, ?float $price = null): bool
+	{
+		try {
+			// Safety check: limit position size to $100
+			if ($amount->getAmount() > 100.0) {
+				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
+				$amount = new Money(100.0, $amount->getCurrency());
+			}
+
+			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
+			$symbol = str_replace('USDT', '_USDT', $ticker);
+			
+			$params = [
+				'currency_pair' => $symbol,
+				'side' => 'buy',
+				'amount' => $this->calculateQuantity($ticker, $amount, $price),
+				'type' => $price ? 'limit' : 'market'
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->spotApi->createOrder($params);
+			
+			if ($response && $response->getId()) {
+				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}");
+				
+				// Save position to database
+				$currentPrice = $this->getCurrentPrice($ticker);
+				if ($currentPrice) {
+					$this->database->savePosition(
+						$this->exchangeName,
+						$ticker,
+						'spot',
+						'long',
+						$currentPrice,
+						$currentPrice,
+						$amount->getAmount(),
+						$amount->getCurrency(),
+						'open',
+						$response->getId(),
+						$response->getId()
+					);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to open long position for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to open long position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Open a short position (futures only).
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openShort(string $ticker, Money $amount, ?float $price = null): bool
+	{
+		// Gate.io doesn't support futures trading in the basic API
+		// This is a placeholder implementation
+		$this->logger->warning("Short positions not supported on Gate.io for {$ticker}");
+		return false;
+	}
+
+	/**
+	 * Close an existing position.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function closePosition(string $ticker, ?float $price = null): bool
+	{
+		try {
+			$currentPosition = $this->getCurrentPosition($ticker);
+			if (!$currentPosition) {
+				$this->logger->warning("No position to close for {$ticker}");
+				return true; // Consider it successful if no position exists
+			}
+
+			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
+			$symbol = str_replace('USDT', '_USDT', $ticker);
+			
+			$params = [
+				'currency_pair' => $symbol,
+				'side' => 'sell',
+				'amount' => (string)$currentPosition->getVolume()->getAmount(),
+				'type' => $price ? 'limit' : 'market'
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->spotApi->createOrder($params);
+			
+			if ($response && $response->getId()) {
+				$this->logger->info("Successfully closed position for {$ticker}");
+				
+				// Update position status in database
+				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
+				if ($dbPosition) {
+					$this->database->closePosition($dbPosition['id']);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to close position for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Place a market order to buy additional volume (DCA).
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to buy.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function buyAdditional(string $ticker, Money $amount): bool
+	{
+		try {
+			// Safety check: limit DCA amount to $50
+			if ($amount->getAmount() > 50.0) {
+				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50");
+				$amount = new Money(50.0, $amount->getCurrency());
+			}
+
+			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
+			$symbol = str_replace('USDT', '_USDT', $ticker);
+			
+			$params = [
+				'currency_pair' => $symbol,
+				'side' => 'buy',
+				'amount' => $this->calculateQuantity($ticker, $amount, null),
+				'type' => 'market'
+			];
+
+			$response = $this->spotApi->createOrder($params);
+			
+			if ($response && $response->getId()) {
+				$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
+				return true;
+			} else {
+				$this->logger->error("Failed to execute DCA buy for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Place a market order to sell additional volume.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount to sell.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function sellAdditional(string $ticker, Money $amount): bool
+	{
+		try {
+			// Safety check: limit sell amount to $50
+			if ($amount->getAmount() > 50.0) {
+				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50");
+				$amount = new Money(50.0, $amount->getCurrency());
+			}
+
+			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
+			$symbol = str_replace('USDT', '_USDT', $ticker);
+			
+			$params = [
+				'currency_pair' => $symbol,
+				'side' => 'sell',
+				'amount' => $this->calculateQuantity($ticker, $amount, null),
+				'type' => 'market'
+			];
+
+			$response = $this->spotApi->createOrder($params);
+			
+			if ($response && $response->getId()) {
+				$this->logger->info("Successfully executed sell for {$ticker}: {$amount}");
+				return true;
+			} else {
+				$this->logger->error("Failed to execute sell for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (\Exception $e) {
+			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * Calculate quantity based on amount and price.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param Money $amount Amount in USDT.
+	 * @param float|null $price Price per unit.
+	 * @return string Quantity as string.
+	 */
+	private function calculateQuantity(string $ticker, Money $amount, ?float $price): string
+	{
+		if ($price) {
+			$quantity = $amount->getAmount() / $price;
+		} else {
+			// For market orders, use a rough estimate
+			$currentPrice = $this->getCurrentPrice($ticker);
+			$quantity = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
+		}
+		
+		// Round to 6 decimal places for most cryptocurrencies
+		return number_format($quantity, 6, '.', '');
 	}
 }

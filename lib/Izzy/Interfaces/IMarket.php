@@ -28,17 +28,5 @@ interface IMarket extends IHasMarketType
 	
 	public function getTicker(): string;
 
-	/**
-	 * Показывает, что цена находится в нижних 10% графика.
-	 * @return bool
-	 */
-	public function isLowPrice(): bool;
-
-	/**
-	 * Показывает, что цена находится в верхних 10% графика.
-	 * @return bool
-	 */
-	public function isHighPrice(): bool;
-
 	public function updateChart();
 }
