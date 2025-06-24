@@ -22,5 +22,5 @@ interface IStrategy
 	
 	public function handleShort();
 	
-	public function updatePosition();
+	public function updatePosition(): void;
 }

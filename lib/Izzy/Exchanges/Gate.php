@@ -165,24 +165,25 @@ class Gate extends AbstractExchangeDriver
 				'limit' => $limit,
 			];
 			$response = $this->spotApi->listCandlesticks($params);
-			$candles = [];
 			
-			foreach ($response as $item) {
-				// Gate API returns array: [timestamp, volume, close, high, low, open].
-				$candles[] = new Candle(
+			if (empty($response)) {
+				return [];
+			}
+			
+			$candles = array_map(
+				fn($item) => new Candle(
 					(int)$item[0], // timestamp.
 					(float)$item[5], // open.
 					(float)$item[3], // high.
 					(float)$item[4], // low.
 					(float)$item[2], // close.
 					(float)$item[1]  // volume.
-				);
-			}
+				),
+				$response
+			);
 
 			// Sort candles by time (oldest to newest).
-			usort($candles, function($a, $b) {
-				return $a->getOpenTime() - $b->getOpenTime();
-			});
+			usort($candles, fn($a, $b) => $a->getOpenTime() - $b->getOpenTime());
 
 			return $candles;
 		} catch (ApiException $exception) {

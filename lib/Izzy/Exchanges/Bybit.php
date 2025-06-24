@@ -161,43 +161,37 @@ class Bybit extends AbstractExchangeDriver
 				'interval' => $this->timeframeToBybitInterval($pair->getTimeframe()),
 				'limit' => $limit
 			];
-			if ($startTime !== null) {
-				$params['start'] = $startTime;
-			}
-			if ($endTime !== null) {
-				$params['end'] = $endTime;
-			}
+			
+			if ($startTime !== null) $params['start'] = $startTime;
+			if ($endTime !== null) $params['end'] = $endTime;
 
-			$this->logger->info("Sending getKline request to Bybit with params: " . json_encode($params));
 			$response = $this->api->marketApi()->getKline($params);
-			$candles = [];
-
+			
 			if (empty($response['list'])) {
 				return []; // No candles received.
 			}
 
-			foreach ($response['list'] as $item) {
-				$candles[] = new Candle(
+			$candles = array_map(
+				fn($item) => new Candle(
 					(int)($item[0] / 1000), // timestamp (convert from milliseconds to seconds).
 					(float)$item[1], // open.
 					(float)$item[2], // high.
 					(float)$item[3], // low.
 					(float)$item[4], // close.
 					(float)$item[5]  // volume.
-				);
-			}
+				),
+				$response['list']
+			);
 
 			// Sort candles by time (oldest to newest).
-			usort($candles, function($a, $b) {
-				return $a->getOpenTime() - $b->getOpenTime();
-			});
+			usort($candles, fn($a, $b) => $a->getOpenTime() - $b->getOpenTime());
 
 			return $candles;
 		} catch (HttpException $exception) {
-			$this->logger->error("Failed to get candles for {$symbol} on {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Failed to get candles for {$pair->getTicker()} on {$this->exchangeName}: " . $exception->getMessage());
 			return [];
 		} catch (\Exception $e) {
-			$this->logger->error("Unexpected error while getting candles for {$symbol} on {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Unexpected error while getting candles for {$pair->getTicker()} on {$this->exchangeName}: " . $e->getMessage());
 			return [];
 		}
 	}

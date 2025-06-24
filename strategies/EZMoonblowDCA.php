@@ -2,30 +2,28 @@
 
 use Izzy\Financial\DCAStrategy;
 
-class EZMoonblowDCA extends DCAStrategy
-{
+class EZMoonblowDCA extends DCAStrategy {
 	/**
-	 * В кастомной DCA-стратегии будем заходить в лонг на снижениях цены.
+	 * In this custom strategy, we will buy when the price is low.
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
-		$isLowPrice = $this->market->isLowPrice();
-		return $isLowPrice;
+		return $this->market->isLowPrice();
 	}
 
-	public function isShort(): bool {
-		// TODO: Implement isShort() method.
-	}
-
-	public function handleLong() {
+	/**
+	 * Here, we enter the long position.
+	 * @return void
+	 */
+	public function handleLong(): void {
 		// TODO: Implement handleLong() method.
 	}
 
-	public function handleShort() {
-		// TODO: Implement handleShort() method.
-	}
-
-	public function updatePosition() {
-		// TODO: Implement updatePosition() method.
+	/**
+	 * Here, we define the DCA levels for this strategy.
+	 * @return array
+	 */
+	public function getDCALevels(): array {
+		// TODO: Implement getDCALevels() method.
 	}
 }

@@ -58,7 +58,16 @@ class ExchangeConfiguration
 			$monitor = $pairElement->getAttribute('monitor');
 			$trade = $pairElement->getAttribute('trade');
 			$strategy = $pairElement->getAttribute('strategy');
-			$pairs[$ticker] = new Pair($ticker, $timeframe, $this->getName(), MarketTypeEnum::SPOT);
+			$pair = new Pair(
+				$ticker,
+				$timeframe,
+				$this->getName(),
+				MarketTypeEnum::SPOT
+			);
+			$pair->setMonitoringEnabled($monitor == 'yes');
+			$pair->setTradingEnabled($trade == 'yes');
+			$pair->setStrategyName($strategy);
+			$pairs[$ticker] = $pair;
 		}
 
 		return $pairs;
@@ -76,7 +85,16 @@ class ExchangeConfiguration
 			$monitor = $pairElement->getAttribute('monitor');
 			$trade = $pairElement->getAttribute('trade');
 			$strategy = $pairElement->getAttribute('strategy');
-			$pairs[$ticker] = new Pair($ticker, $timeframe, $this->getName(), MarketTypeEnum::FUTURES);
+			$pair = new Pair(
+				$ticker,
+				$timeframe,
+				$this->getName(),
+				MarketTypeEnum::FUTURES
+			);
+			$pair->setMonitoringEnabled($monitor == 'yes');
+			$pair->setTradingEnabled($trade == 'yes');
+			$pair->setStrategyName($strategy);
+			$pairs[$ticker] = $pair;
 		}
 		
 		return $pairs;

@@ -49,7 +49,7 @@ class Analyzer extends ConsoleApplication
 				"RRA:MAX:0.5:1:$fiveYears";
 			
 			exec($command);
-			echo "Created RRD database: $this->balanceRrdFile\n";
+			$this->logger->info("Created RRD database: $this->balanceRrdFile");
 		}
 	}
 
@@ -68,7 +68,7 @@ class Analyzer extends ConsoleApplication
 		$command = "rrdtool update $filenameEscaped --template balance N:$balanceFloat";
 		exec($command);
 
-		echo "Total balance: $balance\n";
+		$this->logger->info("Total balance: $balance");
 	}
 
 	/**
@@ -89,8 +89,8 @@ class Analyzer extends ConsoleApplication
 			"--end $endTime " .
 			"--title '$title' " .
 			"--vertical-label 'Balance (USDT)' " .
-			"--width 800 " .
-			"--height 400 " .
+			"--width 640 " .
+			"--height 320 " .
 			"--color CANVAS#FFFFFF " .
 			"--color BACK#FFFFFF " .
 			"--color SHADEA#FFFFFF " .
@@ -102,14 +102,14 @@ class Analyzer extends ConsoleApplication
 			"--color ARROW#000000 " .
 			"--color FRAME#000000 " .
 			"DEF:balance=$filenameEscaped:balance:MAX " .
-			"LINE1:balance#0066CC:'Balance' " .
+			"AREA:balance#0066CC:'Balance' " .
 			"GPRINT:balance:LAST:'Current\\: %8.2lf USDT' " .
 			"GPRINT:balance:AVERAGE:'Average\\: %8.2lf USDT' " .
 			"GPRINT:balance:MAX:'Maximum\\: %8.2lf USDT' " .
 			"GPRINT:balance:MIN:'Minimum\\: %8.2lf USDT'";
 		
 		exec($command);
-		echo "Generated $period chart: $outputFile\n";
+		$this->logger->info("Generated $period chart: $outputFile");
 	}
 
 	/**
@@ -149,11 +149,11 @@ class Analyzer extends ConsoleApplication
 	 * Generate all balance charts (daily, monthly, yearly).
 	 */
 	public function generateAllCharts(): void {
-		echo "Generating balance charts...\n";
+		$this->logger->info("Generating balance charts...");
 		$this->generateDailyChart();
 		$this->generateMonthlyChart();
 		$this->generateYearlyChart();
-		echo "All charts generated successfully.\n";
+		$this->logger->info("All charts generated successfully.");
 	}
 
 	/**
@@ -163,9 +163,9 @@ class Analyzer extends ConsoleApplication
 	public function run(): void {
 		$iteration = 0;
 		
-		echo "Starting Analyzer application...\n";
-		echo "Balance RRD file: $this->balanceRrdFile\n";
-		echo "Charts directory: $this->chartsDir\n";
+		$this->logger->info("Starting Analyzer application...");
+		$this->logger->info("Balance RRD file: $this->balanceRrdFile");
+		$this->logger->info("Charts directory: $this->chartsDir");
 		
 		while (true) {
 			// Update balance information.
