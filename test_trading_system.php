@@ -1,3 +1,4 @@
+#!/usr/bin/env php
 <?php
 
 require_once 'lib/common.php';
@@ -37,4 +38,4 @@ try {
 } catch (Exception $e) {
     echo "Error: " . $e->getMessage() . "\n";
     echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
-} 
+}
