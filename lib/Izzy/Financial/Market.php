@@ -8,8 +8,8 @@ use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
-use Izzy\IPosition;
 
 class Market implements IMarket
 {
@@ -39,7 +39,8 @@ class Market implements IMarket
 		IExchangeDriver $exchange
 	) {
 		$this->exchange = $exchange;
-		$this->marketType = $pair->getMarketType();
+		$this->marketType = $pair->marketType;
+		$this->pair = $pair;
 	}
 
 	/**
@@ -107,6 +108,10 @@ class Market implements IMarket
 		return $this->marketType->isFutures();
 	}
 
+	public function isInverseFutures(): bool {
+		return $this->marketType->isInverseFutures();
+	}
+
 	/**
 	 * @inheritDoc
 	 * @return bool
@@ -140,5 +145,20 @@ class Market implements IMarket
 	
 	public function getPosition(): ?IPosition {
 		
+	}
+
+	public function updateChart(): void {
+		$filename = $this->pair->getChartFilename();
+		$chart = new Chart($this);
+		$chart->draw();
+		$chart->save($filename);
+	}
+
+	public function getPair(): Pair {
+		return $this->pair;
+	}
+
+	public function setPair(Pair $pair): void {
+		$this->pair = $pair;
 	}
 }

@@ -42,19 +42,13 @@ class ExchangeConfiguration
 		return $exchange;
 	}
 	
-	public function getPairs(MarketTypeEnum $marketType = MarketTypeEnum::SPOT): array {
-		return $this->getSpotPairs(); // TODO
-	}
-	
 	public function isEnabled(): bool {
 		return $this->exchangeElement->getAttribute('enabled') === 'yes';
 	}
 
 	public function getSpotPairs(): array {
 		$spot = $this->getChildElementByTagName($this->exchangeElement, 'spot');
-		if (!$spot) {
-			return [];
-		}
+		if (!$spot) return [];
 
 		$pairs = [];
 		foreach ($spot->getElementsByTagName('pair') as $pairElement) {
@@ -67,6 +61,24 @@ class ExchangeConfiguration
 			$pairs[$ticker] = new Pair($ticker, $timeframe, $this->getName(), MarketTypeEnum::SPOT);
 		}
 
+		return $pairs;
+	}
+	
+	public function getFuturesPairs(): array {
+		$futures = $this->getChildElementByTagName($this->exchangeElement, 'futures');
+		if (!$futures) return [];
+		
+		$pairs = [];
+		foreach ($futures->getElementsByTagName('pair') as $pairElement) {
+			if (!$pairElement instanceof DOMElement) continue;
+			$ticker = $pairElement->getAttribute('ticker');
+			$timeframe = TimeFrameEnum::from($pairElement->getAttribute('timeframe'));
+			$monitor = $pairElement->getAttribute('monitor');
+			$trade = $pairElement->getAttribute('trade');
+			$strategy = $pairElement->getAttribute('strategy');
+			$pairs[$ticker] = new Pair($ticker, $timeframe, $this->getName(), MarketTypeEnum::FUTURES);
+		}
+		
 		return $pairs;
 	}
 

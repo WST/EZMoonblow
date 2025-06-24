@@ -28,6 +28,9 @@ class Database
 	/** @var string Database name to connect to */
 	private string $dbname;
 
+	/** @var string Error message from the last operation */
+	private string $errorMessage = '';
+
 	/**
 	 * Initialize database connection parameters.
 	 * @param string $host Database server hostname or IP address
@@ -55,6 +58,7 @@ class Database
 			);
 			return true;
 		}  catch (PDOException $e) {
+			$this->setError($e);
 			// Connection failed, return false instead of throwing exception
 			return false;
 		}
@@ -391,5 +395,13 @@ class Database
 		$totalBalanceQuoted = $this->quote($totalBalance->format());
 		$this->exec("REPLACE INTO exchange_balances (name, balance) VALUES ($exchangeNameQuoted, $totalBalanceQuoted)");
 		return true;
+	}
+
+	private function setError(PDOException|\Exception $e): void {
+		$this->errorMessage = $e->getMessage();
+	}
+	
+	public function getErrorMessage(): string {
+		return $this->errorMessage;
 	}
 }

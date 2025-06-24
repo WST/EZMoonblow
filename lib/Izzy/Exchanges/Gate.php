@@ -6,8 +6,11 @@ use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
 use GateApi\Configuration;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
+use Izzy\Financial\Market;
 use Izzy\Financial\Money;
+use Izzy\Financial\Pair;
 
 /**
  * Драйвер для работы с биржей Gate
@@ -82,14 +85,14 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Получить рынок (Market) по объекту Pair
-	 * @param \Izzy\Financial\Pair $pair
-	 * @return \Izzy\Financial\Market|null
+	 * @param Pair $pair
+	 * @return Market|null
 	 */
-	public function getMarket(\Izzy\Financial\Pair $pair): ?\Izzy\Financial\Market
+	public function getMarket(Pair $pair): ?Market
 	{
-		$ticker = $pair->getTicker();
-		$timeframe = $pair->getTimeframe();
-		$marketType = $pair->getMarketType();
+		$ticker = $pair->ticker;
+		$timeframe = $pair->timeframe;
+		$marketType = $pair->marketType;
 		$gateInterval = $this->convertTimeframeToGateInterval($timeframe);
 		if (!$gateInterval) {
 			$this->log("Неизвестный таймфрейм {$timeframe} для Gate.");
@@ -109,25 +112,15 @@ class Gate extends AbstractExchangeDriver
 			return null;
 		}
 		
-		$market = new \Izzy\Financial\Market($ticker, $timeframe, $this->exchangeName, $marketType, $candlesData);
+		$market = new Market($ticker, $timeframe, $this->exchangeName, $marketType, $candlesData);
 		return $market;
 	}
 
-	private function timeframeToGateInterval(string $timeframe): ?string {
-		switch ($timeframe) {
-			case '10s': return '10s';
-			case '1m': return '1m';
-			case '5m': return '5m';
-			case '15m': return '15m';
-			case '30m': return '30m';
-			case '1h': return '1h';
-			case '4h': return '4h';
-			case '8h': return '8h';
-			case '1d': return '1d';
-			case '7d': return '7d';
-			case '1M': return '30d';
-			default: return null;
-		}
+	private function timeframeToGateInterval(TimeFrameEnum $timeframe): ?string {
+		return match ($timeframe->value) {
+			'1M' => '30d',
+			default => $timeframe->value,
+		};
 	}
 
 	/**

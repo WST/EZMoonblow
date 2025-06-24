@@ -43,9 +43,15 @@ class Chart extends Image
 	 */
 	protected TimeFrameEnum $timeframe;
 
-	public function __construct(Market $market, int $height = 480) {
+	public function __construct(Market $market) {
 		$candleCount = count($market->getCandles());
 		$width = $candleCount * ($this->candleWidth + $this->candleSpacing) + 110;  // 110 = left padding (30) + right padding (80)
+		
+		if ($candleCount <= 100) {
+			$height = 360;
+		} else {
+			$height = 480;
+		}
 		
 		parent::__construct($width, $height);
 		
@@ -110,17 +116,18 @@ class Chart extends Image
 		}
 
 		/** @var Candle $candle */
+		$index = 0;
 		foreach ($candles as $candle) {
-			$this->drawCandle($candle);
+			$this->drawCandle($candle, $index ++);
 		}
 	}
 
-	public function drawCandle(Candle $candle): void {
+	public function drawCandle(Candle $candle, int $index = 0): void {
 		$priceRange = $this->market->getPriceRange();
 		$priceScale = $this->chartArea['height'] / $priceRange;
 		
 		// Calculate candlestick position.
-		$x = $this->chartArea['x'] + $i * ($this->candleWidth + $this->candleSpacing);
+		$x = $this->chartArea['x'] + $index * ($this->candleWidth + $this->candleSpacing);
 
 		// Coordinates for the candlestick.
 		$highY = $this->chartArea['y'] + $this->chartArea['height'] 
@@ -177,7 +184,7 @@ class Chart extends Image
 			// Если дата не текущая, показываем её на второй строке
 			if ($date !== $currentDate) {
 				$this->drawHorizontalText($x, $y, $time, 8);
-				$this->drawHorizontalText($x, $y + 15, $date, 8);
+				$this->drawHorizontalText($x, $y + 15, $date, 6);
 			} else {
 				$this->drawHorizontalText($x, $y, $time, 8);
 			}
@@ -185,8 +192,8 @@ class Chart extends Image
 	}
 
 	protected function drawTitle(): void {
-		$title = sprintf("%s %s %s", $this->market->getTicker(), $this->timeframe, date('Y-m-d H:i:s'));
-		$this->drawHorizontalText($this->getPadding('left'), 25, $title, 14);
+		$title = $this->market->getPair()->getChartTitle();
+		$this->drawHorizontalText($this->getPadding('left'), 25, $title, 11);
 	}
 
 	protected function drawWatermark(): void {

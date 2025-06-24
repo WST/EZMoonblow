@@ -35,7 +35,6 @@ class Trader extends ConsoleApplication
 		
 		// We need to disconnect from the database before splitting.
 		$this->database->close();
-		unset($this->database);
 
 		// Time to split!
 		$status = $this->runExchangeUpdaters();

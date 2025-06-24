@@ -68,16 +68,16 @@ class WithdrawalApi
      */
     protected $hostIndex;
 
-    /**
-     * @param ClientInterface $client
-     * @param Configuration   $config
-     * @param HeaderSelector  $selector
-     * @param int             $host_index (Optional) host index to select the list of hosts if defined in the OpenAPI spec
-     */
+	/**
+	 * @param ClientInterface|null $client
+	 * @param Configuration|null $config
+	 * @param HeaderSelector|null $selector
+	 * @param int $host_index (Optional) host index to select the list of hosts if defined in the OpenAPI spec
+	 */
     public function __construct(
-        ClientInterface $client = null,
-        Configuration $config = null,
-        HeaderSelector $selector = null,
+        ?ClientInterface $client = null,
+        ?Configuration $config = null,
+        ?HeaderSelector $selector = null,
         $host_index = 0
     ) {
         $this->client = $client ?: new Client();

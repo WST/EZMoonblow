@@ -2,8 +2,8 @@
 
 namespace Izzy\Financial;
 
-use Izzy\IMarket;
 use Izzy\Interfaces\ICandle;
+use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IFVG;
 
 class Candle implements ICandle
@@ -42,7 +42,6 @@ class Candle implements ICandle
 	}
 
 	public function getCloseTime(): int {
-		// Получаем таймфрейм из рынка
 		$timeframe = $this->market ? $this->market->getTimeframe() : '15';
 		$minutes = (int)$timeframe;
 		return $this->timestamp + $minutes * 60;

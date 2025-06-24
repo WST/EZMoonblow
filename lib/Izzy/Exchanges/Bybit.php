@@ -19,17 +19,8 @@ class Bybit extends AbstractExchangeDriver
 {
 	protected string $exchangeName = 'Bybit';
 
-	// Общий баланс всех средств на бирже, пересчитанный в доллары
-	private ?Money $totalBalance = null;
-
 	// API для общения с биржей
 	protected ByBitApi $api;
-
-	/**
-	 * List of pairs.
-	 * @var array 
-	 */
-	protected array $pairs = [];
 
 	/**
 	 * List of the markets being traded on / monitored.
@@ -76,20 +67,13 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			$params = ['accountType' => AccountType::UNIFIED];
 			$info = $this->api->accountApi()->getWalletBalance($params);
-			
 			if (!isset($info['list'][0]['totalEquity'])) {
 				$this->logger->error("Не удалось получить баланс: неверный формат ответа от Bybit");
 				return;
 			}
-			
 			$value = (float)$info['list'][0]['totalEquity'];
-			if (is_null($this->totalBalance)) {
-				$this->totalBalance = new Money($value);
-			} else {
-				$this->totalBalance->setAmount($value);
-			}
-			$this->logger->info("Баланс на {$this->exchangeName}: {$this->totalBalance}");
-			$this->database->setExchangeBalance($this->exchangeName, $this->totalBalance);
+			$totalBalance = new Money($value);
+			$this->setBalance($totalBalance);
 		} catch (HttpException $exception) {
 			$this->logger->error("Не удалось обновить баланс кошелька на {$this->exchangeName}: " . $exception->getMessage());
 		} catch (\Exception $e) {
@@ -102,26 +86,7 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	public function getMarket(Pair $pair): ?Market {
-		$ticker = $pair->getTicker();
-		$timeframe = $pair->getTimeframe();
-		$marketType = $pair->getMarketType();
-		$bybitInterval = $this->timeframeToBybitInterval($timeframe);
-		
-		if (!$bybitInterval) {
-			$this->logger->error("Неизвестный таймфрейм {$timeframe} для Bybit.");
-			return null;
-		}
-
-		$bybitCategory = '';
-		if ($marketType->isSpot()) {
-			$bybitCategory = 'spot';
-		} else if ($marketType->isFutures()) {
-			$bybitCategory = 'spot';
-		} else {
-			$this->logger->error("The selected market type for exchange Bybit, pair {$ticker} is not supported.");
-		}
-
-		$candlesData = $this->getCandles($this->formatPair($ticker), $bybitInterval, $bybitCategory, 200);
+		$candlesData = $this->getCandles($pair, 200);
 		if (empty($candlesData)) {
 			return null;
 		}
@@ -231,9 +196,34 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	protected function updateMarkets(): void {
 		foreach ($this->markets as $ticker => $market) {
-			$pair = $this->pairs[$ticker];
-			$candles = $this->getCandles($pair);
-			$market->setCandles($candles);
+			// First, let’s determine the type of market.
+			$marketType = $market->getMarketType();
+			
+			// If the market type is spot, we need to fetch spot candles.
+			if ($marketType->isSpot()) {
+				$pair = $this->spotPairs[$ticker];
+				$candles = $this->getCandles($pair);
+				$market->setCandles($candles);
+			}
+			
+			// If the market type is futures, we need to fetch futures candles.
+			if ($marketType->isFutures()) {
+				$pair = $this->futuresPairs[$ticker];
+				$candles = $this->getCandles($pair);
+				$market->setCandles($candles);
+			}
+		}
+	}
+
+	private function getBybitCategory(Pair $pair): string {
+		if ($pair->isSpot()) {
+			return 'spot';
+		} elseif ($pair->isFutures()) {
+			return 'linear';
+		} elseif ($pair->isInverseFutures()) {
+			return 'inverse';
+		} else {
+			throw new \InvalidArgumentException("Unknown pair type for Bybit: " . $pair->getType());
 		}
 	}
 }

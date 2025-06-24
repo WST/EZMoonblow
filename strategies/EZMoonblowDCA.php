@@ -9,7 +9,7 @@ class EZMoonblowDCA extends DCAStrategy
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
-		$isLowPrice = $this->getMarket()->isLowPrice();
+		$isLowPrice = $this->market->isLowPrice();
 		return $isLowPrice;
 	}
 

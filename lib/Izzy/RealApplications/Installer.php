@@ -24,7 +24,8 @@ class Installer extends ConsoleApplication
 		$db = $configuration->openDatabase();
 		$status = $db->connect();
 		if (!$status) {
-			die("Failed to connect to the database" . PHP_EOL);
+			$errorMessage = $db->getErrorMessage();
+			die("Failed to connect to the database" . PHP_EOL . $errorMessage . PHP_EOL);
 		}
 
 		// Apply the migrations.

@@ -24,4 +24,12 @@ enum MarketTypeEnum: string {
 	public function isSpot(): bool {
 		return $this === self::SPOT;
 	}
+	
+	public function toString(): string {
+		return $this->value;
+	}
+
+	public function isInverseFutures(): false {
+		return false; // Currently, no support for inverse futures markets.
+	}
 }

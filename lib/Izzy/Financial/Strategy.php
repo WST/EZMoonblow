@@ -7,13 +7,14 @@ use Izzy\Interfaces\IStrategy;
 
 abstract class Strategy implements IStrategy
 {
-	protected ?IMarket $market;
-	
+	protected ?IMarket $market {
+		get {
+			return $this->market;
+		}
+	}
+
 	public function __construct(IMarket $market) {
 		$this->market = $market;
 	}
-	
-	protected function getMarket(): IMarket {
-		return $this->market;
-	}
+
 }

@@ -39,4 +39,6 @@ interface IMarket extends IHasMarketType
 	 * @return bool
 	 */
 	public function isHighPrice(): bool;
+
+	public function updateChart();
 }

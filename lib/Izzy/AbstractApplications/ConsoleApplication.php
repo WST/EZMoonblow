@@ -17,7 +17,7 @@ class ConsoleApplication
 	private string $applicationName;
 	protected Logger $logger;
 	protected Configuration $configuration;
-	protected Database $database;
+	public Database $database;
 
 	public function __construct($applicationName) {
 		$this->applicationName = $applicationName;
@@ -29,9 +29,5 @@ class ConsoleApplication
 		// Connect to the database.
 		$this->database = $this->configuration->openDatabase();
 		$this->database->connect();
-	}
-
-	public function getDatabase(): Database {
-		return $this->database;
 	}
 }
