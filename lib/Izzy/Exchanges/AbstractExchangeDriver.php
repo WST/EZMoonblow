@@ -4,6 +4,7 @@ namespace Izzy\Exchanges;
 
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Configuration\ExchangeConfiguration;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
@@ -218,5 +219,97 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		foreach ($this->markets as $ticker => $market) {
 			$market->updateChart();
 		}
+	}
+
+	/**
+	 * Update market information for all markets.
+	 * Fetches fresh candle data and calculates indicators.
+	 */
+	protected function updateMarkets(): void {
+		foreach ($this->markets as $ticker => $market) {
+			// First, let's determine the type of market.
+			$marketType = $market->getMarketType();
+			
+			// If the market type is spot, we need to fetch spot candles.
+			if ($marketType->isSpot()) {
+				if (isset($this->spotPairs[$ticker])) {
+					$pair = $this->spotPairs[$ticker];
+					$candles = $this->getCandles($pair);
+					$market->setCandles($candles);
+				}
+			}
+			
+			// If the market type is futures, we need to fetch futures candles.
+			if ($marketType->isFutures()) {
+				if (isset($this->futuresPairs[$ticker])) {
+					$pair = $this->futuresPairs[$ticker];
+					$candles = $this->getCandles($pair);
+					$market->setCandles($candles);
+				}
+			}
+			
+			// Setup indicators for this market if not already done.
+			$this->setupIndicatorsForMarket($market, $ticker);
+			
+			// Calculate all indicators.
+			$market->calculateIndicators();
+		}
+	}
+
+	/**
+	 * Setup indicators for a specific market based on configuration.
+	 * 
+	 * @param Market $market Market instance.
+	 * @param string $ticker Trading pair ticker.
+	 * @return void
+	 */
+	protected function setupIndicatorsForMarket(Market $market, string $ticker): void
+	{
+		// Skip if indicators are already set up.
+		if (!empty($market->getIndicators())) {
+			return;
+		}
+		
+		// Get indicators configuration for this pair.
+		$indicatorsConfig = $this->getIndicatorsConfig($ticker);
+		
+		if (empty($indicatorsConfig)) {
+			return;
+		}
+		
+		// Create and add indicators.
+		foreach ($indicatorsConfig as $indicatorType => $parameters) {
+			try {
+				$indicator = \Izzy\Indicators\IndicatorFactory::create($indicatorType, $parameters);
+				$market->addIndicator($indicator);
+				$this->logger->info("Added indicator {$indicatorType} to market {$ticker}");
+			} catch (\Exception $e) {
+				$this->logger->error("Failed to add indicator {$indicatorType} to market {$ticker}: " . $e->getMessage());
+			}
+		}
+	}
+
+	/**
+	 * Get indicators configuration for a trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @return array Indicators configuration.
+	 */
+	protected function getIndicatorsConfig(string $ticker): array
+	{
+		// Try to get indicators from spot pairs first
+		$spotConfig = $this->config->getIndicatorsConfig($ticker, MarketTypeEnum::SPOT);
+		if (!empty($spotConfig)) {
+			return $spotConfig;
+		}
+		
+		// Try to get indicators from futures pairs
+		$futuresConfig = $this->config->getIndicatorsConfig($ticker, MarketTypeEnum::FUTURES);
+		if (!empty($futuresConfig)) {
+			return $futuresConfig;
+		}
+		
+		// Return empty array if no configuration found
+		return [];
 	}
 }

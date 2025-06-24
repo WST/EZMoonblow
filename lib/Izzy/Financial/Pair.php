@@ -5,7 +5,6 @@ namespace Izzy\Financial;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\IPair;
-use Izzy\Interfaces\IStrategy;
 
 /**
  * Trading pair representation.

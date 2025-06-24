@@ -254,7 +254,7 @@ class Bybit extends AbstractExchangeDriver
 		} elseif ($pair->isInverseFutures()) {
 			return 'inverse';
 		} else {
-			throw new \InvalidArgumentException("Unknown pair type for Bybit: " . $pair->getType());
+			throw new \InvalidArgumentException("Unknown pair type for Bybit: " . $pair->getMarketType()->toString());
 		}
 	}
 }

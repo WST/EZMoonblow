@@ -5,7 +5,8 @@
     "goodmagma/bybit-php-api": "^0.7.0",
     "kucoin/kucoin-php-sdk": "~1.1.0",
     "ext-dom": "*",
-    "ext-gd": "*"
+    "ext-gd": "*",
+    "ext-ctype": "*"
   },
   "autoload": {
     "psr-4": {"Izzy\\": "lib/Izzy/", "GateApi\\": "SDK/GateApi/"}

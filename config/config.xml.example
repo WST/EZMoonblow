@@ -15,7 +15,11 @@
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
 			<spot>
-				<pair ticker="BTCUSDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />
+				<pair ticker="BTCUSDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA">
+					<indicators>
+						<indicator type="RSI" period="14" overbought="70" oversold="30" />
+					</indicators>
+				</pair>
 			</spot>
 			<futures>
 				<pair ticker="SOLUSDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />

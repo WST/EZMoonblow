@@ -100,6 +100,85 @@ class ExchangeConfiguration
 		return $pairs;
 	}
 
+	/**
+	 * Get indicators configuration for a specific trading pair.
+	 * 
+	 * @param string $ticker Trading pair ticker.
+	 * @param MarketTypeEnum $marketType Market type.
+	 * @return array Indicators configuration.
+	 */
+	public function getIndicatorsConfig(string $ticker, MarketTypeEnum $marketType = MarketTypeEnum::SPOT): array {
+		$marketElement = $this->getChildElementByTagName($this->exchangeElement, $marketType->toString());
+		if (!$marketElement) {
+			return [];
+		}
+		
+		// Find the pair element with matching ticker
+		$pairElement = null;
+		foreach ($marketElement->getElementsByTagName('pair') as $element) {
+			if ($element instanceof DOMElement && $element->getAttribute('ticker') === $ticker) {
+				$pairElement = $element;
+				break;
+			}
+		}
+		
+		if (!$pairElement) {
+			return [];
+		}
+		
+		// Get indicators element
+		$indicatorsElement = $this->getChildElementByTagName($pairElement, 'indicators');
+		if (!$indicatorsElement) {
+			return [];
+		}
+		
+		$indicators = [];
+		foreach ($indicatorsElement->getElementsByTagName('indicator') as $indicatorElement) {
+			if (!$indicatorElement instanceof DOMElement) continue;
+			
+			$type = $indicatorElement->getAttribute('type');
+			if (empty($type)) continue;
+			
+			$parameters = [];
+			// Get all attributes except 'type'
+			foreach ($indicatorElement->attributes as $attribute) {
+				if ($attribute->name !== 'type') {
+					$parameters[$attribute->name] = $this->parseParameterValue($attribute->value);
+				}
+			}
+			
+			$indicators[$type] = $parameters;
+		}
+		
+		return $indicators;
+	}
+
+	/**
+	 * Parse parameter value to appropriate type.
+	 * 
+	 * @param string $value Parameter value as string.
+	 * @return mixed Parsed value (int, float, string, or bool).
+	 */
+	private function parseParameterValue(string $value): mixed {
+		// Try to parse as integer
+		if (is_numeric($value) && ctype_digit($value)) {
+			return (int)$value;
+		}
+		
+		// Try to parse as float
+		if (is_numeric($value)) {
+			return (float)$value;
+		}
+		
+		// Try to parse as boolean
+		if (in_array(strtolower($value), ['true', 'false', 'yes', 'no', '1', '0'])) {
+			return in_array(strtolower($value), ['true', 'yes', '1']);
+		}
+		
+		// Return as string
+		return $value;
+	}
+
 	private function getChildElementByTagName(DOMElement $parent, string $tagName): ?DOMElement {
 		foreach ($parent->childNodes as $child) {
 			if ($child instanceof DOMElement && $child->tagName === $tagName) {
