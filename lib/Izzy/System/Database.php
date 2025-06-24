@@ -397,6 +397,23 @@ class Database
 		return true;
 	}
 
+	/**
+	 * Get the total balance across all exchanges.
+	 * Sums up all balance values from the exchange_balances table.
+	 * 
+	 * @return Money Total balance as Money object, or zero if no data found.
+	 */
+	public function getTotalBalance(): Money {
+		$sql = "SELECT SUM(CAST(balance AS DECIMAL(20,8))) as total FROM exchange_balances";
+		$result = $this->queryOneRow($sql);
+		
+		if ($result && isset($result['total']) && $result['total'] !== null) {
+			return new Money((float)$result['total']);
+		}
+		
+		return new Money(0.0);
+	}
+
 	private function setError(PDOException|\Exception $e): void {
 		$this->errorMessage = $e->getMessage();
 	}

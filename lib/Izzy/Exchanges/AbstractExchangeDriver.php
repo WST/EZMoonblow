@@ -14,45 +14,63 @@ use Izzy\System\Database;
 use Izzy\System\Logger;
 
 /**
- * Абстрактный класс криптобиржи.
- * Содержит общую для всех криптобирж логику.
+ * Abstract cryptocurrency exchange driver class.
+ * Contains common logic for all cryptocurrency exchanges.
  */
 abstract class AbstractExchangeDriver implements IExchangeDriver
 {
+	/** @var ExchangeConfiguration Configuration settings for the exchange. */
 	protected ExchangeConfiguration $config;
 
 	/**
-	 * Spot pairs to trade.
+	 * Spot trading pairs.
 	 * @var IPair[]
 	 */
 	protected array $spotPairs = [];
 
 	/**
-	 * Futures pairs to trade.
+	 * Futures trading pairs.
 	 * @var IPair[]
 	 */
 	protected array $futuresPairs = [];
 
 	/**
-	 * Markets relative to the traded pairs.
+	 * Markets associated with the trading pairs.
 	 * @var IMarket[]
 	 */
 	protected array $markets = [];
 	
+	/** @var Database Database connection instance. */
 	protected Database $database;
 	
+	/** @var Logger Logger instance for logging operations. */
 	protected Logger $logger;
 
+	/**
+	 * Constructor for the exchange driver.
+	 * 
+	 * @param ExchangeConfiguration $config Exchange configuration settings.
+	 * @param ConsoleApplication $application Console application instance.
+	 */
 	public function __construct(ExchangeConfiguration $config, ConsoleApplication $application) {
 		$this->config = $config;
 		$this->logger = Logger::getLogger();
 		$this->database = $application->database;
 	}
 
+	/**
+	 * Get the name of the exchange.
+	 * 
+	 * @return string Exchange name.
+	 */
 	public function getName(): string {
 		return $this->config->getName();
 	}
 	
+	/**
+	 * Update the list of trading pairs and associated markets.
+	 * Creates new markets for new pairs and removes markets for unused pairs.
+	 */
 	protected function updatePairs(): void {
 		$this->spotPairs = $this->config->getSpotPairs();
 		$this->futuresPairs = $this->config->getFuturesPairs();
@@ -81,8 +99,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	}
 
 	/**
-	 * Обновить информацию с биржи / на бирже
-	 * @return int на сколько секунд заснуть после обновления
+	 * Update exchange information and data.
+	 * 
+	 * @return int Number of seconds to sleep after the update.
 	 */
 	public function update(): int {
 		$this->logger->info("Updating total balance information for {$this->getName()}");
@@ -101,44 +120,73 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$this->updateCharts();
 
 		if ($this->shouldUpdateOrders()) {
-			$this->logger->info("Обновляем лимитные спотовые ордеры на {$this->getName()}");
+			$this->logger->info("Updating spot limit orders on {$this->getName()}");
 			$this->updateSpotLimitOrders();
 		}
 
-		// По умолчанию просим запустить себя через 60 секунд
+		// Default sleep time of 60 seconds.
 		return 60;
 	}
 
+	/**
+	 * Get market instance for a trading pair.
+	 * 
+	 * @param Pair $pair Trading pair.
+	 * @return Market|null Market instance or null if not found.
+	 */
 	protected function getMarket(Pair $pair): ?Market {
-		// Implementation of getMarketCandles method
-		return null; // Placeholder return, actual implementation needed
+		// Implementation of getMarketCandles method.
+		return null; // Placeholder return, actual implementation needed.
 	}
 
+	/**
+	 * Update balance information from the exchange.
+	 */
 	protected function updateBalance(): void {
-		// Implementation of updateBalance method
+		// Implementation of updateBalance method.
 	}
 
+	/**
+	 * Get current balance from the exchange.
+	 * 
+	 * @return float Current balance amount.
+	 */
 	protected function getBalance(): float {
-		// Implementation of getBalance method
-		return 0.0; // Placeholder return, actual implementation needed
+		// Implementation of getBalance method.
+		return 0.0; // Placeholder return, actual implementation needed.
 	}
 	
+	/**
+	 * Set balance information in the database.
+	 * 
+	 * @param Money $balance Balance amount to store.
+	 * @return bool True if successfully stored, false otherwise.
+	 */
 	protected function setBalance(Money $balance): bool {
 		return $this->database->setExchangeBalance($this->exchangeName, $balance);
 	}
 
+	/**
+	 * Check if orders should be updated.
+	 * 
+	 * @return bool True if orders should be updated, false otherwise.
+	 */
 	protected function shouldUpdateOrders(): bool {
-		// Implementation of shouldUpdateOrders method
-		return false; // Placeholder return, actual implementation needed
-	}
-
-	protected function updateSpotLimitOrders(): void {
-		// Implementation of updateSpotLimitOrders method
+		// Implementation of shouldUpdateOrders method.
+		return false; // Placeholder return, actual implementation needed.
 	}
 
 	/**
-	 * Fork into a child process;
-	 * @return int
+	 * Update spot limit orders on the exchange.
+	 */
+	protected function updateSpotLimitOrders(): void {
+		// Implementation of updateSpotLimitOrders method.
+	}
+
+	/**
+	 * Fork into a child process and run the exchange driver.
+	 * 
+	 * @return int Process ID of the child process, or -1 on failure.
 	 */
 	public function run(): int {
 		$pid = pcntl_fork();
@@ -150,19 +198,22 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			return -1;
 		}
 
-		// Подключаемся к БД в новом процессе
+		// Connect to database in the new process.
 		$this->database->connect();
 
-		// Сообщим, что драйвер успешно загружен
-		$this->logger->info("Драйвер для биржи {$this->exchangeName} загружен");
+		// Log that the driver has been successfully loaded.
+		$this->logger->info("Driver for exchange {$this->exchangeName} loaded");
 
-		// Основной цикл
+		// Main loop.
 		while(true) {
 			$timeout = $this->update();
 			sleep($timeout);
 		}
 	}
 	
+	/**
+	 * Update charts for all markets.
+	 */
 	public function updateCharts(): void {
 		foreach ($this->markets as $ticker => $market) {
 			$market->updateChart();
