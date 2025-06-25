@@ -26,7 +26,7 @@ interface IStrategy
 
 	/**
 	 * Returns the list of indicators used by this strategy.
-	 * @return IIndicator[]
+	 * @return string[]
 	 */
 	public function useIndicators(): array;
 }

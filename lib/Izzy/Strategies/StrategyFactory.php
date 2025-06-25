@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy\Financial;
+namespace Izzy\Strategies;
 
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
@@ -16,7 +16,7 @@ class StrategyFactory
 	 * @var array
 	 */
 	private static array $strategies = [
-		'EZMoonblowDCA' => \EZMoonblowDCA::class,
+		'EZMoonblowDCA' => EZMoonblowDCA::class,
 		// Add more strategies here as they are implemented
 	];
 

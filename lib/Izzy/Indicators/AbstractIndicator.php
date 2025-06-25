@@ -73,4 +73,24 @@ abstract class AbstractIndicator implements IIndicator
     protected function getParameter(string $key, mixed $default = null): mixed {
         return $this->parameters[$key] ?? $default;
     }
+
+    /**
+     * Extract close prices from array of candles.
+     * 
+     * @param array $candles Array of candle objects.
+     * @return array Array of close prices as floats.
+     */
+    protected function getClosePrices(array $candles): array {
+        return array_map(fn($candle) => $candle->getClosePrice(), $candles);
+    }
+
+    /**
+     * Extract timestamps from array of candles.
+     * 
+     * @param array $candles Array of candle objects.
+     * @return array Array of timestamps as integers.
+     */
+    protected function getTimestamps(array $candles): array {
+        return array_map(fn($candle) => $candle->getOpenTime(), $candles);
+    }
 }

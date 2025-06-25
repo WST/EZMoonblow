@@ -155,7 +155,7 @@ class Market implements IMarket
 		
 		foreach ($indicatorClasses as $indicatorClass) {
 			try {
-				$indicator = $this->indicatorFactory->createIndicator($indicatorClass);
+				$indicator = $this->indicatorFactory->createIndicator($this->pair, $indicatorClass);
 				$this->addIndicator($indicator);
 			} catch (\Exception $e) {
 				// Log error but continue with other indicators

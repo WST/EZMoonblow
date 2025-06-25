@@ -196,30 +196,6 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Update market information for all markets.
-	 */
-	protected function updateMarkets(): void {
-		foreach ($this->markets as $ticker => $market) {
-			// First, let's determine the type of market.
-			$marketType = $market->getMarketType();
-			
-			// If the market type is spot, we need to fetch spot candles.
-			if ($marketType->isSpot()) {
-				$pair = $this->spotPairs[$ticker];
-				$candles = $this->getCandles($pair);
-				$market->setCandles($candles);
-			}
-			
-			// If the market type is futures, we need to fetch futures candles.
-			if ($marketType->isFutures()) {
-				$pair = $this->futuresPairs[$ticker];
-				$candles = $this->getCandles($pair);
-				$market->setCandles($candles);
-			}
-		}
-	}
-
-	/**
 	 * Get Bybit category for a trading pair.
 	 * 
 	 * @param Pair $pair Trading pair.

@@ -1,8 +1,7 @@
 <?php
 
-namespace Izzy\Financial;
+namespace Izzy\Strategies;
 
-use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
 

@@ -201,7 +201,7 @@ class Pair implements IPair
 	 * @return string Chart filename with full path.
 	 */
 	public function getChartFilename(): string {
-		$basename = "{$this->ticker}_{$this->timeframe->value}_{$this->marketType->value}_{$this->exchangeName}.png";
+		$basename = "{$this->getFilenameTicker()}_{$this->timeframe->value}_{$this->marketType->value}_{$this->exchangeName}.png";
 		return IZZY_CHARTS . "/$basename";
 	}
 	
@@ -280,6 +280,13 @@ class Pair implements IPair
 	 */
 	public function getExchangeTicker(IExchangeDriver $exchangeDriver): string {
 		return $exchangeDriver->pairToTicker($this);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getFilenameTicker(): string {
+		return $this->baseCurrency . '_' . $this->quoteCurrency;
 	}
 
 	/**

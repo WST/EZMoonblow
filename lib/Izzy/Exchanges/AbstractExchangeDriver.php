@@ -7,13 +7,12 @@ use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
-use Izzy\Financial\Pair;
-use Izzy\Financial\StrategyFactory;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
+use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Database;
 use Izzy\System\Logger;
 
@@ -76,8 +75,8 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Creates new markets for new pairs and removes markets for unused pairs.
 	 */
 	protected function updatePairs(): void {
-		$this->spotPairs = $this->config->getSpotPairs();
-		$this->futuresPairs = $this->config->getFuturesPairs();
+		$this->spotPairs = $this->config->getSpotPairs($this);
+		$this->futuresPairs = $this->config->getFuturesPairs($this);
 		
 		// First, create the absent markets.
 		foreach ($this->spotPairs + $this->futuresPairs as $pair) {
@@ -218,7 +217,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 */
 	protected function updateMarkets(): void {
 		foreach ($this->markets as $ticker => $market) {
-			// First, let's determine the type of market.
+			// First, let’s determine the type of market.
 			$marketType = $market->getMarketType();
 			
 			// If the market type is spot, we need to fetch spot candles.
@@ -344,7 +343,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	{
 		foreach ($this->markets as $ticker => $market) {
 			try {
-				$this->checkStrategySignals($market, $ticker);
+				$this->checkStrategySignals($market);
 			} catch (\Exception $e) {
 				$this->logger->error("Error processing market {$ticker}: " . $e->getMessage());
 			}
@@ -355,17 +354,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Check strategy signals for a specific market.
 	 * 
 	 * @param Market $market Market instance.
-	 * @param IPair $pair
 	 * @return void
 	 */
-	protected function checkStrategySignals(Market $market, IPair $pair): void {
+	protected function checkStrategySignals(Market $market): void {
 		$strategy = $market->getStrategy();
 		if (!$strategy) {
 			return;
 		}
 
 		// Get current position
-		$currentPosition = $this->getCurrentPosition(pair);
+		$currentPosition = $this->getCurrentPosition($market->getPair());
 		
 		// If no position is open, check for entry signals
 		if (!$currentPosition || !$currentPosition->isOpen()) {
@@ -408,15 +406,13 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Update existing position (DCA, etc.).
 	 * 
 	 * @param Market $market Market instance.
-	 * @param string $ticker Trading pair ticker.
 	 * @param IStrategy $strategy Strategy instance.
 	 * @param IPosition $position Current position.
 	 * @return void
 	 */
-	protected function updatePosition(Market $market, string $ticker, IStrategy $strategy, IPosition $position): void
-	{
+	protected function updatePosition(Market $market, IStrategy $strategy, IPosition $position): void {
 		// Update current price for position
-		$currentPrice = $this->getCurrentPrice($ticker);
+		$currentPrice = $this->getCurrentPrice($market->getPair());
 		if ($currentPrice) {
 			$position->updateCurrentPrice($currentPrice);
 		}

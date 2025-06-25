@@ -46,7 +46,7 @@ class ExchangeConfiguration
 		return $this->exchangeElement->getAttribute('enabled') === 'yes';
 	}
 
-	public function getSpotPairs(): array {
+	public function getSpotPairs(IExchangeDriver $exchangeDriver): array {
 		$spot = $this->getChildElementByTagName($this->exchangeElement, 'spot');
 		if (!$spot) return [];
 
@@ -67,13 +67,13 @@ class ExchangeConfiguration
 			$pair->setMonitoringEnabled($monitor == 'yes');
 			$pair->setTradingEnabled($trade == 'yes');
 			$pair->setStrategyName($strategy);
-			$pairs[$ticker] = $pair;
+			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
 		}
 
 		return $pairs;
 	}
 	
-	public function getFuturesPairs(): array {
+	public function getFuturesPairs(IExchangeDriver $exchangeDriver): array {
 		$futures = $this->getChildElementByTagName($this->exchangeElement, 'futures');
 		if (!$futures) return [];
 		
@@ -94,7 +94,7 @@ class ExchangeConfiguration
 			$pair->setMonitoringEnabled($monitor == 'yes');
 			$pair->setTradingEnabled($trade == 'yes');
 			$pair->setStrategyName($strategy);
-			$pairs[$ticker] = $pair;
+			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
 		}
 		
 		return $pairs;

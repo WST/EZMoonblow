@@ -1,12 +1,12 @@
 <?php
 
-use Izzy\Financial\DCAStrategy;
+namespace Izzy\Strategies;
+
 use Izzy\Indicators\RSI;
 
-class EZMoonblowDCA extends DCAStrategy
-{
+class EZMoonblowDCA extends DCAStrategy {
 	public function useIndicators(): array {
-		return [RSI::getName()];
+		return [RSI::class];
 	}
 
 	/**
@@ -20,17 +20,17 @@ class EZMoonblowDCA extends DCAStrategy
 
 		// Calculate indicators first
 		$this->market->calculateIndicators();
-		
+
 		// Get RSI value
 		$rsiValue = $this->market->getLatestIndicatorValue('RSI');
-		
+
 		if ($rsiValue === null) {
 			return false;
 		}
-		
+
 		// Get RSI signal
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
-		
+
 		// Buy when RSI shows oversold condition
 		return $rsiSignal === 'oversold';
 	}

@@ -1,6 +1,8 @@
 <?php
 
-namespace Izzy\Financial;
+namespace Izzy\Strategies;
+
+use Izzy\Financial\Money;
 
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
@@ -47,7 +49,7 @@ abstract class DCAStrategy extends Strategy
 		}
 
 		$dcaLevels = $this->getDCALevels();
-		$currentPosition = $this->market->getPosition();
+		$currentPosition = $this->market->getCurrentPosition();
 		
 		if (!$currentPosition || !$currentPosition->isOpen()) {
 			return;
@@ -65,7 +67,7 @@ abstract class DCAStrategy extends Strategy
 				// Execute DCA buy order
 				$exchange = $this->market->getExchange();
 				$dcaAmount = new Money(5.0, 'USDT'); // $5 DCA amount
-				$exchange->buyAdditional($this->market->getTicker(), $dcaAmount);
+				$exchange->buyAdditional($this->market->getPair(), $dcaAmount);
 				break;
 			}
 		}

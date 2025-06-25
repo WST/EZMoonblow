@@ -200,30 +200,6 @@ class Gate extends AbstractExchangeDriver
 	protected function updateBalance(): void {
 		$this->refreshAccountBalance();
 	}
-	
-	/**
-	 * Update market information for all markets.
-	 */
-	protected function updateMarkets(): void {
-		foreach ($this->markets as $ticker => $market) {
-			// First, let's determine the type of market.
-			$marketType = $market->getMarketType();
-			
-			// If the market type is spot, we need to fetch spot candles.
-			if ($marketType->isSpot()) {
-				$pair = $this->spotPairs[$ticker];
-				$candles = $this->getCandles($pair);
-				$market->setCandles($candles);
-			}
-			
-			// If the market type is futures, we need to fetch futures candles.
-			if ($marketType->isFutures()) {
-				$pair = $this->futuresPairs[$ticker];
-				$candles = $this->getCandles($pair);
-				$market->setCandles($candles);
-			}
-		}
-	}
 
 	/**
 	 * @inheritDoc
@@ -256,7 +232,7 @@ class Gate extends AbstractExchangeDriver
 	public function getCurrentPosition(IPair $pair): ?IPosition {
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$baseCurrency = $ticker->getBaseCurrency();
+			$baseCurrency = $pair->getBaseCurrency();
 			
 			$params = ['currency' => $baseCurrency];
 
@@ -264,7 +240,7 @@ class Gate extends AbstractExchangeDriver
 			
 			if ($response && $response->getTotal() && (float)$response->getTotal()->getAmount() > 0) {
 				// We have a position in this currency
-				$currentPrice = $this->getCurrentPrice($ticker);
+				$currentPrice = $this->getCurrentPrice($pair);
 				if (!$currentPrice) {
 					return null;
 				}
@@ -306,7 +282,7 @@ class Gate extends AbstractExchangeDriver
 			$params = [
 				'currency_pair' => $ticker,
 				'side' => 'buy',
-				'amount' => $this->calculateQuantity($ticker, $amount, $price),
+				'amount' => $this->calculateQuantity($pair, $amount, $price),
 				'type' => $price ? 'limit' : 'market'
 			];
 
@@ -320,7 +296,7 @@ class Gate extends AbstractExchangeDriver
 				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}");
 				
 				// Save position to database
-				$currentPrice = $this->getCurrentPrice($ticker);
+				$currentPrice = $this->getCurrentPrice($pair);
 				if ($currentPrice) {
 					$this->database->savePosition(
 						$this->exchangeName,
@@ -359,6 +335,7 @@ class Gate extends AbstractExchangeDriver
 	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
 		// Gate.io doesn't support futures trading in the basic API
 		// This is a placeholder implementation
+		$ticker = $pair->getExchangeTicker($this);
 		$this->logger->warning("Short positions not supported on Gate.io for {$ticker}");
 		return false;
 	}
@@ -373,7 +350,7 @@ class Gate extends AbstractExchangeDriver
 	public function closePosition(IPair $pair, ?float $price = null): bool {
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$currentPosition = $this->getCurrentPosition($ticker);
+			$currentPosition = $this->getCurrentPosition($pair);
 			if (!$currentPosition) {
 				$this->logger->warning("No position to close for {$ticker}");
 				return true; // Consider it successful if no position exists
@@ -431,7 +408,7 @@ class Gate extends AbstractExchangeDriver
 			$params = [
 				'currency_pair' => $ticker,
 				'side' => 'buy',
-				'amount' => $this->calculateQuantity($ticker, $amount, null),
+				'amount' => $this->calculateQuantity($pair, $amount, null),
 				'type' => 'market'
 			];
 
@@ -465,7 +442,7 @@ class Gate extends AbstractExchangeDriver
 			$params = [
 				'currency_pair' => $ticker,
 				'side' => 'sell',
-				'amount' => $this->calculateQuantity($ticker, $amount, null),
+				'amount' => $this->calculateQuantity($pair, $amount, null),
 				'type' => 'market'
 			];
 
@@ -498,7 +475,7 @@ class Gate extends AbstractExchangeDriver
 			$quantity = $amount->getAmount() / $price;
 		} else {
 			// For market orders, use a rough estimate
-			$currentPrice = $this->getCurrentPrice($ticker);
+			$currentPrice = $this->getCurrentPrice($pair);
 			$quantity = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
 		}
 		
