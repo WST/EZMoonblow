@@ -5,84 +5,91 @@ namespace Izzy\Interfaces;
 use Izzy\Financial\Money;
 
 /**
- * Интерфейс криптобиржи
+ * Crypto exchange driver interface.
  */
 interface IExchangeDriver
 {
 	/**
-	 * Обновить информацию с биржи / на бирже
-	 * @return int на сколько секунд заснуть после обновления
+	 * Update the exchange state.
+	 * @return int time to sleep before the next update in seconds.
 	 */
 	public function update(): int;
 
-	// Установить соединение с биржей
+	/**
+	 * Connect to the exchange.
+	 * @return bool
+	 */
 	public function connect(): bool;
 
-	// Отсоединиться от биржи
+	/**
+	 * Disconnect from the exchange.
+	 * This method should be called when the driver is no longer needed.
+	 * @return void
+	 */
 	public function disconnect(): void;
 
 	/**
 	 * Get current position for a trading pair.
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @return IPosition|null Current position or null if no position.
 	 */
-	public function getCurrentPosition(string $ticker): ?IPosition;
+	public function getCurrentPosition(IPair $pair): ?IPosition;
 
 	/**
 	 * Get current market price for a trading pair.
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @return float|null Current price or null if not available.
 	 */
-	public function getCurrentPrice(string $ticker): ?float;
+	public function getCurrentPrice(IPair $pair): ?float;
 
 	/**
 	 * Open a long position.
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(string $ticker, Money $amount, ?float $price = null): bool;
+	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool;
 
 	/**
 	 * Open a short position (futures only).
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(string $ticker, Money $amount, ?float $price = null): bool;
+	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool;
 
 	/**
 	 * Close an existing position.
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function closePosition(string $ticker, ?float $price = null): bool;
+	public function closePosition(IPair $pair, ?float $price = null): bool;
 
 	/**
 	 * Place a market order to buy additional volume (DCA).
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function buyAdditional(string $ticker, Money $amount): bool;
+	public function buyAdditional(IPair $pair, Money $amount): bool;
 
 	/**
 	 * Place a market order to sell additional volume.
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @param Money $amount Amount to sell.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function sellAdditional(string $ticker, Money $amount): bool;
+	public function sellAdditional(IPair $pair, Money $amount): bool;
 
 	/**
 	 * Get candles for the specified trading pair and timeframe.
@@ -107,4 +114,6 @@ interface IExchangeDriver
 	 * @return IMarket|null Market instance or null if not found.
 	 */
 	public function getMarket(IPair $pair): ?IMarket;
+	
+	public function pairToTicker(IPair $pair): string;
 }

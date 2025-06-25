@@ -15,11 +15,6 @@ use Izzy\Interfaces\IPair;
 abstract class AbstractIndicator implements IIndicator
 {
     /**
-     * @var string The name of the indicator
-     */
-    protected string $name;
-
-    /**
      * @var array Configuration parameters for the indicator
      */
     protected array $parameters;
@@ -31,26 +26,12 @@ abstract class AbstractIndicator implements IIndicator
 
     /**
      * Constructor for AbstractIndicator.
-     * 
-     * @param string $name The name of the indicator
-     * @param array $parameters Configuration parameters for the indicator
-     * @param IPair $pair The trading pair to calculate the indicator for
+	 * @param IPair $pair The trading pair to calculate the indicator for
+ 	 * @param array $parameters Configuration parameters for the indicator
      */
-    public function __construct(string $name, array $parameters, IPair $pair)
-    {
-        $this->name = $name;
+    public function __construct(IPair $pair, array $parameters) {
         $this->parameters = $parameters;
         $this->pair = $pair;
-    }
-
-    /**
-     * Get the indicator name.
-     * 
-     * @return string The name of the indicator
-     */
-    public function getName(): string
-    {
-        return $this->name;
     }
 
     /**
@@ -58,8 +39,7 @@ abstract class AbstractIndicator implements IIndicator
      * 
      * @return array The configuration parameters
      */
-    public function getParameters(): array
-    {
+    public function getParameters(): array {
         return $this->parameters;
     }
 
@@ -68,8 +48,7 @@ abstract class AbstractIndicator implements IIndicator
      * 
      * @return IPair The trading pair
      */
-    public function getPair(): IPair
-    {
+    public function getPair(): IPair {
         return $this->pair;
     }
 
@@ -80,8 +59,7 @@ abstract class AbstractIndicator implements IIndicator
      * @param int $requiredCount Minimum number of candles required
      * @return bool True if enough data is available
      */
-    protected function validateData(array $candles, int $requiredCount): bool
-    {
+    protected function validateData(array $candles, int $requiredCount): bool {
         return count($candles) >= $requiredCount;
     }
 
@@ -92,16 +70,7 @@ abstract class AbstractIndicator implements IIndicator
      * @param mixed $default Default value if parameter not found
      * @return mixed Parameter value or default
      */
-    protected function getParameter(string $key, $default = null)
-    {
+    protected function getParameter(string $key, mixed $default = null): mixed {
         return $this->parameters[$key] ?? $default;
     }
-
-    /**
-     * Abstract method that must be implemented by concrete indicator classes.
-     * 
-     * @param array $candles Array of Candle objects
-     * @return IndicatorResult The calculated indicator result
-     */
-    abstract public function calculate(array $candles): IndicatorResult;
 }

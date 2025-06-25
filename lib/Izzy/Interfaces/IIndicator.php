@@ -23,7 +23,7 @@ interface IIndicator
      * 
      * @return string Indicator name.
      */
-    public function getName(): string;
+    public static function getName(): string;
     
     /**
      * Get indicator parameters.

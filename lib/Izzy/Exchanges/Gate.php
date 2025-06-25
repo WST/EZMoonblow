@@ -10,7 +10,6 @@ use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
-use Izzy\Financial\Pair;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IPair;
@@ -80,16 +79,16 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Cancel all active spot orders for a specific trading pair.
-	 * 
-	 * @param string $pair Trading pair to cancel orders for.
-	 * @throws ApiException If API request fails.
+	 *
+	 * @param IPair $pair Trading pair to cancel orders for.
 	 */
-	private function cancelOrders(string $pair): void {
+	private function cancelOrders(IPair $pair): void {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$result = $this->spotApi->cancelOrders($pair);
+			$result = $this->spotApi->cancelOrders($ticker);
 			var_dump($result);
 		} catch (ApiException $e) {
-			$this->logger->error("Failed to cancel orders for {$pair} on {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Failed to cancel orders for {$ticker} on {$this->exchangeName}: " . $e->getMessage());
 		}
 	}
 
@@ -151,8 +150,8 @@ class Gate extends AbstractExchangeDriver
 	 * @return Candle[] Array of candle objects sorted by time.
 	 */
 	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$ticker = $pair->getTicker();
 			$timeframe = $pair->getTimeframe();
 			$gateInterval = $this->timeframeToGateInterval($timeframe);
 			
@@ -160,15 +159,9 @@ class Gate extends AbstractExchangeDriver
 				$this->logger->error("Unknown timeframe {$timeframe->value} for Gate.");
 				return [];
 			}
-
-			// Convert ticker format from BTC/USDT to BTC_USDT for Gate API.
-			$symbol = str_replace('/', '_', $ticker);
-			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
-				$symbol = str_replace('USDT', '_USDT', $symbol);
-			}
 			
 			$params = [
-				'currency_pair' => $symbol,
+				'currency_pair' => $ticker,
 				'interval' => $gateInterval,
 				'limit' => $limit,
 			];
@@ -233,26 +226,14 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Get current market price for a trading pair.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @return float|null Current price or null if not available.
+	 * @inheritDoc
 	 */
-	public function getCurrentPrice(string $ticker): ?float
-	{
+	public function getCurrentPrice(IPair $pair): ?float {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
-			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('/', '_', $ticker);
-			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
-				$symbol = str_replace('USDT', '_USDT', $symbol);
-			}
-			
-			$params = [
-				'currency_pair' => $symbol
-			];
+			$params = ['currency_pair' => $ticker];
 
 			$response = $this->spotApi->listTickers($params);
-			
 			if ($response && !empty($response)) {
 				// listTickers returns an array, we need the first item
 				$tickerData = $response[0] ?? null;
@@ -270,21 +251,14 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Get current position for a trading pair.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @return IPosition|null Current position or null if no position.
+	 * @inheritDoc
 	 */
-	public function getCurrentPosition(string $ticker): ?IPosition
-	{
+	public function getCurrentPosition(IPair $pair): ?IPosition {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
-			// For Gate, we need to check account balance for spot trading
-			// Extract base currency from ticker (e.g., BTCUSDT -> BTC)
-			$baseCurrency = str_replace('USDT', '', $ticker);
+			$baseCurrency = $ticker->getBaseCurrency();
 			
-			$params = [
-				'currency' => $baseCurrency
-			];
+			$params = ['currency' => $baseCurrency];
 
 			$response = $this->walletApi->getTotalBalance($params);
 			
@@ -314,29 +288,23 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Open a long position.
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(string $ticker, Money $amount, ?float $price = null): bool
-	{
+	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit position size to $100
 			if ($amount->getAmount() > 100.0) {
 				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
 				$amount = new Money(100.0, $amount->getCurrency());
 			}
-
-			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('/', '_', $ticker);
-			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
-				$symbol = str_replace('USDT', '_USDT', $symbol);
-			}
 			
 			$params = [
-				'currency_pair' => $symbol,
+				'currency_pair' => $ticker,
 				'side' => 'buy',
 				'amount' => $this->calculateQuantity($ticker, $amount, $price),
 				'type' => $price ? 'limit' : 'market'
@@ -382,14 +350,13 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Open a short position (futures only).
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(string $ticker, Money $amount, ?float $price = null): bool
-	{
+	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
 		// Gate.io doesn't support futures trading in the basic API
 		// This is a placeholder implementation
 		$this->logger->warning("Short positions not supported on Gate.io for {$ticker}");
@@ -398,28 +365,22 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Close an existing position.
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function closePosition(string $ticker, ?float $price = null): bool
-	{
+	public function closePosition(IPair $pair, ?float $price = null): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$currentPosition = $this->getCurrentPosition($ticker);
 			if (!$currentPosition) {
 				$this->logger->warning("No position to close for {$ticker}");
 				return true; // Consider it successful if no position exists
 			}
-
-			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('/', '_', $ticker);
-			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
-				$symbol = str_replace('USDT', '_USDT', $symbol);
-			}
 			
 			$params = [
-				'currency_pair' => $symbol,
+				'currency_pair' => $ticker,
 				'side' => 'sell',
 				'amount' => (string)$currentPosition->getVolume()->getAmount(),
 				'type' => $price ? 'limit' : 'market'
@@ -453,28 +414,22 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Place a market order to buy additional volume (DCA).
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function buyAdditional(string $ticker, Money $amount): bool
-	{
+	public function buyAdditional(IPair $pair, Money $amount): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit DCA amount to $50
 			if ($amount->getAmount() > 50.0) {
 				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50");
 				$amount = new Money(50.0, $amount->getCurrency());
 			}
-
-			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('/', '_', $ticker);
-			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
-				$symbol = str_replace('USDT', '_USDT', $symbol);
-			}
 			
 			$params = [
-				'currency_pair' => $symbol,
+				'currency_pair' => $ticker,
 				'side' => 'buy',
 				'amount' => $this->calculateQuantity($ticker, $amount, null),
 				'type' => 'market'
@@ -496,29 +451,19 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Place a market order to sell additional volume.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @param Money $amount Amount to sell.
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function sellAdditional(string $ticker, Money $amount): bool
-	{
+	public function sellAdditional(IPair $pair, Money $amount): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit sell amount to $50
 			if ($amount->getAmount() > 50.0) {
 				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50");
 				$amount = new Money(50.0, $amount->getCurrency());
 			}
-
-			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('/', '_', $ticker);
-			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
-				$symbol = str_replace('USDT', '_USDT', $symbol);
-			}
 			
 			$params = [
-				'currency_pair' => $symbol,
+				'currency_pair' => $ticker,
 				'side' => 'sell',
 				'amount' => $this->calculateQuantity($ticker, $amount, null),
 				'type' => 'market'
@@ -541,14 +486,14 @@ class Gate extends AbstractExchangeDriver
 
 	/**
 	 * Calculate quantity based on amount and price.
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount in USDT.
 	 * @param float|null $price Price per unit.
 	 * @return string Quantity as string.
 	 */
-	private function calculateQuantity(string $ticker, Money $amount, ?float $price): string
-	{
+	private function calculateQuantity(IPair $pair, Money $amount, ?float $price): string {
+		$ticker = $pair->getExchangeTicker($this);
 		if ($price) {
 			$quantity = $amount->getAmount() / $price;
 		} else {
@@ -559,5 +504,14 @@ class Gate extends AbstractExchangeDriver
 		
 		// Round to 6 decimal places for most cryptocurrencies
 		return number_format($quantity, 6, '.', '');
+	}
+
+	/**
+	 * Gate uses tickers like “BTC_USDT” for pairs.
+	 * @param IPair $pair
+	 * @return string
+	 */
+	public function pairToTicker(IPair $pair): string {
+		return $pair->getBaseCurrency() . '_' . $pair->getQuoteCurrency();
 	}
 }

@@ -5,6 +5,7 @@ namespace Izzy\Exchanges;
 use ByBit\SDK\ByBitApi;
 use ByBit\SDK\Enums\AccountType;
 use ByBit\SDK\Exceptions\HttpException;
+use Exception;
 use InvalidArgumentException;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
@@ -57,7 +58,7 @@ class Bybit extends AbstractExchangeDriver
 			}
 			
 			return true;
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to connect to exchange {$this->exchangeName}: " . $e->getMessage());
 			return false;
 		}
@@ -88,16 +89,9 @@ class Bybit extends AbstractExchangeDriver
 			$this->setBalance($totalBalance);
 		} catch (HttpException $exception) {
 			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $exception->getMessage());
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Unexpected error while updating balance on {$this->exchangeName}: " . $e->getMessage());
 		}
-	}
-
-	/**
-	 * Refresh spot orders information.
-	 */
-	protected function refreshSpotOrders(): void {
-
 	}
 
 	/**
@@ -148,10 +142,11 @@ class Bybit extends AbstractExchangeDriver
 		?int $startTime = null,
 		?int $endTime = null
 	): array {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
 				'category' => $this->getBybitCategory($pair),
-				'symbol' => $pair->getTicker(),
+				'symbol' => $ticker,
 				'interval' => $this->timeframeToBybitInterval($pair->getTimeframe()),
 				'limit' => $limit
 			];
@@ -182,21 +177,12 @@ class Bybit extends AbstractExchangeDriver
 
 			return $candles;
 		} catch (HttpException $exception) {
-			$this->logger->error("Failed to get candles for {$pair->getTicker()} on {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Failed to get candles for {$ticker} on {$this->exchangeName}: " . $exception->getMessage());
 			return [];
-		} catch (\Exception $e) {
-			$this->logger->error("Unexpected error while getting candles for {$pair->getTicker()} on {$this->exchangeName}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Unexpected error while getting candles for {$ticker} on {$this->exchangeName}: " . $e->getMessage());
 			return [];
 		}
-	}
-
-	/**
-	 * Get current balance amount.
-	 * 
-	 * @return float Current balance amount.
-	 */
-	protected function getBalance(): float {
-		return $this->totalBalance ? $this->totalBalance->getAmount() : 0.0;
 	}
 
 	/**
@@ -253,13 +239,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Get current market price for a trading pair.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @return float|null Current price or null if not available.
+	 * @inheritDoc
 	 */
-	public function getCurrentPrice(string $ticker): ?float
-	{
+	public function getCurrentPrice(IPair $pair): ?float {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Determine category based on ticker (simplified approach)
 			$category = 'spot'; // Default to spot, could be enhanced to detect futures
@@ -285,20 +268,17 @@ class Bybit extends AbstractExchangeDriver
 
 			$this->logger->error("Ticker {$ticker} not found in response");
 			return null;
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage());
 			return null;
 		}
 	}
 
 	/**
-	 * Get current position for a trading pair.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @return IPosition|null Current position or null if no position.
+	 * @inheritDoc
 	 */
-	public function getCurrentPosition(string $ticker): ?IPosition
-	{
+	public function getCurrentPosition(IPair $pair): ?IPosition {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// For spot trading, we need to check account balance
 			// For futures, we can get position directly
@@ -313,12 +293,12 @@ class Bybit extends AbstractExchangeDriver
 				}
 
 				// Extract base currency from ticker (e.g., BTCUSDT -> BTC)
-				$baseCurrency = str_replace('USDT', '', $ticker);
+				$baseCurrency = $pair->getBaseCurrency();
 				
 				foreach ($accountInfo['list'][0]['coin'] as $coin) {
 					if ($coin['coin'] === $baseCurrency && (float)$coin['walletBalance'] > 0) {
 						// We have a position in this currency
-						$currentPrice = $this->getCurrentPrice($ticker);
+						$currentPrice = $this->getCurrentPrice($pair);
 						if (!$currentPrice) {
 							return null;
 						}
@@ -365,7 +345,7 @@ class Bybit extends AbstractExchangeDriver
 				
 				return null;
 			}
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage());
 			return null;
 		}
@@ -373,14 +353,13 @@ class Bybit extends AbstractExchangeDriver
 
 	/**
 	 * Open a long position.
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(string $ticker, Money $amount, ?float $price = null): bool
-	{
+	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool {
 		try {
 			// Safety check: limit position size to $100
 			if ($amount->getAmount() > 100.0) {
@@ -394,10 +373,10 @@ class Bybit extends AbstractExchangeDriver
 			
 			$params = [
 				'category' => $category,
-				'symbol' => $ticker,
+				'symbol' => $pair->getExchangeTicker($this),
 				'side' => $side,
 				'orderType' => $orderType,
-				'qty' => $this->calculateQuantity($ticker, $amount, $price),
+				'qty' => $this->calculateQuantity($pair, $amount, $price),
 			];
 
 			if ($price) {
@@ -407,14 +386,14 @@ class Bybit extends AbstractExchangeDriver
 			$response = $this->api->orderApi()->submitOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}");
+				$this->logger->info("Successfully opened long position on Bybit for {$pair->getTicker()}: {$amount}");
 				
 				// Save position to database
-				$currentPrice = $this->getCurrentPrice($ticker);
+				$currentPrice = $this->getCurrentPrice($pair);
 				if ($currentPrice) {
 					$this->database->savePosition(
 						$this->exchangeName,
-						$ticker,
+						$pair->getExchangeTicker($this),
 						'spot',
 						'long',
 						$currentPrice,
@@ -429,25 +408,25 @@ class Bybit extends AbstractExchangeDriver
 				
 				return true;
 			} else {
-				$this->logger->error("Failed to open long position for {$ticker}: " . json_encode($response));
+				$this->logger->error("Failed to open long position for {$pair->getTicker()}: " . json_encode($response));
 				return false;
 			}
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to open long position for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to open long position for {$pair->getTicker()}: " . $e->getMessage());
 			return false;
 		}
 	}
 
 	/**
 	 * Open a short position (futures only).
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(string $ticker, Money $amount, ?float $price = null): bool
-	{
+	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit position size to $100
 			if ($amount->getAmount() > 100.0) {
@@ -464,7 +443,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => $side,
 				'orderType' => $orderType,
-				'qty' => $this->calculateQuantity($ticker, $amount, $price),
+				'qty' => $this->calculateQuantity($pair, $amount, $price),
 			];
 
 			if ($price) {
@@ -477,7 +456,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->logger->info("Successfully opened short position for {$ticker}: {$amount}");
 				
 				// Save position to database
-				$currentPrice = $this->getCurrentPrice($ticker);
+				$currentPrice = $this->getCurrentPrice($pair);
 				if ($currentPrice) {
 					$this->database->savePosition(
 						$this->exchangeName,
@@ -499,7 +478,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->logger->error("Failed to open short position for {$ticker}: " . json_encode($response));
 				return false;
 			}
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to open short position for {$ticker}: " . $e->getMessage());
 			return false;
 		}
@@ -508,16 +487,16 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * Close an existing position.
 	 * 
-	 * @param string $ticker Trading pair ticker.
+	 * @param IPair $pair Trading pair.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function closePosition(string $ticker, ?float $price = null): bool
-	{
+	public function closePosition(IPair $pair, ?float $price = null): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$currentPosition = $this->getCurrentPosition($ticker);
+			$currentPosition = $this->getCurrentPosition($pair);
 			if (!$currentPosition) {
-				$this->logger->warning("No position to close for {$ticker}");
+				$this->logger->warning("No position to close for pair {$pair}");
 				return true; // Consider it successful if no position exists
 			}
 
@@ -553,7 +532,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->logger->error("Failed to close position for {$ticker}: " . json_encode($response));
 				return false;
 			}
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage());
 			return false;
 		}
@@ -561,13 +540,13 @@ class Bybit extends AbstractExchangeDriver
 
 	/**
 	 * Place a market order to buy additional volume (DCA).
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function buyAdditional(string $ticker, Money $amount): bool
-	{
+	public function buyAdditional(IPair $pair, Money $amount): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit DCA amount to $50
 			if ($amount->getAmount() > 50.0) {
@@ -580,7 +559,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => 'Buy',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($ticker, $amount, null),
+				'qty' => $this->calculateQuantity($pair, $amount, null),
 			];
 
 			$response = $this->api->orderApi()->submitOrder($params);
@@ -592,7 +571,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->logger->error("Failed to execute DCA buy for {$ticker}: " . json_encode($response));
 				return false;
 			}
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage());
 			return false;
 		}
@@ -600,13 +579,13 @@ class Bybit extends AbstractExchangeDriver
 
 	/**
 	 * Place a market order to sell additional volume.
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount to sell.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function sellAdditional(string $ticker, Money $amount): bool
-	{
+	public function sellAdditional(IPair $pair, Money $amount): bool {
+		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit sell amount to $50
 			if ($amount->getAmount() > 50.0) {
@@ -619,7 +598,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => 'Sell',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($ticker, $amount, null),
+				'qty' => $this->calculateQuantity($pair, $amount, null),
 			];
 
 			$response = $this->api->orderApi()->submitOrder($params);
@@ -631,7 +610,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->logger->error("Failed to execute sell for {$ticker}: " . json_encode($response));
 				return false;
 			}
-		} catch (\Exception $e) {
+		} catch (Exception $e) {
 			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage());
 			return false;
 		}
@@ -639,23 +618,31 @@ class Bybit extends AbstractExchangeDriver
 
 	/**
 	 * Calculate quantity based on amount and price.
-	 * 
-	 * @param string $ticker Trading pair ticker.
+	 *
+	 * @param IPair $pair
 	 * @param Money $amount Amount in USDT.
 	 * @param float|null $price Price per unit.
 	 * @return string Quantity as string.
 	 */
-	private function calculateQuantity(string $ticker, Money $amount, ?float $price): string
-	{
+	private function calculateQuantity(IPair $pair, Money $amount, ?float $price): string {
 		if ($price) {
 			$quantity = $amount->getAmount() / $price;
 		} else {
 			// For market orders, use a rough estimate
-			$currentPrice = $this->getCurrentPrice($ticker);
+			$currentPrice = $this->getCurrentPrice($pair);
 			$quantity = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
 		}
 		
 		// Round to 6 decimal places for most cryptocurrencies
 		return number_format($quantity, 6, '.', '');
+	}
+
+	/**
+	 * Bybit uses tickers like “BTCUSDT” for pairs.
+	 * @param IPair $pair
+	 * @return string
+	 */
+	public function pairToTicker(IPair $pair): string {
+		return $pair->getBaseCurrency() . $pair->getQuoteCurrency();
 	}
 }

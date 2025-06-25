@@ -2,8 +2,10 @@
 
 namespace Izzy\Financial;
 
+use InvalidArgumentException;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IPair;
 use Izzy\Traits\HasMarketTypeTrait;
 
@@ -14,12 +16,18 @@ use Izzy\Traits\HasMarketTypeTrait;
 class Pair implements IPair
 {
 	use HasMarketTypeTrait;
-	
+
 	/**
-	 * Ticker of the pair, e.g. BTC/USDT.
+	 * Base currency of the pair, e.g. BTC in BTC/USDT.
 	 * @var string
 	 */
-	public string $ticker;
+	public string $baseCurrency = '';
+
+	/**
+	 * Quote currency of the pair, e.g. USDT in BTC/USDT.
+	 * @var string
+	 */
+	public string $quoteCurrency = '';
 
 	/**
 	 * Timeframe of the pair, e.g. 15m, 1h.
@@ -54,13 +62,18 @@ class Pair implements IPair
 	/**
 	 * Constructor for creating a new trading pair.
 	 * 
-	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT").
+	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT"), including “/” is important.
 	 * @param TimeFrameEnum $timeFrame Timeframe for the pair (e.g., 15m, 1h).
 	 * @param string $exchangeName Name of the exchange (e.g., "Bybit", "Gate").
 	 * @param MarketTypeEnum $marketType Market type (spot, futures, etc.).
 	 */
-	public function __construct(string $ticker, TimeFrameEnum $timeFrame, string $exchangeName, MarketTypeEnum $marketType) {
-		$this->ticker = $ticker;
+	public function __construct(
+		string $ticker,
+		TimeFrameEnum $timeFrame,
+		string $exchangeName,
+		MarketTypeEnum $marketType
+	) {
+		$this->setTicker($ticker);
 		$this->timeframe = $timeFrame;
 		$this->exchangeName = $exchangeName;
 		$this->marketType = $marketType;
@@ -101,7 +114,7 @@ class Pair implements IPair
 	 * @return string Formatted description of the pair.
 	 */
 	public function getDescription(): string {
-		return "{$this->ticker} {$this->timeframe->value} {$this->marketType->value} {$this->exchangeName}";
+		return "{$this->getTicker()} {$this->timeframe->value} {$this->marketType->value} {$this->exchangeName}";
 	}
 	
 	/**
@@ -128,7 +141,7 @@ class Pair implements IPair
 	 * @return string Trading pair ticker.
 	 */
 	public function getTicker(): string {
-		return $this->ticker;
+		return "{$this->baseCurrency}/{$this->quoteCurrency}";
 	}
 
 	/**
@@ -137,7 +150,12 @@ class Pair implements IPair
 	 * @param string $ticker New ticker symbol.
 	 */
 	public function setTicker(string $ticker): void {
-		$this->ticker = $ticker;
+		$parts = [];
+		if (!preg_match('#^([A-Z0-9]+)/([A-Z0-9]+)$#', $ticker, $parts)) {
+			throw new InvalidArgumentException("Invalid ticker format: '$ticker'. Expected format is 'BASE/QUOTE'.");
+		}
+		$this->baseCurrency = $parts[1];
+		$this->quoteCurrency = $parts[2];
 	}
 
 	/**
@@ -255,5 +273,30 @@ class Pair implements IPair
 	 */
 	public function setStrategyName(string $strategyName): void {
 		$this->strategyName = $strategyName;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getExchangeTicker(IExchangeDriver $exchangeDriver): string {
+		return $exchangeDriver->pairToTicker($this);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getBaseCurrency(): string {
+		return $this->baseCurrency;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getQuoteCurrency(): string {
+		return $this->quoteCurrency;
+	}
+
+	public function __toString(): string {
+		return $this->getBaseCurrency() . '/' . $this->getQuoteCurrency();
 	}
 }

@@ -131,8 +131,7 @@ class Market implements IMarket
 	 * 
 	 * @return IStrategy|null Active strategy or null if not set.
 	 */
-	public function getStrategy(): ?IStrategy
-	{
+	public function getStrategy(): ?IStrategy {
 		return $this->strategy;
 	}
 
@@ -141,8 +140,7 @@ class Market implements IMarket
 	 * 
 	 * @return void
 	 */
-	private function initializeStrategyIndicators(): void
-	{
+	private function initializeStrategyIndicators(): void {
 		if (!$this->strategy) {
 			return;
 		}
@@ -181,8 +179,8 @@ class Market implements IMarket
 		}
 	}
 	
-	public function getPosition(): ?IPosition {
-		
+	public function getCurrentPosition(): ?IPosition {
+		return $this->exchange->getCurrentPosition($this->pair);
 	}
 
 	public function updateChart(): void {
@@ -206,9 +204,8 @@ class Market implements IMarket
 	 * @param IIndicator $indicator Indicator instance.
 	 * @return void
 	 */
-	public function addIndicator(IIndicator $indicator): void
-	{
-		$this->indicators[$indicator->getName()] = $indicator;
+	public function addIndicator(IIndicator $indicator): void {
+		$this->indicators[$indicator::class::getName()] = $indicator;
 	}
 
 	/**
@@ -217,8 +214,7 @@ class Market implements IMarket
 	 * @param string $indicatorName Indicator name.
 	 * @return void
 	 */
-	public function removeIndicator(string $indicatorName): void
-	{
+	public function removeIndicator(string $indicatorName): void {
 		unset($this->indicators[$indicatorName]);
 		unset($this->indicatorResults[$indicatorName]);
 	}
@@ -228,8 +224,7 @@ class Market implements IMarket
 	 * 
 	 * @return IIndicator[] Array of indicators.
 	 */
-	public function getIndicators(): array
-	{
+	public function getIndicators(): array {
 		return $this->indicators;
 	}
 
@@ -239,8 +234,7 @@ class Market implements IMarket
 	 * @param string $indicatorName Indicator name.
 	 * @return bool True if registered, false otherwise.
 	 */
-	public function hasIndicator(string $indicatorName): bool
-	{
+	public function hasIndicator(string $indicatorName): bool {
 		return isset($this->indicators[$indicatorName]);
 	}
 
@@ -249,8 +243,7 @@ class Market implements IMarket
 	 * 
 	 * @return void
 	 */
-	public function calculateIndicators(): void
-	{
+	public function calculateIndicators(): void {
 		foreach ($this->indicators as $name => $indicator) {
 			$this->indicatorResults[$name] = $indicator->calculate($this);
 		}
@@ -262,8 +255,7 @@ class Market implements IMarket
 	 * @param string $indicatorName Indicator name.
 	 * @return IndicatorResult|null Indicator result or null if not found.
 	 */
-	public function getIndicatorResult(string $indicatorName): ?IndicatorResult
-	{
+	public function getIndicatorResult(string $indicatorName): ?IndicatorResult {
 		return $this->indicatorResults[$indicatorName] ?? null;
 	}
 
@@ -272,8 +264,7 @@ class Market implements IMarket
 	 * 
 	 * @return IndicatorResult[] Array of indicator results.
 	 */
-	public function getAllIndicatorResults(): array
-	{
+	public function getAllIndicatorResults(): array {
 		return $this->indicatorResults;
 	}
 
@@ -297,5 +288,26 @@ class Market implements IMarket
 	public function getLatestIndicatorSignal(string $indicatorName): mixed {
 		$result = $this->getIndicatorResult($indicatorName);
 		return $result?->getLatestSignal();
+	}
+
+	/**
+	 * Get market text description for the console output.
+	 * @return string
+	 */
+	public function getDescription(): string {
+		return sprintf(
+			"[%s, %s, %s]",
+			$this->getMarketType()->name,
+			$this->pair->getTicker(),
+			$this->pair->getTimeframe()->name
+		);
+	}
+
+	/**
+	 * Convert market to string representation.
+	 * @return string
+	 */
+	public function __toString(): string {
+		return $this->getDescription();
 	}
 }

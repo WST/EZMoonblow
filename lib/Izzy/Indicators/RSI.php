@@ -31,7 +31,7 @@ class RSI extends AbstractIndicator
      * 
      * @return string Indicator name.
      */
-    public function getName(): string {
+    public static function getName(): string {
         return 'RSI';
     }
     

@@ -15,19 +15,19 @@
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
 			<spot>
-				<pair ticker="BTCUSDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA">
+				<pair ticker="BTC/USDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA">
 					<indicators>
 						<indicator type="RSI" period="14" overbought="70" oversold="30" />
 					</indicators>
 				</pair>
 			</spot>
 			<futures>
-				<pair ticker="SOLUSDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />
+				<pair ticker="SOL/USDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />
 			</futures>
 		</exchange>
 		<exchange name="Gate" key="..." secret="..." enabled="no" demo="yes">
 			<spot>
-				<pair ticker="BTC_USDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />
+				<pair ticker="BTC/USDT" timeframe="15m" monitor="yes" trade="no" strategy="EZMoonblowDCA" />
 			</spot>
 			<futures>
 				<!-- TODO -->
