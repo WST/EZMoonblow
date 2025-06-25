@@ -45,7 +45,7 @@ class DatabaseMigrationManager
 	}
 	
 	protected function logDatabaseOperationWithStatus(string $description, bool $successful = true): void {
-		$status = $successful ? "\033[48;5;22;1m  OK  \033[0m" : "\033[41m fail \033[0m";
+		$status = $successful ? "\033[48;5;22;1m ✅  OK  \033[0m" : "\033[41m ❌ fail \033[0m";
 		$this->logger->info(str_repeat(' ', $this->padding * $this->paddingWidth) . $status . ' ' . $description);
 	}
 

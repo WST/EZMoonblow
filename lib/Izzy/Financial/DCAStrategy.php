@@ -2,8 +2,6 @@
 
 namespace Izzy\Financial;
 
-use Izzy\Financial\Money;
-
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
  */
@@ -67,10 +65,7 @@ abstract class DCAStrategy extends Strategy
 				// Execute DCA buy order
 				$exchange = $this->market->getExchange();
 				$dcaAmount = new Money(5.0, 'USDT'); // $5 DCA amount
-				
-				if ($exchange instanceof \Izzy\Interfaces\IExchangeDriver) {
-					$exchange->buyAdditional($this->market->getTicker(), $dcaAmount);
-				}
+				$exchange->buyAdditional($this->market->getTicker(), $dcaAmount);
 				break;
 			}
 		}

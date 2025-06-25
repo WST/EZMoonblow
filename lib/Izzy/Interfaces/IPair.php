@@ -2,7 +2,7 @@
 
 namespace Izzy\Interfaces;
 
-interface IPair extends IHasMarketType
+interface IPair
 {
 	public function getTicker(): string;
 }

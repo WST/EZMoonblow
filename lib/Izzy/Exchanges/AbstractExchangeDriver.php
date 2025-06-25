@@ -136,17 +136,6 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	}
 
 	/**
-	 * Get market instance for a trading pair.
-	 * 
-	 * @param Pair $pair Trading pair.
-	 * @return Market|null Market instance or null if not found.
-	 */
-	protected function getMarket(Pair $pair): ?Market {
-		// Implementation of getMarketCandles method.
-		return null; // Placeholder return, actual implementation needed.
-	}
-
-	/**
 	 * Update balance information from the exchange.
 	 */
 	protected function updateBalance(): void {

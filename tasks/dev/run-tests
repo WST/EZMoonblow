@@ -1,0 +1,98 @@
+#!/usr/bin/env php
+<?php
+
+require_once 'lib/common.php';
+
+use Izzy\Configuration\Configuration;
+use Izzy\Exchanges\Bybit;
+use Izzy\Exchanges\Gate;
+use Izzy\Financial\Money;
+use Izzy\RealApplications\Analyzer;
+
+echo "=== Trading System Test ===\n\n";
+
+try {
+	// Initialize application
+	$application = new Analyzer();
+	
+	// Load configuration
+	$config = new Configuration('config/config.xml');
+	$exchanges = $config->connectExchanges($application);
+	
+	if (empty($exchanges)) {
+		echo "❌ No exchanges found in configuration.\n";
+		exit(1);
+	}
+	
+	echo "✅ Found " . count($exchanges) . " exchanges:\n";
+	
+	foreach ($exchanges as $name => $exchange) {
+		echo "\n--- Testing {$name} ---\n";
+		
+		// Test connection
+		echo "Testing connection... ";
+		if ($exchange->connect()) {
+			echo "✅ Connected\n";
+		} else {
+			echo "❌ Connection failed\n";
+			continue;
+		}
+		
+		// Test getting current price
+		echo "Testing getCurrentPrice... ";
+		$price = $exchange->getCurrentPrice('BTCUSDT');
+		if ($price) {
+			echo "✅ Price: $price\n";
+		} else {
+			echo "❌ Failed to get price\n";
+		}
+		
+		// Test getting current position
+		echo "Testing getCurrentPosition... ";
+		$position = $exchange->getCurrentPosition('BTCUSDT');
+		if ($position) {
+			echo "✅ Position found: " . $position->getVolume()->getAmount() . " " . $position->getVolume()->getCurrency() . "\n";
+		} else {
+			echo "✅ No position found\n";
+		}
+		
+		// Test getting candles
+		echo "Testing getCandles... ";
+		$pair = new \Izzy\Financial\Pair('BTCUSDT', \Izzy\Enums\TimeFrameEnum::TF_1HOUR, $exchange->getName(), \Izzy\Enums\MarketTypeEnum::SPOT);
+		$candles = $exchange->getCandles($pair, 10);
+		if (!empty($candles)) {
+			echo "✅ Got " . count($candles) . " candles\n";
+		} else {
+			echo "❌ Failed to get candles\n";
+		}
+		
+		// Test getting market
+		echo "Testing getMarket... ";
+		$market = $exchange->getMarket($pair);
+		if ($market) {
+			echo "✅ Market created\n";
+		} else {
+			echo "❌ Failed to create market\n";
+		}
+		
+		// Test update (without actual trading)
+		echo "Testing update...\n";
+		try {
+			$sleepTime = $exchange->update();
+			echo "✅ Update completed, sleep time: {$sleepTime}s\n";
+		} catch (Exception $e) {
+			echo "❌ Update failed: " . $e->getMessage() . "\n";
+		}
+		
+		// Disconnect
+		$exchange->disconnect();
+		echo "✅ Disconnected\n";
+	}
+	
+	echo "\n=== Test completed successfully! ===\n";
+	
+} catch (Exception $e) {
+	echo "❌ Error: " . $e->getMessage() . "\n";
+	echo "Stack trace:\n" . $e->getTraceAsString() . "\n";
+	exit(1);
+}

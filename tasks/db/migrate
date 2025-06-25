@@ -1,0 +1,10 @@
+#!/usr/bin/env php
+<?php
+
+use Izzy\RealApplications\Installer;
+
+// EZMoonblow core file.
+require dirname(dirname(__DIR__)) . '/lib/common.php';
+
+$installer = Installer::getInstance();
+$installer->run();

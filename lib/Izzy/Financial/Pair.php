@@ -5,6 +5,7 @@ namespace Izzy\Financial;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\IPair;
+use Izzy\Traits\HasMarketTypeTrait;
 
 /**
  * Trading pair representation.
@@ -12,6 +13,8 @@ use Izzy\Interfaces\IPair;
  */
 class Pair implements IPair
 {
+	use HasMarketTypeTrait;
+	
 	/**
 	 * Ticker of the pair, e.g. BTC/USDT.
 	 * @var string
@@ -47,12 +50,6 @@ class Pair implements IPair
 	 * @var string
 	 */
 	private string $strategyName = '';
-
-	/**
-	 * Market type hint.
-	 * @var MarketTypeEnum
-	 */
-	public MarketTypeEnum $marketType;
 
 	/**
 	 * Constructor for creating a new trading pair.

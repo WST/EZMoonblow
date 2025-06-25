@@ -14,14 +14,17 @@ cd EZMoonblow
 composer install
 cp config/config.xml.example config/config.xml
 # edit your config.xml
-./install.php
+./tasks/db/migrate
 ```
 
 ### Usage
 
-* `./trader.php` for trading
-* `./analyzer.php` for collecting metrics
-* `./notifier.php` for sending Telegram notifications
+* `./trader.php` for trading,
+* `./analyzer.php` for collecting metrics,
+* `./notifier.php` for sending Telegram notifications.
+
+### Test system
+* `./tasks/dev/run-tests` performs quick system check-up.
 
 ## TODO (maybe)
 

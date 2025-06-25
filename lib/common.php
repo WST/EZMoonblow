@@ -8,6 +8,11 @@ if (version_compare(PHP_VERSION, '8.3.0', '<')) {
 // Root path for the project.
 define('IZZY_ROOT', dirname(__DIR__));
 
+// Check if vendor/autoload.php exists.
+if (!file_exists(IZZY_ROOT . '/vendor/autoload.php')) {
+	die("Please run “composer install” first" . PHP_EOL);
+}
+
 // The class autoloader.
 require IZZY_ROOT . '/vendor/autoload.php';
 

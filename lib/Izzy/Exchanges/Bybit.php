@@ -13,6 +13,7 @@ use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IPair;
 
 /**
  * Driver for working with Bybit exchange.
@@ -100,12 +101,9 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Get market instance for a trading pair.
-	 * 
-	 * @param Pair $pair Trading pair.
-	 * @return Market|null Market instance or null if not found.
+	 * @inheritDoc
 	 */
-	public function getMarket(Pair $pair): ?Market {
+	public function getMarket(IPair $pair): ?IMarket {
 		$candlesData = $this->getCandles($pair, 200);
 		if (empty($candlesData)) {
 			return null;
@@ -142,16 +140,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Get candles for the specified trading pair and timeframe.
-	 *
-	 * @param Pair $pair Trading pair.
-	 * @param int $limit Number of candles (maximum 1000).
-	 * @param int|null $startTime Start timestamp in milliseconds.
-	 * @param int|null $endTime End timestamp in milliseconds.
-	 * @return Candle[] Array of candle objects.
+	 * @inheritDoc
 	 */
 	public function getCandles(
-		Pair $pair,
+		IPair $pair,
 		int $limit = 100,
 		?int $startTime = null,
 		?int $endTime = null

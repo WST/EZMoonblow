@@ -11,7 +11,9 @@ use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
+use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IPair;
 
 /**
  * Driver for working with Gate exchange.
@@ -110,10 +112,10 @@ class Gate extends AbstractExchangeDriver
 	 * Get market instance for a trading pair.
 	 * Creates a new market with candle data from Gate API.
 	 * 
-	 * @param Pair $pair Trading pair.
-	 * @return Market|null Market instance or null if not found.
+	 * @param IPair $pair Trading pair.
+	 * @return IMarket|null Market instance or null if not found.
 	 */
-	public function getMarket(Pair $pair): ?Market {
+	public function getMarket(IPair $pair): ?IMarket {
 		$candlesData = $this->getCandles($pair, 200);
 		if (empty($candlesData)) {
 			return null;
@@ -141,12 +143,14 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * Get candles for the specified trading pair and timeframe from Gate.io.
 	 * Retrieves historical candlestick data and converts it to Candle objects.
-	 * 
-	 * @param Pair $pair Trading pair.
-	 * @param int $limit Number of candles to retrieve.
+	 *
+	 * @param IPair $pair
+	 * @param int $limit
+	 * @param int|null $startTime
+	 * @param int|null $endTime
 	 * @return Candle[] Array of candle objects sorted by time.
 	 */
-	public function getCandles(Pair $pair, int $limit = 100): array {
+	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array {
 		try {
 			$ticker = $pair->getTicker();
 			$timeframe = $pair->getTimeframe();
@@ -159,6 +163,9 @@ class Gate extends AbstractExchangeDriver
 
 			// Convert ticker format from BTC/USDT to BTC_USDT for Gate API.
 			$symbol = str_replace('/', '_', $ticker);
+			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
+				$symbol = str_replace('USDT', '_USDT', $symbol);
+			}
 			
 			$params = [
 				'currency_pair' => $symbol,
@@ -235,16 +242,23 @@ class Gate extends AbstractExchangeDriver
 	{
 		try {
 			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('USDT', '_USDT', $ticker);
+			$symbol = str_replace('/', '_', $ticker);
+			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
+				$symbol = str_replace('USDT', '_USDT', $symbol);
+			}
 			
 			$params = [
 				'currency_pair' => $symbol
 			];
 
-			$response = $this->spotApi->getTicker($params);
+			$response = $this->spotApi->listTickers($params);
 			
-			if ($response && !empty($response->getLast())) {
-				return (float)$response->getLast();
+			if ($response && !empty($response)) {
+				// listTickers returns an array, we need the first item
+				$tickerData = $response[0] ?? null;
+				if ($tickerData && method_exists($tickerData, 'getLast')) {
+					return (float)$tickerData->getLast();
+				}
 			}
 
 			$this->logger->error("Failed to get current price for {$ticker}: invalid response");
@@ -316,7 +330,10 @@ class Gate extends AbstractExchangeDriver
 			}
 
 			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('USDT', '_USDT', $ticker);
+			$symbol = str_replace('/', '_', $ticker);
+			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
+				$symbol = str_replace('USDT', '_USDT', $symbol);
+			}
 			
 			$params = [
 				'currency_pair' => $symbol,
@@ -396,7 +413,10 @@ class Gate extends AbstractExchangeDriver
 			}
 
 			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('USDT', '_USDT', $ticker);
+			$symbol = str_replace('/', '_', $ticker);
+			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
+				$symbol = str_replace('USDT', '_USDT', $symbol);
+			}
 			
 			$params = [
 				'currency_pair' => $symbol,
@@ -448,7 +468,10 @@ class Gate extends AbstractExchangeDriver
 			}
 
 			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('USDT', '_USDT', $ticker);
+			$symbol = str_replace('/', '_', $ticker);
+			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
+				$symbol = str_replace('USDT', '_USDT', $symbol);
+			}
 			
 			$params = [
 				'currency_pair' => $symbol,
@@ -489,7 +512,10 @@ class Gate extends AbstractExchangeDriver
 			}
 
 			// Convert ticker format from BTCUSDT to BTC_USDT for Gate API
-			$symbol = str_replace('USDT', '_USDT', $ticker);
+			$symbol = str_replace('/', '_', $ticker);
+			if (strpos($symbol, 'USDT') !== false && strpos($symbol, '_USDT') === false) {
+				$symbol = str_replace('USDT', '_USDT', $symbol);
+			}
 			
 			$params = [
 				'currency_pair' => $symbol,

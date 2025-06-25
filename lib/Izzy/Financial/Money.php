@@ -16,6 +16,10 @@ class Money
 		return $this->amount;
 	}
 
+	public function getCurrency(): string {
+		return $this->currency;
+	}
+
 	public function format($format = '%.2f'): string {
 		return sprintf($format, $this->amount) . " " . $this->currency;
 	}

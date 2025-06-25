@@ -12,9 +12,12 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
+use Izzy\Traits\HasMarketTypeTrait;
 
 class Market implements IMarket
 {
+	use HasMarketTypeTrait;
+	
 	/**
 	 * Active pair.
 	 */
@@ -24,11 +27,6 @@ class Market implements IMarket
 	 * The relevant exchange driver.
 	 */
 	private IExchangeDriver $exchange;
-
-	/**
-	 * Market type: spot or futures.
-	 */
-	private MarketTypeEnum $marketType;
 	
 	/**
 	 * Set of candles.
@@ -62,8 +60,8 @@ class Market implements IMarket
 		Pair $pair,
 		IExchangeDriver $exchange
 	) {
+		$this->marketType = $pair->getMarketType();
 		$this->exchange = $exchange;
-		$this->marketType = $pair->marketType;
 		$this->pair = $pair;
 	}
 
@@ -168,25 +166,13 @@ class Market implements IMarket
 		}
 	}
 
-	public function isSpot(): bool {
-		return $this->marketType->isSpot();
-	}
-
-	public function isFutures(): bool {
-		return $this->marketType->isFutures();
-	}
-
-	public function isInverseFutures(): bool {
-		return $this->marketType->isInverseFutures();
-	}
-
 	public function drawChart(TimeFrameEnum $timeframe): Chart {
 		$chart = new Chart($this, $timeframe);
 		$chart->draw();
 		return $chart;
 	}
 
-	public function setCandles(array $candlesData) {
+	public function setCandles(array $candlesData): void {
 		$this->candles = $candlesData;
 
 		// Устанавливаем текущий рынок для каждой свечи
@@ -297,10 +283,9 @@ class Market implements IMarket
 	 * @param string $indicatorName Indicator name.
 	 * @return float|null Latest value or null if not found.
 	 */
-	public function getLatestIndicatorValue(string $indicatorName): ?float
-	{
+	public function getLatestIndicatorValue(string $indicatorName): ?float {
 		$result = $this->getIndicatorResult($indicatorName);
-		return $result ? $result->getLatestValue() : null;
+		return $result?->getLatestValue();
 	}
 
 	/**
@@ -309,9 +294,8 @@ class Market implements IMarket
 	 * @param string $indicatorName Indicator name.
 	 * @return mixed Latest signal or null if not found.
 	 */
-	public function getLatestIndicatorSignal(string $indicatorName)
-	{
+	public function getLatestIndicatorSignal(string $indicatorName): mixed {
 		$result = $this->getIndicatorResult($indicatorName);
-		return $result ? $result->getLatestSignal() : null;
+		return $result?->getLatestSignal();
 	}
 }

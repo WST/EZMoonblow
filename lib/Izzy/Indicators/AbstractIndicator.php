@@ -2,157 +2,106 @@
 
 namespace Izzy\Indicators;
 
-use Izzy\Financial\IndicatorResult;
+use Izzy\Financial\Candle;
 use Izzy\Interfaces\IIndicator;
-use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IPair;
 
 /**
  * Abstract base class for all technical indicators.
- * Provides common functionality and helper methods.
+ * 
+ * Provides common functionality and enforces the contract for indicator implementations.
+ * All indicators should extend this class and implement the calculate() method.
  */
 abstract class AbstractIndicator implements IIndicator
 {
     /**
-     * Indicator parameters.
-     * @var array
+     * @var string The name of the indicator
+     */
+    protected string $name;
+
+    /**
+     * @var array Configuration parameters for the indicator
      */
     protected array $parameters;
-    
+
     /**
-     * Constructor for abstract indicator.
-     * 
-     * @param array $parameters Indicator parameters.
+     * @var IPair The trading pair this indicator is calculated for
      */
-    public function __construct(array $parameters = []) {
+    protected IPair $pair;
+
+    /**
+     * Constructor for AbstractIndicator.
+     * 
+     * @param string $name The name of the indicator
+     * @param array $parameters Configuration parameters for the indicator
+     * @param IPair $pair The trading pair to calculate the indicator for
+     */
+    public function __construct(string $name, array $parameters, IPair $pair)
+    {
+        $this->name = $name;
         $this->parameters = $parameters;
+        $this->pair = $pair;
     }
-    
+
     /**
-     * Get indicator parameters.
+     * Get the indicator name.
      * 
-     * @return array Indicator parameters.
+     * @return string The name of the indicator
      */
-    public function getParameters(): array {
+    public function getName(): string
+    {
+        return $this->name;
+    }
+
+    /**
+     * Get the indicator parameters.
+     * 
+     * @return array The configuration parameters
+     */
+    public function getParameters(): array
+    {
         return $this->parameters;
     }
-    
+
     /**
-     * Get candles for the specified period.
+     * Get the trading pair.
      * 
-     * @param IMarket $market Market instance.
-     * @param int $period Number of candles to get.
-     * @return array Array of candles.
+     * @return IPair The trading pair
      */
-    protected function getCandlesForPeriod(IMarket $market, int $period): array {
-        $candles = $market->getCandles();
-        return array_slice($candles, -$period);
+    public function getPair(): IPair
+    {
+        return $this->pair;
     }
-    
+
     /**
-     * Get close prices from candles.
+     * Validate that enough data is available for calculation.
      * 
-     * @param array $candles Array of candle objects.
-     * @return array Array of close prices.
+     * @param array $candles Array of candle data
+     * @param int $requiredCount Minimum number of candles required
+     * @return bool True if enough data is available
      */
-    protected function getClosePrices(array $candles): array {
-        return array_map(fn($candle) => $candle->getClosePrice(), $candles);
+    protected function validateData(array $candles, int $requiredCount): bool
+    {
+        return count($candles) >= $requiredCount;
     }
-    
+
     /**
-     * Get high prices from candles.
+     * Get a parameter value with optional default.
      * 
-     * @param array $candles Array of candle objects.
-     * @return array Array of high prices.
+     * @param string $key Parameter key
+     * @param mixed $default Default value if parameter not found
+     * @return mixed Parameter value or default
      */
-    protected function getHighPrices(array $candles): array {
-        return array_map(fn($candle) => $candle->getHighPrice(), $candles);
+    protected function getParameter(string $key, $default = null)
+    {
+        return $this->parameters[$key] ?? $default;
     }
-    
+
     /**
-     * Get low prices from candles.
+     * Abstract method that must be implemented by concrete indicator classes.
      * 
-     * @param array $candles Array of candle objects.
-     * @return array Array of low prices.
+     * @param array $candles Array of Candle objects
+     * @return IndicatorResult The calculated indicator result
      */
-    protected function getLowPrices(array $candles): array {
-        return array_map(fn($candle) => $candle->getLowPrice(), $candles);
-    }
-    
-    /**
-     * Get open prices from candles.
-     * 
-     * @param array $candles Array of candle objects.
-     * @return array Array of open prices.
-     */
-    protected function getOpenPrices(array $candles): array {
-        return array_map(fn($candle) => $candle->getOpenPrice(), $candles);
-    }
-    
-    /**
-     * Get volumes from candles.
-     * 
-     * @param array $candles Array of candle objects.
-     * @return array Array of volumes.
-     */
-    protected function getVolumes(array $candles): array {
-        return array_map(fn($candle) => $candle->getVolume(), $candles);
-    }
-    
-    /**
-     * Get timestamps from candles.
-     * 
-     * @param array $candles Array of candle objects.
-     * @return array Array of timestamps.
-     */
-    protected function getTimestamps(array $candles): array {
-        return array_map(fn($candle) => $candle->getOpenTime(), $candles);
-    }
-    
-    /**
-     * Calculate simple moving average.
-     * 
-     * @param array $prices Array of prices.
-     * @param int $period Period for SMA calculation.
-     * @return array Array of SMA values.
-     */
-    protected function calculateSMA(array $prices, int $period): array {
-        $sma = [];
-        $count = count($prices);
-        
-        for ($i = $period - 1; $i < $count; $i++) {
-            $sum = array_sum(array_slice($prices, $i - $period + 1, $period));
-            $sma[] = $sum / $period;
-        }
-        
-        return $sma;
-    }
-    
-    /**
-     * Calculate exponential moving average.
-     * 
-     * @param array $prices Array of prices.
-     * @param int $period Period for EMA calculation.
-     * @return array Array of EMA values.
-     */
-    protected function calculateEMA(array $prices, int $period): array {
-        $ema = [];
-        $multiplier = 2 / ($period + 1);
-        $count = count($prices);
-        
-        if ($count < $period) {
-            return $ema;
-        }
-        
-        // First EMA value is SMA
-        $firstSMA = array_sum(array_slice($prices, 0, $period)) / $period;
-        $ema[] = $firstSMA;
-        
-        // Calculate subsequent EMA values
-        for ($i = $period; $i < $count; $i++) {
-            $emaValue = ($prices[$i] * $multiplier) + ($ema[count($ema) - 1] * (1 - $multiplier));
-            $ema[] = $emaValue;
-        }
-        
-        return $ema;
-    }
+    abstract public function calculate(array $candles): IndicatorResult;
 }

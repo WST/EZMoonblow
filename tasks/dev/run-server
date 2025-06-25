@@ -1,0 +1,5 @@
+#!/usr/bin/env php
+<?php
+
+// This is going to be a script to run a web server for development purposes.
+die("TODO" . PHP_EOL);
