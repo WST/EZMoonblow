@@ -54,6 +54,28 @@ This document contains rules and guidelines for developers & AI assistants worki
 - Separate responsibilities appropriately
 - Follow single responsibility principle
 
+### 7. Type Hinting
+- **Always use type hints** for all parameters and return values
+- Include return type declarations for all methods and functions
+- Use strict typing where possible
+
+### 8. Money Handling
+- **Always use the `Money` class** for monetary amounts
+- Never use plain floats or integers for currency values
+- This ensures proper currency handling and prevents precision issues
+
+### 9. Functional Programming Approach
+- **Prefer functional methods** over loops where possible:
+  - Use `array_map()` instead of foreach loops for transformations
+  - Use `array_reduce()` for aggregations
+  - Use `array_walk()` for side effects
+- **Use modern PHP features** for more concise code:
+  - Null coalesce operator (`??`)
+  - Null safe operator (`?->`)
+  - Arrow functions (`fn()`) instead of `function()` where possible
+  - Array destructuring
+  - Match expressions over switch statements
+
 ## Project Structure
 
 ### Application Types
@@ -144,31 +166,31 @@ lib/Izzy/
 ### Key Architectural Concepts
 
 #### 1. Enum Usage
-- Use enums in `lib/Izzy/Enums/` for all enumerated types
+- Use enums in `lib/Izzy/Enums/` for all enumerated types.
 - Avoid string literals for status, types, etc.
-- Example: `MarketTypeEnum::SPOT` instead of `"spot"`
+- Example: `MarketTypeEnum::SPOT` instead of `"spot"`.
 
-#### 2. Traits for Shared Functionality
-- Place reusable functionality in `lib/Izzy/Traits/`
-- Use traits to avoid code duplication across classes
+#### 2. Traits for Shared Functionality.
+- Place reusable functionality in `lib/Izzy/Traits/`.
+- Use traits to avoid code duplication across classes.
 
 #### 3. Interface-First Design
-- Define interfaces in `lib/Izzy/Interfaces/`
-- Implement interfaces in concrete classes
-- This enables loose coupling and testability
+- Define interfaces in `lib/Izzy/Interfaces/`.
+- Implement interfaces in concrete classes.
+- This enables loose coupling and testability.
 
 #### 4. Trading Strategies
-- Located in `lib/Izzy/Strategies/`
-- Strategies interact with: `Market`, `Indicator`, `Strategy`, `Position`
-- **Important**: Strategies should not directly access exchange drivers
-- `Market` provides high-level trading terminal interface
-- `AbstractExchangeDriver` and implementations provide low-level exchange communication
+- Located in `lib/Izzy/Strategies/`.
+- Strategies interact with: `Market`, `Indicator`, `Strategy`, `Position`.
+- **Important**: Strategies should not directly access exchange drivers.
+- `Market` provides high-level trading terminal interface.
+- `AbstractExchangeDriver` and implementations provide low-level exchange communication.
 
 #### 5. Database Migrations
-- **Critical**: This is a custom migration system, not a third-party one
-- Always examine `DatabaseMigrationManager` class before writing migrations
-- Study existing migrations in `migrations/` folder
-- Don’t write migrations "blindly" - understand the system first
+- **Critical**: This is a custom migration system, not a third-party one.
+- Always examine `DatabaseMigrationManager` class before writing migrations.
+- Study existing migrations in `migrations/` folder.
+- Don’t write migrations “blindly” — understand the system first.
 
 #### 6. Pair vs Market Distinction
 ```
@@ -207,12 +229,12 @@ Market (Business Logic)
 6. **Maintain** separation of concerns between components
 
 #### Common Pitfalls to Avoid:
-- Don’t confuse `Pair` and `Market` classes
-- Don’t write migrations without understanding the custom system
-- Don’t let strategies access exchange drivers directly
-- Don’t use strings instead of enums
-- Don’t forget to update documentation when changing code
+- Don't confuse `Pair` and `Market` classes
+- Don't write migrations without understanding the custom system
+- Don't let strategies access exchange drivers directly
+- Don't use strings instead of enums
+- Don't forget to update documentation when changing code
 
 ---
 
-**Remember**: This project follows a specific architecture designed for cryptocurrency trading. Always consider the impact of changes on the overall system design and maintain consistency with existing patterns. 
+**Remember**: This project follows a specific architecture designed for cryptocurrency trading. Always consider the impact of changes on the overall system design and maintain consistency with existing patterns.
