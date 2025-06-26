@@ -2,6 +2,8 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Financial\Money;
+
 interface IMarket
 {
 	/**
@@ -29,4 +31,8 @@ interface IMarket
 	public function getTicker(): string;
 
 	public function updateChart();
+
+	public function openLongPosition(Money $volume): IPosition|false;
+
+	public function openShortPosition(Money $volume): IPosition|false;
 }

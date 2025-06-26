@@ -3,13 +3,16 @@
 namespace Izzy\Exchanges;
 
 use Izzy\Financial\Money;
+use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IPair;
+use Izzy\Interfaces\IPosition;
 use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;
 use KuCoin\SDK\PublicApi\Currency;
 
 /**
- * Драйвер для работы с биржей KuCoin
+ * KuCoin exchange driver.
  */
 class KuCoin extends AbstractExchangeDriver
 {
@@ -30,7 +33,7 @@ class KuCoin extends AbstractExchangeDriver
 
 		$result = new Money($sum);
 		//$this->log("Баланс на {$this->exchangeName}: $result");
-		$this->setBalance($result);
+		$this->saveBalance($result);
 	}
 
 	public function connect(): bool {
@@ -53,5 +56,49 @@ class KuCoin extends AbstractExchangeDriver
 
 	protected function refreshSpotOrders(): void {
 
+	}
+
+	public function updateBalance(): void {
+		// TODO: Implement updateBalance() method.
+	}
+
+	public function getCurrentPosition(IPair $pair): ?IPosition {
+		// TODO: Implement getCurrentPosition() method.
+	}
+
+	public function getCurrentPrice(IPair $pair): ?float {
+		// TODO: Implement getCurrentPrice() method.
+	}
+
+	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool {
+		// TODO: Implement openLong() method.
+	}
+
+	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
+		// TODO: Implement openShort() method.
+	}
+
+	public function closePosition(IPair $pair, ?float $price = null): bool {
+		// TODO: Implement closePosition() method.
+	}
+
+	public function buyAdditional(IPair $pair, Money $amount): bool {
+		// TODO: Implement buyAdditional() method.
+	}
+
+	public function sellAdditional(IPair $pair, Money $amount): bool {
+		// TODO: Implement sellAdditional() method.
+	}
+
+	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array {
+		// TODO: Implement getCandles() method.
+	}
+
+	public function createMarket(IPair $pair): ?IMarket {
+		// TODO: Implement getMarket() method.
+	}
+
+	public function pairToTicker(IPair $pair): string {
+		// TODO: Implement pairToTicker() method.
 	}
 }

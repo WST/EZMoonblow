@@ -60,6 +60,12 @@ class Pair implements IPair
 	private string $strategyName = '';
 
 	/**
+	 * Strategy parameters as associative array.
+	 * @var array
+	 */
+	private array $strategyParams = [];
+
+	/**
 	 * Constructor for creating a new trading pair.
 	 * 
 	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT"), including “/” is important.
@@ -273,6 +279,24 @@ class Pair implements IPair
 	 */
 	public function setStrategyName(string $strategyName): void {
 		$this->strategyName = $strategyName;
+	}
+
+	/**
+	 * Get strategy parameters as associative array.
+	 * 
+	 * @return array Strategy parameters.
+	 */
+	public function getStrategyParams(): array {
+		return $this->strategyParams;
+	}
+
+	/**
+	 * Set strategy parameters.
+	 * 
+	 * @param array $params Strategy parameters as associative array.
+	 */
+	public function setStrategyParams(array $params): void {
+		$this->strategyParams = $params;
 	}
 
 	/**

@@ -57,7 +57,7 @@ class ExchangeConfiguration
 			$timeframe = TimeFrameEnum::from($pairElement->getAttribute('timeframe'));
 			$monitor = $pairElement->getAttribute('monitor');
 			$trade = $pairElement->getAttribute('trade');
-			$strategy = $pairElement->getAttribute('strategy');
+			
 			$pair = new Pair(
 				$ticker,
 				$timeframe,
@@ -66,7 +66,14 @@ class ExchangeConfiguration
 			);
 			$pair->setMonitoringEnabled($monitor == 'yes');
 			$pair->setTradingEnabled($trade == 'yes');
-			$pair->setStrategyName($strategy);
+			
+			// Parse strategy configuration
+			$strategyConfig = $this->parseStrategyConfig($pairElement);
+			if ($strategyConfig) {
+				$pair->setStrategyName($strategyConfig['name']);
+				$pair->setStrategyParams($strategyConfig['params']);
+			}
+			
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
 		}
 
@@ -84,7 +91,7 @@ class ExchangeConfiguration
 			$timeframe = TimeFrameEnum::from($pairElement->getAttribute('timeframe'));
 			$monitor = $pairElement->getAttribute('monitor');
 			$trade = $pairElement->getAttribute('trade');
-			$strategy = $pairElement->getAttribute('strategy');
+			
 			$pair = new Pair(
 				$ticker,
 				$timeframe,
@@ -93,11 +100,65 @@ class ExchangeConfiguration
 			);
 			$pair->setMonitoringEnabled($monitor == 'yes');
 			$pair->setTradingEnabled($trade == 'yes');
-			$pair->setStrategyName($strategy);
+			
+			// Parse strategy configuration
+			$strategyConfig = $this->parseStrategyConfig($pairElement);
+			if ($strategyConfig) {
+				$pair->setStrategyName($strategyConfig['name']);
+				$pair->setStrategyParams($strategyConfig['params']);
+			}
+			
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
 		}
 		
 		return $pairs;
+	}
+
+	/**
+	 * Parse strategy configuration from pair element.
+	 * 
+	 * @param DOMElement $pairElement Pair element containing strategy configuration.
+	 * @return array|null Strategy configuration with 'name' and 'params' keys, or null if no strategy.
+	 */
+	private function parseStrategyConfig(DOMElement $pairElement): ?array {
+		$strategyElements = $pairElement->getElementsByTagName('strategy');
+		
+		// Check that there's only 0 or 1 strategy elements
+		if ($strategyElements->length > 1) {
+			throw new \InvalidArgumentException("Pair {$pairElement->getAttribute('ticker')} has more than one strategy defined");
+		}
+		
+		if ($strategyElements->length === 0) {
+			return null;
+		}
+		
+		$strategyElement = $strategyElements->item(0);
+		if (!$strategyElement instanceof DOMElement) {
+			return null;
+		}
+		
+		$strategyName = $strategyElement->getAttribute('name');
+		if (empty($strategyName)) {
+			throw new \InvalidArgumentException("Strategy name is required for pair {$pairElement->getAttribute('ticker')}");
+		}
+		
+		// Parse strategy parameters
+		$params = [];
+		foreach ($strategyElement->getElementsByTagName('param') as $paramElement) {
+			if (!$paramElement instanceof DOMElement) continue;
+			
+			$name = $paramElement->getAttribute('name');
+			$value = $paramElement->getAttribute('value');
+			
+			if (empty($name)) continue;
+			
+			$params[$name] = $this->parseParameterValue($value);
+		}
+		
+		return [
+			'name' => $strategyName,
+			'params' => $params
+		];
 	}
 
 	/**

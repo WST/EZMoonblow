@@ -16,6 +16,12 @@ interface IExchangeDriver
 	public function update(): int;
 
 	/**
+	 * Update the total balance from the exchange.
+	 * @return void
+	 */
+	function updateBalance(): void;
+
+	/**
 	 * Connect to the exchange.
 	 * @return bool
 	 */
@@ -30,66 +36,66 @@ interface IExchangeDriver
 
 	/**
 	 * Get current position for a trading pair.
-	 * 
-	 * @param IPair $pair Trading pair.
+	 *
+	 * @param IMarket $market
 	 * @return IPosition|null Current position or null if no position.
 	 */
-	public function getCurrentPosition(IPair $pair): ?IPosition;
+	public function getCurrentPosition(IMarket $market): ?IPosition;
 
 	/**
 	 * Get current market price for a trading pair.
-	 * 
-	 * @param IPair $pair Trading pair.
-	 * @return float|null Current price or null if not available.
+	 *
+	 * @param IMarket $market
+	 * @return Money|null Current price or null if not available.
 	 */
-	public function getCurrentPrice(IPair $pair): ?float;
+	public function getCurrentPrice(IMarket $market): ?Money;
 
 	/**
 	 * Open a long position.
-	 * 
-	 * @param IPair $pair Trading pair.
+	 *
+	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool;
+	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool;
 
 	/**
 	 * Open a short position (futures only).
-	 * 
-	 * @param IPair $pair Trading pair.
+	 *
+	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool;
+	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool;
 
 	/**
 	 * Close an existing position.
-	 * 
-	 * @param IPair $pair Trading pair.
+	 *
+	 * @param IMarket $market
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function closePosition(IPair $pair, ?float $price = null): bool;
+	public function closePosition(IMarket $market, ?float $price = null): bool;
 
 	/**
 	 * Place a market order to buy additional volume (DCA).
-	 * 
-	 * @param IPair $pair Trading pair.
+	 *
+	 * @param IMarket $market
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function buyAdditional(IPair $pair, Money $amount): bool;
+	public function buyAdditional(IMarket $market, Money $amount): bool;
 
 	/**
 	 * Place a market order to sell additional volume.
-	 * 
-	 * @param IPair $pair Trading pair.
+	 *
+	 * @param IMarket $market
 	 * @param Money $amount Amount to sell.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function sellAdditional(IPair $pair, Money $amount): bool;
+	public function sellAdditional(IMarket $market, Money $amount): bool;
 
 	/**
 	 * Get candles for the specified trading pair and timeframe.
@@ -113,7 +119,7 @@ interface IExchangeDriver
 	 * @param IPair $pair Trading pair.
 	 * @return IMarket|null Market instance or null if not found.
 	 */
-	public function getMarket(IPair $pair): ?IMarket;
+	public function createMarket(IPair $pair): ?IMarket;
 	
 	public function pairToTicker(IPair $pair): string;
 }

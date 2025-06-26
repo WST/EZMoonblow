@@ -68,7 +68,7 @@ try {
 		
 		// Test getting market
 		echo "Testing getMarket... ";
-		$market = $exchange->getMarket($pair);
+		$market = $exchange->createMarket($pair);
 		if ($market) {
 			echo "✅ Market created\n";
 		} else {

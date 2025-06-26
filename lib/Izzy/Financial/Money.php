@@ -31,4 +31,8 @@ class Money
 	public function setAmount(float $amount): void {
 		$this->amount = $amount;
 	}
+
+	public function formatForOrder(): string {
+		return $this->format('%.6f');
+	}
 }

@@ -7,6 +7,7 @@ use ByBit\SDK\Enums\AccountType;
 use ByBit\SDK\Exceptions\HttpException;
 use Exception;
 use InvalidArgumentException;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
@@ -76,7 +77,7 @@ class Bybit extends AbstractExchangeDriver
 	 * Refresh total account balance information.
 	 * NOTE: Earn API is not implemented in the SDK.
 	 */
-	protected function updateBalance(): void {
+	public function updateBalance(): void {
 		try {
 			$params = ['accountType' => AccountType::UNIFIED];
 			$info = $this->api->accountApi()->getWalletBalance($params);
@@ -86,26 +87,12 @@ class Bybit extends AbstractExchangeDriver
 			}
 			$value = (float)$info['list'][0]['totalEquity'];
 			$totalBalance = new Money($value);
-			$this->setBalance($totalBalance);
+			$this->saveBalance($totalBalance);
 		} catch (HttpException $exception) {
 			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $exception->getMessage());
 		} catch (Exception $e) {
 			$this->logger->error("Unexpected error while updating balance on {$this->exchangeName}: " . $e->getMessage());
 		}
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function getMarket(IPair $pair): ?IMarket {
-		$candlesData = $this->getCandles($pair, 200);
-		if (empty($candlesData)) {
-			return null;
-		}
-		
-		$market = new Market($pair, $this);
-		$market->setCandles($candlesData);
-		return $market;
 	}
 
 	/**
@@ -217,14 +204,12 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPrice(IPair $pair): ?float {
+	public function getCurrentPrice(IMarket $market): ?Money {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			// Determine category based on ticker (simplified approach)
-			$category = 'spot'; // Default to spot, could be enhanced to detect futures
-			
 			$params = [
-				'category' => $category,
+				'category' => $this->getBybitCategory($pair),
 				'symbol' => $ticker
 			];
 
@@ -238,7 +223,7 @@ class Bybit extends AbstractExchangeDriver
 			// Find the ticker in the response
 			foreach ($response['list'] as $tickerData) {
 				if ($tickerData['symbol'] === $ticker) {
-					return (float)$tickerData['lastPrice'];
+					return new Money($tickerData['lastPrice']);
 				}
 			}
 
@@ -253,14 +238,11 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPosition(IPair $pair): ?IPosition {
+	public function getCurrentPosition(IMarket $market): ?IPosition {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			// For spot trading, we need to check account balance
-			// For futures, we can get position directly
-			$category = 'spot'; // Default to spot
-			
-			if ($category === 'spot') {
+			if ($pair->isSpot()) {
 				// For spot, check if we have any balance of the base currency
 				$accountInfo = $this->api->accountApi()->getWalletBalance(['accountType' => 'UNIFIED']);
 				
@@ -281,7 +263,7 @@ class Bybit extends AbstractExchangeDriver
 
 						return new \Izzy\Financial\Position(
 							new Money((float)$coin['walletBalance'], $baseCurrency),
-							'long',
+							PositionDirectionEnum::LONG,
 							$currentPrice, // Approximate entry price
 							$currentPrice,
 							'open',
@@ -289,12 +271,10 @@ class Bybit extends AbstractExchangeDriver
 						);
 					}
 				}
-				
-				return null;
 			} else {
 				// For futures, get position directly
 				$params = [
-					'category' => $category,
+					'category' => 'linear',
 					'symbol' => $ticker
 				];
 
@@ -306,7 +286,8 @@ class Bybit extends AbstractExchangeDriver
 
 				foreach ($response['list'] as $positionData) {
 					if ($positionData['symbol'] === $ticker && (float)$positionData['size'] > 0) {
-						$direction = (float)$positionData['size'] > 0 ? 'long' : 'short';
+						$direction = (float)$positionData['size'] > 0
+							? PositionDirectionEnum::LONG : PositionDirectionEnum::SHORT;
 						
 						return new \Izzy\Financial\Position(
 							new Money(abs((float)$positionData['size']), 'USDT'),
@@ -318,9 +299,9 @@ class Bybit extends AbstractExchangeDriver
 						);
 					}
 				}
-				
-				return null;
+
 			}
+			return null;
 		} catch (Exception $e) {
 			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage());
 			return null;
@@ -330,12 +311,13 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * Open a long position.
 	 *
-	 * @param IPair $pair
+	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool {
+	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
+		$pair = $market->getPair();
 		try {
 			// Safety check: limit position size to $100
 			if ($amount->getAmount() > 100.0) {
@@ -352,7 +334,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $pair->getExchangeTicker($this),
 				'side' => $side,
 				'orderType' => $orderType,
-				'qty' => $this->calculateQuantity($pair, $amount, $price),
+				'qty' => $this->calculateQuantity($pair, $amount, $price)->formatForOrder(),
 			];
 
 			if ($price) {
@@ -362,7 +344,7 @@ class Bybit extends AbstractExchangeDriver
 			$response = $this->api->orderApi()->submitOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully opened long position on Bybit for {$pair->getTicker()}: {$amount}");
+				$this->logger->warning("Successfully opened long position on Bybit for {$pair->getTicker()}: {$amount}");
 				
 				// Save position to database
 				$currentPrice = $this->getCurrentPrice($pair);
@@ -394,14 +376,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Open a short position (futures only).
-	 *
-	 * @param IPair $pair
-	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
+	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit position size to $100
@@ -419,7 +397,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => $side,
 				'orderType' => $orderType,
-				'qty' => $this->calculateQuantity($pair, $amount, $price),
+				'qty' => $this->calculateQuantity($pair, $amount, $price)->formatForOrder(),
 			];
 
 			if ($price) {
@@ -461,13 +439,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Close an existing position.
-	 * 
-	 * @param IPair $pair Trading pair.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function closePosition(IPair $pair, ?float $price = null): bool {
+	public function closePosition(IMarket $market, ?float $price = null): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$currentPosition = $this->getCurrentPosition($pair);
@@ -476,8 +451,8 @@ class Bybit extends AbstractExchangeDriver
 				return true; // Consider it successful if no position exists
 			}
 
-			$category = $currentPosition->getDirection() === 'long' ? 'spot' : 'linear';
-			$side = $currentPosition->getDirection() === 'long' ? 'Sell' : 'Buy';
+			$category = $currentPosition->getDirection()->isLong() ? 'spot' : 'linear';
+			$side = $currentPosition->getDirection()->isLong() ? 'Sell' : 'Buy';
 			$orderType = $price ? 'Limit' : 'Market';
 			
 			$params = [
@@ -515,13 +490,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Place a market order to buy additional volume (DCA).
-	 *
-	 * @param IPair $pair
-	 * @param Money $amount Amount to buy.
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function buyAdditional(IPair $pair, Money $amount): bool {
+	public function buyAdditional(IMarket $market, Money $amount): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit DCA amount to $50
@@ -535,7 +507,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => 'Buy',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($pair, $amount, null),
+				'qty' => $this->calculateQuantity($pair, $amount, null)->formatForOrder(),
 			];
 
 			$response = $this->api->orderApi()->submitOrder($params);
@@ -554,13 +526,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Place a market order to sell additional volume.
-	 *
-	 * @param IPair $pair
-	 * @param Money $amount Amount to sell.
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function sellAdditional(IPair $pair, Money $amount): bool {
+	public function sellAdditional(IMarket $market, Money $amount): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit sell amount to $50
@@ -574,7 +543,7 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => 'Sell',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($pair, $amount, null),
+				'qty' => $this->calculateQuantity($pair, $amount, null)->formatForOrder(),
 			];
 
 			$response = $this->api->orderApi()->submitOrder($params);
@@ -598,19 +567,18 @@ class Bybit extends AbstractExchangeDriver
 	 * @param IPair $pair
 	 * @param Money $amount Amount in USDT.
 	 * @param float|null $price Price per unit.
-	 * @return string Quantity as string.
+	 * @return Money Quantity.
 	 */
-	private function calculateQuantity(IPair $pair, Money $amount, ?float $price): string {
+	private function calculateQuantity(IPair $pair, Money $amount, ?float $price): Money {
 		if ($price) {
-			$quantity = $amount->getAmount() / $price;
+			// Limit order.
+			$quantityFloat = $amount->getAmount() / $price;
 		} else {
 			// For market orders, use a rough estimate
 			$currentPrice = $this->getCurrentPrice($pair);
-			$quantity = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
+			$quantityFloat = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
 		}
-		
-		// Round to 6 decimal places for most cryptocurrencies
-		return number_format($quantity, 6, '.', '');
+		return new Money($quantityFloat, $pair->getBaseCurrency());
 	}
 
 	/**

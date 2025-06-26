@@ -5,6 +5,7 @@ namespace Izzy\Chart;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
+use Izzy\Strategies\DCASettings;
 
 class Chart extends Image
 {
@@ -239,5 +240,10 @@ class Chart extends Image
 				8
 			);
 		}
+	}
+	
+	public function drawDCAGrid(DCASettings $dcaSettings): void {
+		$chartArea = $this->getChartArea();
+		// TODO
 	}
 }

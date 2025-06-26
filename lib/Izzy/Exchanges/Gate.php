@@ -6,6 +6,7 @@ use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
 use GateApi\Configuration;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
@@ -37,8 +38,7 @@ class Gate extends AbstractExchangeDriver
 		try {
 			$info = $this->walletApi->getTotalBalance(['currency' => 'USDT']);
 			$value = new Money($info->getTotal()->getAmount());
-			$this->logger->info("Balance on {$this->exchangeName}: {$value} USDT");
-			$this->database->setExchangeBalance($this->exchangeName, $value);
+			$this->saveBalance($value);
 		} catch (ApiException $exception) {
 			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $exception->getMessage());
 		}
@@ -105,24 +105,6 @@ class Gate extends AbstractExchangeDriver
 		$associate_array['account'] = 'spot'; // string | Specify operation account. Default to spot and margin account if not specified. Set to `cross_margin` to operate against margin account.  Portfolio margin account must set to `cross_margin` only
 		$result = $this->spotApi->listOrders($associate_array);
 		var_dump($result[0]);*/
-	}
-
-	/**
-	 * Get market instance for a trading pair.
-	 * Creates a new market with candle data from Gate API.
-	 * 
-	 * @param IPair $pair Trading pair.
-	 * @return IMarket|null Market instance or null if not found.
-	 */
-	public function getMarket(IPair $pair): ?IMarket {
-		$candlesData = $this->getCandles($pair, 200);
-		if (empty($candlesData)) {
-			return null;
-		}
-		
-		$market = new Market($pair, $this);
-		$market->setCandles($candlesData);
-		return $market;
 	}
 
 	/**
@@ -197,14 +179,15 @@ class Gate extends AbstractExchangeDriver
 	 * Update balance information.
 	 * Delegates to refreshAccountBalance method.
 	 */
-	protected function updateBalance(): void {
+	public function updateBalance(): void {
 		$this->refreshAccountBalance();
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPrice(IPair $pair): ?float {
+	public function getCurrentPrice(IMarket $market): ?Money {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = ['currency_pair' => $ticker];
@@ -214,7 +197,7 @@ class Gate extends AbstractExchangeDriver
 				// listTickers returns an array, we need the first item
 				$tickerData = $response[0] ?? null;
 				if ($tickerData && method_exists($tickerData, 'getLast')) {
-					return (float)$tickerData->getLast();
+					return new Money($tickerData->getLast());
 				}
 			}
 
@@ -229,7 +212,8 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPosition(IPair $pair): ?IPosition {
+	public function getCurrentPosition(IMarket $market): ?IPosition {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$baseCurrency = $pair->getBaseCurrency();
@@ -247,7 +231,7 @@ class Gate extends AbstractExchangeDriver
 
 				return new \Izzy\Financial\Position(
 					new Money((float)$response->getTotal()->getAmount(), $baseCurrency),
-					'long',
+					PositionDirectionEnum::LONG,
 					$currentPrice, // Approximate entry price
 					$currentPrice,
 					'open',
@@ -265,12 +249,13 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * Open a long position.
 	 *
-	 * @param IPair $pair
+	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool {
+	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit position size to $100
@@ -327,15 +312,15 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * Open a short position (futures only).
 	 *
-	 * @param IPair $pair
+	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
+	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
 		// Gate.io doesn't support futures trading in the basic API
 		// This is a placeholder implementation
-		$ticker = $pair->getExchangeTicker($this);
+		$ticker = $market->getPair()->getExchangeTicker($this);
 		$this->logger->warning("Short positions not supported on Gate.io for {$ticker}");
 		return false;
 	}
@@ -343,11 +328,12 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * Close an existing position.
 	 *
-	 * @param IPair $pair
+	 * @param IMarket $market
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function closePosition(IPair $pair, ?float $price = null): bool {
+	public function closePosition(IMarket $market, ?float $price = null): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$currentPosition = $this->getCurrentPosition($pair);
@@ -392,11 +378,12 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * Place a market order to buy additional volume (DCA).
 	 *
-	 * @param IPair $pair
+	 * @param IMarket $market
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function buyAdditional(IPair $pair, Money $amount): bool {
+	public function buyAdditional(IMarket $market, Money $amount): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit DCA amount to $50
@@ -430,7 +417,8 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function sellAdditional(IPair $pair, Money $amount): bool {
+	public function sellAdditional(IMarket $market, Money $amount): bool {
+		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit sell amount to $50

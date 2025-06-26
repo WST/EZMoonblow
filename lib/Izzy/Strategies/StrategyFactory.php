@@ -2,6 +2,7 @@
 
 namespace Izzy\Strategies;
 
+use InvalidArgumentException;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
 
@@ -16,7 +17,7 @@ class StrategyFactory
 	 * @var array
 	 */
 	private static array $strategies = [
-		'EZMoonblowDCA' => EZMoonblowDCA::class,
+		'EZMoonblowDCA' => EZMoonblowAbstractDCA::class,
 		// Add more strategies here as they are implemented
 	];
 
@@ -25,17 +26,17 @@ class StrategyFactory
 	 * 
 	 * @param string $strategyName Strategy name.
 	 * @param IMarket $market Market instance.
+	 * @param array $params Strategy parameters.
 	 * @return IStrategy Strategy instance.
-	 * @throws \InvalidArgumentException If strategy name is unknown.
+	 * @throws InvalidArgumentException If strategy name is unknown.
 	 */
-	public static function create(string $strategyName, IMarket $market): IStrategy
-	{
+	public static function create(string $strategyName, IMarket $market, array $params = []): IStrategy {
 		if (!isset(self::$strategies[$strategyName])) {
-			throw new \InvalidArgumentException("Unknown strategy: $strategyName");
+			throw new InvalidArgumentException("Unknown strategy: $strategyName");
 		}
 
 		$className = self::$strategies[$strategyName];
-		return new $className($market);
+		return new $className($market, $params);
 	}
 
 	/**
@@ -43,8 +44,7 @@ class StrategyFactory
 	 * 
 	 * @return array Array of available strategy names.
 	 */
-	public static function getAvailableStrategies(): array
-	{
+	public static function getAvailableStrategies(): array {
 		return array_keys(self::$strategies);
 	}
 
@@ -54,8 +54,7 @@ class StrategyFactory
 	 * @param string $strategyName Strategy name.
 	 * @return bool True if available, false otherwise.
 	 */
-	public static function isAvailable(string $strategyName): bool
-	{
+	public static function isAvailable(string $strategyName): bool {
 		return isset(self::$strategies[$strategyName]);
 	}
 
@@ -66,8 +65,7 @@ class StrategyFactory
 	 * @param string $className Full class name.
 	 * @return void
 	 */
-	public static function register(string $strategyName, string $className): void
-	{
+	public static function register(string $strategyName, string $className): void {
 		self::$strategies[$strategyName] = $className;
 	}
-} 
+}

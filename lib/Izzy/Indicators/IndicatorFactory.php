@@ -2,8 +2,9 @@
 
 namespace Izzy\Indicators;
 
+use InvalidArgumentException;
 use Izzy\Interfaces\IIndicator;
-use Izzy\Interfaces\IPair;
+use Izzy\Interfaces\IMarket;
 
 /**
  * Factory for creating technical indicators.
@@ -16,45 +17,26 @@ class IndicatorFactory
 	 * @var array
 	 */
 	private static array $indicators = [
-		'RSI' => RSI::class,
+		'Izzy\Indicators\RSI' => RSI::class,
 		// Add more indicators here as they are implemented
 	];
 	
 	/**
 	 * Create indicator instance by type.
 	 * 
+	 * @param IMarket $market
 	 * @param string $type Indicator type (e.g., 'RSI', 'MACD').
 	 * @param array $parameters Indicator parameters.
 	 * @return IIndicator Indicator instance.
-	 * @throws \InvalidArgumentException If indicator type is unknown.
+	 * @throws InvalidArgumentException If indicator type is unknown.
 	 */
-	public static function create(IPair $pair, string $type, array $parameters = []): IIndicator {
+	public static function create(IMarket $market, string $type, array $parameters = []): IIndicator {
 		if (!isset(self::$indicators[$type])) {
-			throw new \InvalidArgumentException("Unknown indicator type: $type");
+			throw new InvalidArgumentException("Unknown indicator type: $type");
 		}
 		
 		$className = self::$indicators[$type];
-		return new $className($pair, $parameters);
-	}
-	
-	/**
-	 * Create indicator instance by class name.
-	 * 
-	 * @param string $className Full class name of the indicator.
-	 * @param array $parameters Indicator parameters.
-	 * @return IIndicator Indicator instance.
-	 * @throws \InvalidArgumentException If class doesn't exist or doesn't implement IIndicator.
-	 */
-	public function createIndicator(IPair $pair, string $className, array $parameters = []): IIndicator {
-		if (!class_exists($className)) {
-			throw new \InvalidArgumentException("Indicator class does not exist: $className");
-		}
-		
-		if (!is_subclass_of($className, IIndicator::class)) {
-			throw new \InvalidArgumentException("Class $className does not implement IIndicator interface");
-		}
-		
-		return new $className($pair, $parameters);
+		return new $className($market, $parameters);
 	}
 	
 	/**

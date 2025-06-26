@@ -2,6 +2,7 @@
 
 namespace Izzy\Financial;
 
+use Exception;
 use Izzy\Chart\Chart;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
@@ -145,19 +146,14 @@ class Market implements IMarket
 			return;
 		}
 
-		// Initialize indicator factory if not set
-		if (!$this->indicatorFactory) {
-			$this->indicatorFactory = new IndicatorFactory();
-		}
-
 		// Get indicator classes from strategy
 		$indicatorClasses = $this->strategy->useIndicators();
 		
 		foreach ($indicatorClasses as $indicatorClass) {
 			try {
-				$indicator = $this->indicatorFactory->createIndicator($this->pair, $indicatorClass);
+				$indicator = IndicatorFactory::create($this, $indicatorClass);
 				$this->addIndicator($indicator);
-			} catch (\Exception $e) {
+			} catch (Exception $e) {
 				// Log error but continue with other indicators
 				error_log("Failed to initialize indicator {$indicatorClass}: " . $e->getMessage());
 			}
@@ -192,10 +188,6 @@ class Market implements IMarket
 
 	public function getPair(): Pair {
 		return $this->pair;
-	}
-
-	public function setPair(Pair $pair): void {
-		$this->pair = $pair;
 	}
 
 	/**
@@ -292,15 +284,29 @@ class Market implements IMarket
 
 	/**
 	 * Get market text description for the console output.
+	 * TODO: web representation (HTML)
+	 * @param bool $consoleColors
 	 * @return string
 	 */
-	public function getDescription(): string {
-		return sprintf(
-			"[%s, %s, %s]",
-			$this->getMarketType()->name,
-			$this->pair->getTicker(),
-			$this->pair->getTimeframe()->name
-		);
+	public function getDescription(bool $consoleColors = true): string {
+	    if ($consoleColors) {
+			$exchangeName = "\033[37;45m " . $this->exchange->getName() . " \033[0m";
+	        $marketType = "\033[37;44m " . $this->getMarketType()->name . " \033[0m";
+	        $ticker = "\033[37;41m " . $this->pair->getTicker() . " \033[0m";
+	        $timeframe = "\033[37;42m " . $this->pair->getTimeframe()->name . " \033[0m";
+	        
+	        return $exchangeName . $marketType . $ticker . $timeframe;
+	    } else {
+	        $format = " %s, %s, %s, %s ";
+	        $args = [
+				$this->getExchange()->getName(),
+	            $this->getMarketType()->name,
+	            $this->pair->getTicker(),
+	            $this->pair->getTimeframe()->name
+	        ];
+	        
+	        return sprintf($format, ...$args);
+	    }
 	}
 
 	/**
@@ -309,5 +315,15 @@ class Market implements IMarket
 	 */
 	public function __toString(): string {
 		return $this->getDescription();
+	}
+
+	public function openLongPosition(Money $volume): IPosition|false {
+		$success = $this->exchange->openLong($this->pair, $volume);
+		return $this->getCurrentPosition();
+	}
+
+	public function openShortPosition(Money $volume): IPosition|false {
+		$success = $this->exchange->openShort($this->pair, $volume);
+		return $this->getCurrentPosition();
 	}
 }

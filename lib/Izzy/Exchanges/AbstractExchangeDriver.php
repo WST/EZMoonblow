@@ -7,6 +7,7 @@ use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
+use Izzy\Indicators\IndicatorFactory;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
@@ -69,6 +70,20 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	public function getName(): string {
 		return $this->config->getName();
 	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function createMarket(IPair $pair): ?IMarket {
+		$candlesData = $this->getCandles($pair, 200);
+		if (empty($candlesData)) {
+			return null;
+		}
+
+		$market = new Market($pair, $this);
+		$market->setCandles($candlesData);
+		return $market;
+	}
 	
 	/**
 	 * Update the list of trading pairs and associated markets.
@@ -83,7 +98,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			$pairTicker = $pair->getExchangeTicker($this);
 			$pairDescription = $pair->getDescription();
 			if (!isset($this->markets[$pairTicker])) {
-				$market = $this->getMarket($pair);
+				$market = $this->createMarket($pair);
 				if ($market) {
 					$this->markets[$pairTicker] = $market;
 					$this->logger->info("Created market $market for pair $pairDescription");
@@ -128,50 +143,19 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$this->logger->info("Updating charts for all markets on {$this->getName()}");
 		$this->updateCharts();
 
-		if ($this->shouldUpdateOrders()) {
-			$this->logger->info("Updating spot limit orders on {$this->getName()}");
-			$this->updateSpotLimitOrders();
-		}
-
 		// Default sleep time of 60 seconds.
 		return 60;
 	}
-
-	/**
-	 * Get current balance from the exchange.
-	 * 
-	 * @return float Current balance amount.
-	 */
-	protected function getBalance(): float {
-		// Implementation of getBalance method.
-		return 0.0; // Placeholder return, actual implementation needed.
-	}
 	
 	/**
-	 * Set balance information in the database.
+	 * Save balance information in the database.
 	 * 
 	 * @param Money $balance Balance amount to store.
 	 * @return bool True if successfully stored, false otherwise.
 	 */
-	protected function setBalance(Money $balance): bool {
+	protected function saveBalance(Money $balance): bool {
+		$this->logger->info("Balance of {$this->getName()} is: $balance");
 		return $this->database->setExchangeBalance($this->exchangeName, $balance);
-	}
-
-	/**
-	 * Check if orders should be updated.
-	 * 
-	 * @return bool True if orders should be updated, false otherwise.
-	 */
-	protected function shouldUpdateOrders(): bool {
-		// Implementation of shouldUpdateOrders method.
-		return false; // Placeholder return, actual implementation needed.
-	}
-
-	/**
-	 * Update spot limit orders on the exchange.
-	 */
-	protected function updateSpotLimitOrders(): void {
-		// Implementation of updateSpotLimitOrders method.
 	}
 
 	/**
@@ -217,7 +201,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 */
 	protected function updateMarkets(): void {
 		foreach ($this->markets as $ticker => $market) {
-			// First, let’s determine the type of market.
+			// First, let's determine the type of market.
 			$marketType = $market->getMarketType();
 			
 			// If the market type is spot, we need to fetch spot candles.
@@ -253,7 +237,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	}
 
 	/**
-	 * Setup strategy for a specific market based on pair configuration.
+	 * Setup strategy for a specific market based on configuration.
 	 * 
 	 * @param Market $market Market instance.
 	 * @return void
@@ -267,8 +251,13 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$pair = $market->getPair();
 		$strategyName = $pair->getStrategyName();
 		
+		if (empty($strategyName)) {
+			return;
+		}
+		
 		try {
-			$strategy = StrategyFactory::create($strategyName, $market);
+			$strategyParams = $pair->getStrategyParams();
+			$strategy = StrategyFactory::create($strategyName, $market, $strategyParams);
 			$market->setStrategy($strategy);
 			$this->logger->info("Set strategy {$strategyName} for market $market");
 		} catch (\Exception $e) {
@@ -300,7 +289,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		// Create and add indicators.
 		foreach ($indicatorsConfig as $indicatorType => $parameters) {
 			try {
-				$indicator = \Izzy\Indicators\IndicatorFactory::create($indicatorType, $parameters);
+				$indicator = IndicatorFactory::create($market, $indicatorType, $parameters);
 				$market->addIndicator($indicator);
 				$this->logger->info("Added indicator {$indicatorType} to market $market");
 			} catch (\Exception $e) {
@@ -339,8 +328,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * 
 	 * @return void
 	 */
-	public function processMarkets(): void
-	{
+	public function processMarkets(): void {
 		foreach ($this->markets as $ticker => $market) {
 			try {
 				$this->checkStrategySignals($market);
@@ -363,7 +351,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		}
 
 		// Get current position
-		$currentPosition = $this->getCurrentPosition($market->getPair());
+		$currentPosition = $this->getCurrentPosition($market);
 		
 		// If no position is open, check for entry signals
 		if (!$currentPosition || !$currentPosition->isOpen()) {
@@ -418,7 +406,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		}
 
 		// Let strategy update position (DCA logic, etc.)
-		$strategy->updatePosition();
+		$strategy->updatePosition($position);
 	}
 
 	/**
@@ -428,25 +416,8 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * @return void
 	 */
 	protected function executeLongEntry(Market $market): void {
-		$pair = $market->getPair();
-		
-		// Get current price
-		$currentPrice = $this->getCurrentPrice($pair);
-		if (!$currentPrice) {
-			$this->logger->error("Failed to get current price for {$market}");
-			return;
-		}
-
-		// Calculate position size (for now, use a fixed amount)
-		// TODO: Make this configurable
-		$positionSize = new Money(10.0, 'USDT'); // $10 position size
-
-		// Open long position
-		if ($this->openLong($market, $positionSize)) {
-			$this->logger->info("Successfully opened long position for {$market} at price {$currentPrice}");
-		} else {
-			$this->logger->error("Failed to open long position for {$market}");
-		}
+		$this->logger->info("Long entry detected for {$market}");
+		$market->getStrategy()->handleLong($market);
 	}
 
 	/**
@@ -456,38 +427,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * @return void
 	 */
 	protected function executeShortEntry(Market $market): void {
-		$pair = $market->getPair();
-		// Get current price
-		$currentPrice = $this->getCurrentPrice($pair);
-		if (!$currentPrice) {
-			$this->logger->error("Failed to get current price for {$market}");
-			return;
-		}
-
-		// Calculate position size (for now, use a fixed amount)
-		// TODO: Make this configurable
-		$positionSize = new Money(10.0, 'USDT'); // $10 position size
-
-		// Open short position
-		if ($this->openShort($pair, $positionSize)) {
-			$this->logger->info("Successfully opened short position for {$market} at price {$currentPrice}");
-		} else {
-			$this->logger->error("Failed to open short position for {$market}");
-		}
-	}
-
-	/**
-	 * Execute DCA (Dollar Cost Averaging) buy order.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @param Money $amount Amount to buy.
-	 * @return void
-	 */
-	protected function executeDCA(string $ticker, Money $amount): void {
-		if ($this->buyAdditional($ticker, $amount)) {
-			$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
-		} else {
-			$this->logger->error("Failed to execute DCA buy for {$ticker}: {$amount}");
-		}
+		$this->logger->info("Short entry detected for {$market}");
+		$market->getStrategy()->handleShort($market);
 	}
 }
