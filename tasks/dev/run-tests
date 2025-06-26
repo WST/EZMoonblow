@@ -4,9 +4,12 @@
 require_once 'lib/common.php';
 
 use Izzy\Configuration\Configuration;
+use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\Bybit;
 use Izzy\Exchanges\Gate;
 use Izzy\Financial\Money;
+use Izzy\Financial\Pair;
 use Izzy\RealApplications\Analyzer;
 
 echo "=== Trading System Test ===\n\n";
@@ -38,9 +41,18 @@ try {
 			continue;
 		}
 		
+		// Create a test pair and market
+		$pair = new Pair('BTC/USDT', TimeFrameEnum::TF_1HOUR, $exchange->getName(), MarketTypeEnum::SPOT);
+		$market = $exchange->createMarket($pair);
+		
+		if (!$market) {
+			echo "❌ Failed to create market for testing\n";
+			continue;
+		}
+		
 		// Test getting current price
 		echo "Testing getCurrentPrice... ";
-		$price = $exchange->getCurrentPrice('BTCUSDT');
+		$price = $exchange->getCurrentPrice($market);
 		if ($price) {
 			echo "✅ Price: $price\n";
 		} else {
@@ -49,7 +61,7 @@ try {
 		
 		// Test getting current position
 		echo "Testing getCurrentPosition... ";
-		$position = $exchange->getCurrentPosition('BTCUSDT');
+		$position = $exchange->getCurrentPosition($market);
 		if ($position) {
 			echo "✅ Position found: " . $position->getVolume()->getAmount() . " " . $position->getVolume()->getCurrency() . "\n";
 		} else {
@@ -58,7 +70,6 @@ try {
 		
 		// Test getting candles
 		echo "Testing getCandles... ";
-		$pair = new \Izzy\Financial\Pair('BTCUSDT', \Izzy\Enums\TimeFrameEnum::TF_1HOUR, $exchange->getName(), \Izzy\Enums\MarketTypeEnum::SPOT);
 		$candles = $exchange->getCandles($pair, 10);
 		if (!empty($candles)) {
 			echo "✅ Got " . count($candles) . " candles\n";
@@ -67,8 +78,7 @@ try {
 		}
 		
 		// Test getting market
-		echo "Testing getMarket... ";
-		$market = $exchange->createMarket($pair);
+		echo "Testing createMarket... ";
 		if ($market) {
 			echo "✅ Market created\n";
 		} else {

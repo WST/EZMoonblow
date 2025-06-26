@@ -35,7 +35,7 @@ abstract class AbstractDCAStrategy extends Strategy
 
 		$this->dcaSettings = new DCASettings(
 			$numberOfLevels,
-			new Money($entryVolume, 'USDT'),
+			Money::from($entryVolume, 'USDT'),
 			$volumeMultiplier,
 			$priceDeviation,
 			$priceDeviationMultiplier,
@@ -58,7 +58,7 @@ abstract class AbstractDCAStrategy extends Strategy
 	}
 	
 	public function handleLong(IMarket $market): IPosition|false {
-		return $market->openLongPosition(new Money(10.0));
+		return $market->openLongPosition(Money::from(10.0));
 	}
 
 	public function handleShort(IMarket $market): IPosition|false {

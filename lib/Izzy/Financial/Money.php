@@ -7,9 +7,13 @@ class Money
 	private float $amount;
 	private string $currency;
 
-	public function __construct(float $amount, string $currency = 'USDT') {
-		$this->amount = $amount;
+	public function __construct(string|int|float $amount, string $currency = 'USDT') {
+		$this->amount = (float) $amount;
 		$this->currency = $currency;
+	}
+	
+	public static function from(string|int|float $amount, string $currency = 'USDT'): Money {
+		return new self($amount, $currency);
 	}
 
 	public function getAmount(): float {

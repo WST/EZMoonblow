@@ -407,11 +407,11 @@ class Database
 		$sql = "SELECT SUM(CAST(balance AS DECIMAL(20,8))) as total FROM exchange_balances";
 		$result = $this->queryOneRow($sql);
 		
-		if ($result && isset($result['total']) && $result['total'] !== null) {
-			return new Money((float)$result['total']);
+		if ($result && isset($result['total'])) {
+			return Money::from($result['total']);
 		}
 		
-		return new Money(0.0);
+		return Money::from(0.0);
 	}
 
 	/**

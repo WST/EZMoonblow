@@ -224,7 +224,7 @@ class Gate extends AbstractExchangeDriver
 			
 			if ($response && $response->getTotal() && (float)$response->getTotal()->getAmount() > 0) {
 				// We have a position in this currency
-				$currentPrice = $this->getCurrentPrice($pair);
+				$currentPrice = $this->getCurrentPrice($market);
 				if (!$currentPrice) {
 					return null;
 				}
@@ -450,29 +450,7 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Calculate quantity based on amount and price.
-	 *
-	 * @param IPair $pair
-	 * @param Money $amount Amount in USDT.
-	 * @param float|null $price Price per unit.
-	 * @return string Quantity as string.
-	 */
-	private function calculateQuantity(IPair $pair, Money $amount, ?float $price): string {
-		$ticker = $pair->getExchangeTicker($this);
-		if ($price) {
-			$quantity = $amount->getAmount() / $price;
-		} else {
-			// For market orders, use a rough estimate
-			$currentPrice = $this->getCurrentPrice($pair);
-			$quantity = $currentPrice ? $amount->getAmount() / $currentPrice : 0.001;
-		}
-		
-		// Round to 6 decimal places for most cryptocurrencies
-		return number_format($quantity, 6, '.', '');
-	}
-
-	/**
-	 * Gate uses tickers like “BTC_USDT” for pairs.
+	 * Gate uses tickers like "BTC_USDT" for pairs.
 	 * @param IPair $pair
 	 * @return string
 	 */

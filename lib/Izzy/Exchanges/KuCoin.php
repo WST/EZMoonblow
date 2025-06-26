@@ -31,7 +31,7 @@ class KuCoin extends AbstractExchangeDriver
 			return $carry + ($item['balance'] * $currencies[$symbol]);
 		});
 
-		$result = new Money($sum);
+		$result = Money::from($sum);
 		//$this->log("Баланс на {$this->exchangeName}: $result");
 		$this->saveBalance($result);
 	}

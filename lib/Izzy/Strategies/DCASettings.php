@@ -61,8 +61,7 @@ class DCASettings
 			$volume *= $volumeMultiplier;
 			$offset += $priceDeviation * ($level *  $priceDeviationMultiplier);
 		}
-		var_dump($this->orderMap);
-		
+		//var_dump($this->orderMap);
 		$this->numberOfLevels = $numberOfLevels;
 		$this->entryVolume = $entryVolume;
 		$this->volumeMultiplier = $volumeMultiplier;
@@ -76,7 +75,7 @@ class DCASettings
 	}
 	
 	public function getMaxTotalPositionVolume(): Money {
-		return new Money(
+		return Money::from(
 			array_reduce(
 				$this->orderMap,
 				function ($carry, $item) { return $carry + $item['volume']; },

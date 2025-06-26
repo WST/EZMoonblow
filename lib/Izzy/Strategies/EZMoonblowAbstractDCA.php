@@ -45,6 +45,6 @@ class EZMoonblowAbstractDCA extends AbstractDCAStrategy
 	 * @return IPosition|false
 	 */
 	public function handleLong(IMarket $market): IPosition|false {
-		return $market->openLongPosition(new Money(10.0));
+		return $market->openLongPosition(Money::from(10.0));
 	}
 }

@@ -430,4 +430,25 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$this->logger->info("Short entry detected for {$market}");
 		$market->getStrategy()->handleShort($market);
 	}
+
+	/**
+	 * Calculate quantity based on amount and price.
+	 *
+	 * @param IMarket $market
+	 * @param Money $amount Amount in USDT.
+	 * @param float|null $price Price per unit.
+	 * @return Money Quantity as string.
+	 */
+	protected function calculateQuantity(IMarket $market, Money $amount, ?float $price): Money {
+		$pair = $market->getPair();
+		if ($price) {
+			// Limit orders.
+			$quantity = $amount->getAmount() / $price;
+		} else {
+			// For market orders, use a rough estimate.
+			$currentPrice = $this->getCurrentPrice($market)->getAmount();
+			$quantity = $currentPrice ? ($amount->getAmount() / $currentPrice) : 0.001;
+		}
+		return Money::from($quantity, $pair->getBaseCurrency());
+	}
 }
