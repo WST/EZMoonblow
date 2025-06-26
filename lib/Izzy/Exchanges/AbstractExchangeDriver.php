@@ -68,7 +68,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * @return string Exchange name.
 	 */
 	public function getName(): string {
-		return $this->config->getName();
+		return $this->exchangeName;
 	}
 
 	/**
@@ -155,7 +155,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 */
 	protected function saveBalance(Money $balance): bool {
 		$this->logger->info("Balance of {$this->getName()} is: $balance");
-		return $this->database->setExchangeBalance($this->exchangeName, $balance);
+		return $this->database->setExchangeBalance($this->getName(), $balance);
 	}
 
 	/**
@@ -177,7 +177,14 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$this->database->connect();
 
 		// Log that the driver has been successfully loaded.
-		$this->logger->info("Driver for exchange {$this->exchangeName} loaded");
+		$this->logger->info("Driver for exchange {$this->getName()} loaded.");
+		
+		// Check if this exchange is disabled by the configuration.
+		// We return success, because this is completely OK.
+		if (!$this->config->isEnabled()) {
+			$this->logger->warning("Exchange {$this->getName()} is disabled in the configuration.");
+			return 0;
+		}
 
 		// Main loop.
 		while(true) {
@@ -259,9 +266,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			$strategyParams = $pair->getStrategyParams();
 			$strategy = StrategyFactory::create($strategyName, $market, $strategyParams);
 			$market->setStrategy($strategy);
-			$this->logger->info("Set strategy {$strategyName} for market $market");
+			$this->logger->info("Set strategy $strategyName for market $market");
 		} catch (\Exception $e) {
-			$this->logger->error("Failed to set strategy {$strategyName} for market $market: " . $e->getMessage());
+			$this->logger->error("Failed to set strategy $strategyName for market $market: " . $e->getMessage());
 		}
 	}
 

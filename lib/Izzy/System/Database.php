@@ -38,7 +38,7 @@ class Database
 	 * @param string $username Database user username
 	 * @param string $password Database user password
 	 */
-	public function __construct($host, $dbname, $username, $password) {
+	public function __construct(string $host, string $dbname, string $username, string $password) {
 		$this->host = $host;
 		$this->dbname = $dbname;
 		$this->username = $username;
@@ -416,13 +416,13 @@ class Database
 
 	/**
 	 * Save position information to database.
-	 * 
+	 *
 	 * @param string $exchangeName Exchange name.
 	 * @param string $ticker Trading pair ticker.
 	 * @param string $marketType Market type (spot/futures).
 	 * @param string $direction Position direction (long/short).
-	 * @param float $entryPrice Entry price.
-	 * @param float $currentPrice Current price.
+	 * @param Money $entryPrice Entry price.
+	 * @param Money $currentPrice Current price.
 	 * @param float $volume Position volume.
 	 * @param string $currency Currency.
 	 * @param string $status Position status.
@@ -435,8 +435,8 @@ class Database
 		string $ticker,
 		string $marketType,
 		string $direction,
-		float $entryPrice,
-		float $currentPrice,
+		Money $entryPrice,
+		Money $currentPrice,
 		float $volume,
 		string $currency,
 		string $status,
@@ -448,8 +448,8 @@ class Database
 			'ticker' => $ticker,
 			'market_type' => $marketType,
 			'direction' => $direction,
-			'entry_price' => $entryPrice,
-			'current_price' => $currentPrice,
+			'entry_price' => $entryPrice->getAmount(),
+			'current_price' => $currentPrice->getAmount(),
 			'volume' => $volume,
 			'currency' => $currency,
 			'status' => $status,

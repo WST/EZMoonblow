@@ -2,6 +2,7 @@
 
 namespace Izzy\Exchanges;
 
+use Exception;
 use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
@@ -9,8 +10,8 @@ use GateApi\Configuration;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
-use Izzy\Financial\Market;
 use Izzy\Financial\Money;
+use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IPair;
@@ -40,7 +41,7 @@ class Gate extends AbstractExchangeDriver
 			$value = new Money($info->getTotal()->getAmount());
 			$this->saveBalance($value);
 		} catch (ApiException $exception) {
-			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Failed to update wallet balance on $this->exchangeName: " . $exception->getMessage());
 		}
 	}
 
@@ -51,22 +52,17 @@ class Gate extends AbstractExchangeDriver
 	 * @return bool True if connection successful, false otherwise.
 	 */
 	public function connect(): bool {
-		try {
-			$key = $this->config->getKey();
-			$secret = $this->config->getSecret();
-			$config = Configuration::getDefaultConfiguration()->setKey($key)->setSecret($secret);
+		$key = $this->config->getKey();
+		$secret = $this->config->getSecret();
+		$config = Configuration::getDefaultConfiguration()->setKey($key)->setSecret($secret);
 
-			// Create Wallet API instance.
-			$this->walletApi = new WalletApi(null, $config);
+		// Create Wallet API instance.
+		$this->walletApi = new WalletApi(null, $config);
 
-			// Create Spot API instance.
-			$this->spotApi = new SpotApi(null, $config);
+		// Create Spot API instance.
+		$this->spotApi = new SpotApi(null, $config);
 
-			return true;
-		} catch (ApiException $e) {
-			$this->logger->error("Failed to connect to exchange {$this->exchangeName}: " . $e->getMessage());
-			return false;
-		}
+		return true;
 	}
 
 	/**
@@ -75,36 +71,6 @@ class Gate extends AbstractExchangeDriver
 	 */
 	public function disconnect(): void {
 		// TODO: Implement disconnect() method.
-	}
-
-	/**
-	 * Cancel all active spot orders for a specific trading pair.
-	 *
-	 * @param IPair $pair Trading pair to cancel orders for.
-	 */
-	private function cancelOrders(IPair $pair): void {
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$result = $this->spotApi->cancelOrders($ticker);
-			var_dump($result);
-		} catch (ApiException $e) {
-			$this->logger->error("Failed to cancel orders for {$ticker} on {$this->exchangeName}: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Refresh spot orders information.
-	 * Currently commented out - placeholder for future implementation.
-	 */
-	protected function refreshSpotOrders(): void {
-		/*$associate_array = [];
-		$associate_array['currency_pair'] = 'POPCAT_USDT'; // string | Retrieve results with specified currency pair. It is required for open orders, but optional for finished ones.
-		$associate_array['status'] = 'open'; // string | List orders based on status  `open` - order is waiting to be filled `finished` - order has been filled or cancelled
-		$associate_array['page'] = 1; // int | Page number
-		$associate_array['limit'] = 100; // int | Maximum number of records to be returned. If `status` is `open`, maximum of `limit` is 100
-		$associate_array['account'] = 'spot'; // string | Specify operation account. Default to spot and margin account if not specified. Set to `cross_margin` to operate against margin account.  Portfolio margin account must set to `cross_margin` only
-		$result = $this->spotApi->listOrders($associate_array);
-		var_dump($result[0]);*/
 	}
 
 	/**
@@ -138,7 +104,7 @@ class Gate extends AbstractExchangeDriver
 			$gateInterval = $this->timeframeToGateInterval($timeframe);
 			
 			if (!$gateInterval) {
-				$this->logger->error("Unknown timeframe {$timeframe->value} for Gate.");
+				$this->logger->error("Unknown timeframe $timeframe->value for Gate.");
 				return [];
 			}
 			
@@ -170,7 +136,7 @@ class Gate extends AbstractExchangeDriver
 
 			return $candles;
 		} catch (ApiException $exception) {
-			$this->logger->error("Failed to get candles for {$ticker} on {$this->exchangeName}: " . $exception->getMessage());
+			$this->logger->error("Failed to get candles for $ticker on $this->exchangeName: " . $exception->getMessage());
 			return [];
 		}
 	}
@@ -193,7 +159,7 @@ class Gate extends AbstractExchangeDriver
 			$params = ['currency_pair' => $ticker];
 
 			$response = $this->spotApi->listTickers($params);
-			if ($response && !empty($response)) {
+			if (!empty($response)) {
 				// listTickers returns an array, we need the first item
 				$tickerData = $response[0] ?? null;
 				if ($tickerData && method_exists($tickerData, 'getLast')) {
@@ -201,10 +167,10 @@ class Gate extends AbstractExchangeDriver
 				}
 			}
 
-			$this->logger->error("Failed to get current price for {$ticker}: invalid response");
+			$this->logger->error("Failed to get current price for $ticker: invalid response");
 			return null;
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get current price for $ticker: " . $e->getMessage());
 			return null;
 		}
 	}
@@ -229,7 +195,7 @@ class Gate extends AbstractExchangeDriver
 					return null;
 				}
 
-				return new \Izzy\Financial\Position(
+				return new Position(
 					new Money((float)$response->getTotal()->getAmount(), $baseCurrency),
 					PositionDirectionEnum::LONG,
 					$currentPrice, // Approximate entry price
@@ -240,8 +206,8 @@ class Gate extends AbstractExchangeDriver
 			}
 			
 			return null;
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get current position for $ticker: " . $e->getMessage());
 			return null;
 		}
 	}
@@ -260,14 +226,14 @@ class Gate extends AbstractExchangeDriver
 		try {
 			// Safety check: limit position size to $100
 			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
+				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100");
 				$amount = new Money(100.0, $amount->getCurrency());
 			}
 			
 			$params = [
 				'currency_pair' => $ticker,
 				'side' => 'buy',
-				'amount' => $this->calculateQuantity($pair, $amount, $price),
+				'amount' => $this->calculateQuantity($market, $amount, $price),
 				'type' => $price ? 'limit' : 'market'
 			];
 
@@ -278,10 +244,10 @@ class Gate extends AbstractExchangeDriver
 			$response = $this->spotApi->createOrder($params);
 			
 			if ($response && $response->getId()) {
-				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}");
+				$this->logger->info("Successfully opened long position for $ticker: $amount");
 				
 				// Save position to database
-				$currentPrice = $this->getCurrentPrice($pair);
+				$currentPrice = $this->getCurrentPrice($market);
 				if ($currentPrice) {
 					$this->database->savePosition(
 						$this->exchangeName,
@@ -300,11 +266,11 @@ class Gate extends AbstractExchangeDriver
 				
 				return true;
 			} else {
-				$this->logger->error("Failed to open long position for {$ticker}: invalid response");
+				$this->logger->error("Failed to open long position for $ticker: invalid response");
 				return false;
 			}
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to open long position for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to open long position for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -321,7 +287,7 @@ class Gate extends AbstractExchangeDriver
 		// Gate.io doesn't support futures trading in the basic API
 		// This is a placeholder implementation
 		$ticker = $market->getPair()->getExchangeTicker($this);
-		$this->logger->warning("Short positions not supported on Gate.io for {$ticker}");
+		$this->logger->warning("Short positions not supported on Gate.io for $ticker");
 		return false;
 	}
 
@@ -336,9 +302,9 @@ class Gate extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$currentPosition = $this->getCurrentPosition($pair);
+			$currentPosition = $this->getCurrentPosition($market);
 			if (!$currentPosition) {
-				$this->logger->warning("No position to close for {$ticker}");
+				$this->logger->warning("No position to close for $ticker");
 				return true; // Consider it successful if no position exists
 			}
 			
@@ -356,7 +322,7 @@ class Gate extends AbstractExchangeDriver
 			$response = $this->spotApi->createOrder($params);
 			
 			if ($response && $response->getId()) {
-				$this->logger->info("Successfully closed position for {$ticker}");
+				$this->logger->info("Successfully closed position for $ticker");
 				
 				// Update position status in database
 				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
@@ -366,11 +332,11 @@ class Gate extends AbstractExchangeDriver
 				
 				return true;
 			} else {
-				$this->logger->error("Failed to close position for {$ticker}: invalid response");
+				$this->logger->error("Failed to close position for $ticker: invalid response");
 				return false;
 			}
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to close position for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -388,28 +354,28 @@ class Gate extends AbstractExchangeDriver
 		try {
 			// Safety check: limit DCA amount to $50
 			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50");
+				$this->logger->warning("DCA amount $amount exceeds $50 limit, reducing to $50");
 				$amount = new Money(50.0, $amount->getCurrency());
 			}
 			
 			$params = [
 				'currency_pair' => $ticker,
 				'side' => 'buy',
-				'amount' => $this->calculateQuantity($pair, $amount, null),
+				'amount' => $this->calculateQuantity($market, $amount, null),
 				'type' => 'market'
 			];
 
 			$response = $this->spotApi->createOrder($params);
 			
 			if ($response && $response->getId()) {
-				$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
+				$this->logger->info("Successfully executed DCA buy for $ticker: $amount");
 				return true;
 			} else {
-				$this->logger->error("Failed to execute DCA buy for {$ticker}: invalid response");
+				$this->logger->error("Failed to execute DCA buy for $ticker: invalid response");
 				return false;
 			}
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to execute DCA buy for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -423,28 +389,28 @@ class Gate extends AbstractExchangeDriver
 		try {
 			// Safety check: limit sell amount to $50
 			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50");
+				$this->logger->warning("Sell amount $amount exceeds $50 limit, reducing to $50");
 				$amount = new Money(50.0, $amount->getCurrency());
 			}
 			
 			$params = [
 				'currency_pair' => $ticker,
 				'side' => 'sell',
-				'amount' => $this->calculateQuantity($pair, $amount, null),
+				'amount' => $this->calculateQuantity($market, $amount, null),
 				'type' => 'market'
 			];
 
 			$response = $this->spotApi->createOrder($params);
 			
 			if ($response && $response->getId()) {
-				$this->logger->info("Successfully executed sell for {$ticker}: {$amount}");
+				$this->logger->info("Successfully executed sell for $ticker: $amount");
 				return true;
 			} else {
-				$this->logger->error("Failed to execute sell for {$ticker}: invalid response");
+				$this->logger->error("Failed to execute sell for $ticker: invalid response");
 				return false;
 			}
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage());
+		} catch (Exception $e) {
+			$this->logger->error("Failed to execute sell for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}

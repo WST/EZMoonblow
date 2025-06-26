@@ -132,11 +132,11 @@ class Position implements IPosition
 
 	/**
 	 * Update current price.
-	 * 
-	 * @param float $currentPrice New current price.
+	 *
+	 * @param Money $currentPrice New current price.
 	 * @return void
 	 */
-	public function updateCurrentPrice(float $currentPrice): void {
+	public function updateCurrentPrice(Money $currentPrice): void {
 		$this->currentPrice = $currentPrice;
 	}
 

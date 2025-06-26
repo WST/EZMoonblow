@@ -3,6 +3,7 @@
 namespace Izzy\Configuration;
 
 use DOMElement;
+use InvalidArgumentException;
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
@@ -125,7 +126,7 @@ class ExchangeConfiguration
 		
 		// Check that there's only 0 or 1 strategy elements
 		if ($strategyElements->length > 1) {
-			throw new \InvalidArgumentException("Pair {$pairElement->getAttribute('ticker')} has more than one strategy defined");
+			throw new InvalidArgumentException("Pair {$pairElement->getAttribute('ticker')} has more than one strategy defined");
 		}
 		
 		if ($strategyElements->length === 0) {
@@ -139,7 +140,7 @@ class ExchangeConfiguration
 		
 		$strategyName = $strategyElement->getAttribute('name');
 		if (empty($strategyName)) {
-			throw new \InvalidArgumentException("Strategy name is required for pair {$pairElement->getAttribute('ticker')}");
+			throw new InvalidArgumentException("Strategy name is required for pair {$pairElement->getAttribute('ticker')}");
 		}
 		
 		// Parse strategy parameters

@@ -6,7 +6,7 @@ This is a (very) simple (and still under construction) crypto trading bot projec
 
 ## For Developers and AI Assistants
 
-**📋 Important**: If you're contributing to this project or working with AI assistance, please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project structure, and architectural patterns that must be followed.
+**📋 Important**: If you’re contributing to this project or working with AI assistance, please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project structure, and architectural patterns that must be followed.
 
 ### Recommended development environment
 

@@ -10,7 +10,6 @@ use InvalidArgumentException;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
-use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Financial\Position;
@@ -61,7 +60,7 @@ class Bybit extends AbstractExchangeDriver
 			
 			return true;
 		} catch (Exception $e) {
-			$this->logger->error("Failed to connect to exchange {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Failed to connect to exchange $this->exchangeName: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -89,10 +88,8 @@ class Bybit extends AbstractExchangeDriver
 			$value = (float)$info['list'][0]['totalEquity'];
 			$totalBalance = Money::from($value);
 			$this->saveBalance($totalBalance);
-		} catch (HttpException $exception) {
-			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $exception->getMessage());
 		} catch (Exception $e) {
-			$this->logger->error("Unexpected error while updating balance on {$this->exchangeName}: " . $e->getMessage());
+			$this->logger->error("Unexpected error while updating balance on $this->exchangeName: " . $e->getMessage());
 		}
 	}
 
@@ -174,16 +171,6 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Check if orders should be updated.
-	 * Currently disabled as trading is not implemented.
-	 * 
-	 * @return bool Always returns false.
-	 */
-	protected function shouldUpdateOrders(): bool {
-		return false;
-	}
-
-	/**
 	 * Get Bybit category for a trading pair.
 	 * 
 	 * @param Pair $pair Trading pair.
@@ -217,7 +204,7 @@ class Bybit extends AbstractExchangeDriver
 			$response = $this->api->marketApi()->getTickers($params);
 			
 			if (empty($response['list'])) {
-				$this->logger->error("Failed to get current price for {$ticker}: empty response");
+				$this->logger->error("Failed to get current price for $ticker: empty response");
 				return null;
 			}
 
@@ -228,10 +215,10 @@ class Bybit extends AbstractExchangeDriver
 				}
 			}
 
-			$this->logger->error("Ticker {$ticker} not found in response");
+			$this->logger->error("Ticker $ticker not found in response");
 			return null;
 		} catch (Exception $e) {
-			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage());
+			$this->logger->error("Failed to get current price for $ticker: " . $e->getMessage());
 			return null;
 		}
 	}
@@ -274,7 +261,7 @@ class Bybit extends AbstractExchangeDriver
 						$positionSize = $positionData['size'];
 						$direction = $positionSize > 0 ? PositionDirectionEnum::LONG : PositionDirectionEnum::SHORT;
 						return new Position(
-							Money::from(abs($positionSize), 'USDT'),
+							Money::from(abs($positionSize)),
 							$direction,
 							Money::from($positionData['avgPrice']),
 							Money::from($positionData['markPrice']),
@@ -368,8 +355,8 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			// Safety check: limit position size to $100
 			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
-				$amount = Money::from(100.0, $amount->getCurrency());
+				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100");
+				$amount->setAmount(100.0);
 			}
 
 			$category = 'linear'; // Futures only
@@ -391,7 +378,7 @@ class Bybit extends AbstractExchangeDriver
 			$response = $this->api->orderApi()->submitOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully opened short position for {$ticker}: {$amount}");
+				$this->logger->info("Successfully opened short position for $ticker: $amount");
 				
 				// Save position to database
 				$currentPrice = $this->getCurrentPrice($market);
@@ -413,11 +400,11 @@ class Bybit extends AbstractExchangeDriver
 				
 				return true;
 			} else {
-				$this->logger->error("Failed to open short position for {$ticker}: " . json_encode($response));
+				$this->logger->error("Failed to open short position for $ticker: " . json_encode($response));
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to open short position for {$ticker}: " . $e->getMessage());
+			$this->logger->error("Failed to open short position for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -431,7 +418,7 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			$currentPosition = $this->getCurrentPosition($market);
 			if (!$currentPosition) {
-				$this->logger->warning("No position to close for pair {$pair}");
+				$this->logger->warning("No position to close for pair $pair");
 				return true; // Consider it successful if no position exists
 			}
 
@@ -454,7 +441,7 @@ class Bybit extends AbstractExchangeDriver
 			$response = $this->api->orderApi()->submitOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully closed position for {$ticker}");
+				$this->logger->info("Successfully closed position for $ticker");
 				
 				// Update position status in database
 				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
@@ -464,11 +451,11 @@ class Bybit extends AbstractExchangeDriver
 				
 				return true;
 			} else {
-				$this->logger->error("Failed to close position for {$ticker}: " . json_encode($response));
+				$this->logger->error("Failed to close position for $ticker: " . json_encode($response));
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage());
+			$this->logger->error("Failed to close position for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -482,8 +469,8 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			// Safety check: limit DCA amount to $50
 			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50");
-				$amount = Money::from(50.0, $amount->getCurrency());
+				$this->logger->warning("DCA amount $amount exceeds $50 limit, reducing to $50");
+				$amount->setAmount(50.0);
 			}
 
 			$params = [
@@ -491,20 +478,20 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => 'Buy',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($pair, $amount, null)->formatForOrder(),
+				'qty' => $this->calculateQuantity($market, $amount, null)->formatForOrder(),
 			];
 
 			$response = $this->api->orderApi()->submitOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
+				$this->logger->info("Successfully executed DCA buy for $ticker: $amount");
 				return true;
 			} else {
-				$this->logger->error("Failed to execute DCA buy for {$ticker}: " . json_encode($response));
+				$this->logger->error("Failed to execute DCA buy for $ticker: " . json_encode($response));
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage());
+			$this->logger->error("Failed to execute DCA buy for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -518,8 +505,8 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			// Safety check: limit sell amount to $50
 			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50");
-				$amount = new Money(50.0, $amount->getCurrency());
+				$this->logger->warning("Sell amount $amount exceeds $50 limit, reducing to $50");
+				$amount->setAmount(50.0);
 			}
 
 			$params = [
@@ -527,20 +514,20 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $ticker,
 				'side' => 'Sell',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($pair, $amount, null)->formatForOrder(),
+				'qty' => $this->calculateQuantity($market, $amount, null)->formatForOrder(),
 			];
 
 			$response = $this->api->orderApi()->submitOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully executed sell for {$ticker}: {$amount}");
+				$this->logger->info("Successfully executed sell for $ticker: $amount");
 				return true;
 			} else {
-				$this->logger->error("Failed to execute sell for {$ticker}: " . json_encode($response));
+				$this->logger->error("Failed to execute sell for $ticker: " . json_encode($response));
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage());
+			$this->logger->error("Failed to execute sell for $ticker: " . $e->getMessage());
 			return false;
 		}
 	}

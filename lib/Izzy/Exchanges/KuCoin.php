@@ -3,13 +3,11 @@
 namespace Izzy\Exchanges;
 
 use Exception;
-use InvalidArgumentException;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
-use Izzy\Financial\Pair;
 use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
@@ -29,7 +27,7 @@ class KuCoin extends AbstractExchangeDriver
 {
 	/** @var string Exchange name identifier. */
 	protected string $exchangeName = 'KuCoin';
-
+	
 	/** @var Account|null Account API instance for balance operations. */
 	private ?Account $account = null;
 
@@ -47,8 +45,7 @@ class KuCoin extends AbstractExchangeDriver
 	 *
 	 * @return bool True if connection successful, false otherwise.
 	 */
-	public function connect(): bool
-	{
+	public function connect(): bool {
 		try {
 			KuCoinApi::setBaseUri('https://api.kucoin.com');
 			$key = $this->config->getKey();
@@ -64,13 +61,13 @@ class KuCoin extends AbstractExchangeDriver
 			// Test connection by requesting account info.
 			$accountList = $this->account->getList();
 			if (empty($accountList)) {
-				$this->logger->error("Failed to get account data from KuCoin, connection not established.");
+				$this->logger->error("Failed to get account data from {$this->getName()}, connection not established.");
 				return false;
 			}
 
 			return true;
 		} catch (Exception $e) {
-			$this->logger->error("Failed to connect to exchange {$this->exchangeName}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to connect to exchange {$this->getName()}: " . $e->getMessage() . ".");
 			return false;
 		}
 	}
@@ -80,8 +77,7 @@ class KuCoin extends AbstractExchangeDriver
 	 *
 	 * @return void
 	 */
-	public function disconnect(): void
-	{
+	public function disconnect(): void {
 		$this->account = null;
 		$this->currency = null;
 		$this->order = null;
@@ -94,8 +90,7 @@ class KuCoin extends AbstractExchangeDriver
 	 *
 	 * @return void
 	 */
-	public function updateBalance(): void
-	{
+	public function updateBalance(): void {
 		try {
 			$accountList = $this->account->getList();
 			$currencies = array_map(fn($price) => floatval($price), $this->currency->getPrices());
@@ -110,7 +105,7 @@ class KuCoin extends AbstractExchangeDriver
 			$result = Money::from($sum);
 			$this->saveBalance($result);
 		} catch (Exception $e) {
-			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to update wallet balance on {$this->getName()}: " . $e->getMessage() . ".");
 		}
 	}
 
@@ -120,8 +115,7 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param TimeFrameEnum $timeframe Internal timeframe enum.
 	 * @return string|null KuCoin interval string or null if not supported.
 	 */
-	private function timeframeToKuCoinInterval(TimeFrameEnum $timeframe): ?string
-	{
+	private function timeframeToKuCoinInterval(TimeFrameEnum $timeframe): ?string {
 		return match ($timeframe->value) {
 			'1m' => '1min',
 			'3m' => '3min',
@@ -155,7 +149,7 @@ class KuCoin extends AbstractExchangeDriver
 			$kuCoinInterval = $this->timeframeToKuCoinInterval($timeframe);
 
 			if (!$kuCoinInterval) {
-				$this->logger->error("Unknown timeframe {$timeframe->value} for KuCoin.");
+				$this->logger->error("Unknown timeframe $timeframe->value for KuCoin.");
 				return [];
 			}
 
@@ -198,7 +192,7 @@ class KuCoin extends AbstractExchangeDriver
 
 			return $candles;
 		} catch (Exception $e) {
-			$this->logger->error("Failed to get candles for {$ticker} on {$this->exchangeName}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to get candles for $ticker on {$this->getName()}: " . $e->getMessage() . ".");
 			return [];
 		}
 	}
@@ -209,8 +203,7 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param string $interval KuCoin interval string.
 	 * @return int Duration in seconds.
 	 */
-	private function getIntervalSeconds(string $interval): int
-	{
+	private function getIntervalSeconds(string $interval): int {
 		return match ($interval) {
 			'1min' => 60,
 			'3min' => 180,
@@ -226,15 +219,14 @@ class KuCoin extends AbstractExchangeDriver
 			'1day' => 86400,
 			'1week' => 604800,
 			'1month' => 2592000,
-			default => 3600,
+			default => 0,
 		};
 	}
 
 	/**
 	 * {@inheritDoc}
 	 */
-	public function getCurrentPrice(IMarket $market): ?Money
-	{
+	public function getCurrentPrice(IMarket $market): ?Money {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
@@ -244,10 +236,10 @@ class KuCoin extends AbstractExchangeDriver
 				return Money::from($response['price']);
 			}
 
-			$this->logger->error("Failed to get current price for {$ticker}: invalid response.");
+			$this->logger->error("Failed to get current price for $ticker: invalid response.");
 			return null;
 		} catch (Exception $e) {
-			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to get current price for $ticker: " . $e->getMessage() . ".");
 			return null;
 		}
 	}
@@ -255,8 +247,7 @@ class KuCoin extends AbstractExchangeDriver
 	/**
 	 * {@inheritDoc}
 	 */
-	public function getCurrentPosition(IMarket $market): ?IPosition
-	{
+	public function getCurrentPosition(IMarket $market): ?IPosition {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
@@ -288,7 +279,7 @@ class KuCoin extends AbstractExchangeDriver
 
 			return null;
 		} catch (Exception $e) {
-			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to get current position for $ticker: " . $e->getMessage() . ".");
 			return null;
 		}
 	}
@@ -301,15 +292,14 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool
-	{
+	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit position size to $100.
 			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100.");
-				$amount = Money::from(100.0, $amount->getCurrency());
+				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100.");
+				$amount->setAmount(100.0);
 			}
 
 			$params = [
@@ -327,12 +317,12 @@ class KuCoin extends AbstractExchangeDriver
 			$response = $this->order->createOrder($params);
 
 			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}.");
+				$this->logger->info("Successfully opened long position for $ticker: $amount.");
 
 				$currentPrice = $this->getCurrentPrice($market);
 				if ($currentPrice) {
 					$this->database->savePosition(
-						$this->exchangeName,
+						$this->getName(),
 						$ticker,
 						'spot',
 						'long',
@@ -348,11 +338,11 @@ class KuCoin extends AbstractExchangeDriver
 
 				return true;
 			} else {
-				$this->logger->error("Failed to open long position for {$ticker}: invalid response.");
+				$this->logger->error("Failed to open long position for $ticker: invalid response.");
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to open long position for {$ticker}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to open long position for $ticker: " . $e->getMessage() . ".");
 			return false;
 		}
 	}
@@ -366,10 +356,9 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool Always returns false.
 	 */
-	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool
-	{
+	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
 		$ticker = $market->getPair()->getExchangeTicker($this);
-		$this->logger->warning("Short positions are not supported on KuCoin for {$ticker}.");
+		$this->logger->warning("Short positions are not supported on KuCoin for $ticker.");
 		return false;
 	}
 
@@ -380,14 +369,13 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function closePosition(IMarket $market, ?float $price = null): bool
-	{
+	public function closePosition(IMarket $market, ?float $price = null): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$currentPosition = $this->getCurrentPosition($market);
 			if (!$currentPosition) {
-				$this->logger->warning("No position to close for {$ticker}.");
+				$this->logger->warning("No position to close for $ticker.");
 				return true;
 			}
 
@@ -406,20 +394,20 @@ class KuCoin extends AbstractExchangeDriver
 			$response = $this->order->createOrder($params);
 
 			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully closed position for {$ticker}.");
+				$this->logger->info("Successfully closed position for $ticker.");
 
-				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
+				$dbPosition = $this->database->getCurrentPosition($this->getName(), $ticker);
 				if ($dbPosition) {
 					$this->database->closePosition($dbPosition['id']);
 				}
 
 				return true;
 			} else {
-				$this->logger->error("Failed to close position for {$ticker}: invalid response.");
+				$this->logger->error("Failed to close position for $ticker: invalid response.");
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to close position for $ticker: " . $e->getMessage() . ".");
 			return false;
 		}
 	}
@@ -431,14 +419,13 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function buyAdditional(IMarket $market, Money $amount): bool
-	{
+	public function buyAdditional(IMarket $market, Money $amount): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit DCA amount to $50.
 			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50.");
+				$this->logger->warning("DCA amount $amount exceeds $50 limit, reducing to $50.");
 				$amount = Money::from(50.0, $amount->getCurrency());
 			}
 
@@ -453,14 +440,14 @@ class KuCoin extends AbstractExchangeDriver
 			$response = $this->order->createOrder($params);
 
 			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}.");
+				$this->logger->info("Successfully executed DCA buy for $ticker: $amount.");
 				return true;
 			} else {
-				$this->logger->error("Failed to execute DCA buy for {$ticker}: invalid response.");
+				$this->logger->error("Failed to execute DCA buy for $ticker: invalid response.");
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to execute DCA buy for $ticker: " . $e->getMessage() . ".");
 			return false;
 		}
 	}
@@ -472,14 +459,13 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param Money $amount Amount to sell.
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function sellAdditional(IMarket $market, Money $amount): bool
-	{
+	public function sellAdditional(IMarket $market, Money $amount): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			// Safety check: limit sell amount to $50.
 			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50.");
+				$this->logger->warning("Sell amount $amount exceeds $50 limit, reducing to $50.");
 				$amount = Money::from(50.0, $amount->getCurrency());
 			}
 
@@ -494,14 +480,14 @@ class KuCoin extends AbstractExchangeDriver
 			$response = $this->order->createOrder($params);
 
 			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully executed sell for {$ticker}: {$amount}.");
+				$this->logger->info("Successfully executed sell for $ticker: $amount.");
 				return true;
 			} else {
-				$this->logger->error("Failed to execute sell for {$ticker}: invalid response.");
+				$this->logger->error("Failed to execute sell for $ticker: invalid response.");
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage() . ".");
+			$this->logger->error("Failed to execute sell for $ticker: " . $e->getMessage() . ".");
 			return false;
 		}
 	}
@@ -509,8 +495,7 @@ class KuCoin extends AbstractExchangeDriver
 	/**
 	 * {@inheritDoc}
 	 */
-	public function createMarket(IPair $pair): ?IMarket
-	{
+	public function createMarket(IPair $pair): ?IMarket {
 		$candlesData = $this->getCandles($pair, 200);
 		if (empty($candlesData)) {
 			return null;
@@ -527,8 +512,7 @@ class KuCoin extends AbstractExchangeDriver
 	 * @param IPair $pair Trading pair instance.
 	 * @return string Ticker string for KuCoin.
 	 */
-	public function pairToTicker(IPair $pair): string
-	{
+	public function pairToTicker(IPair $pair): string {
 		return $pair->getBaseCurrency() . '-' . $pair->getQuoteCurrency();
 	}
 }
