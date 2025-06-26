@@ -229,11 +229,11 @@ Market (Business Logic)
 6. **Maintain** separation of concerns between components
 
 #### Common Pitfalls to Avoid:
-- Don't confuse `Pair` and `Market` classes
-- Don't write migrations without understanding the custom system
-- Don't let strategies access exchange drivers directly
-- Don't use strings instead of enums
-- Don't forget to update documentation when changing code
+- Don’t confuse `Pair` and `Market` classes
+- Don’t write migrations without understanding the custom system
+- Don’t let strategies access exchange drivers directly
+- Don’t use strings instead of enums
+- Don’t forget to update documentation when changing code
 
 ---
 

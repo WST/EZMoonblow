@@ -8,7 +8,19 @@ This is a (very) simple (and still under construction) crypto trading bot projec
 
 **📋 Important**: If you're contributing to this project or working with AI assistance, please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project structure, and architectural patterns that must be followed.
 
+### Recommended development environment
+
+* Operating system: Linux, FreeBSD, NetBSD, macOS
+* IDE: PhpStorm
+* Shell: bash
+
 ## Usage
+
+### Software requirements
+
+* Operating system: Linux, FreeBSD, NetBSD, macOS
+* PHP version: 8.3 or greater
+* MySQL version 5.7 or greater
 
 ### Installing
 
@@ -30,7 +42,11 @@ cp config/config.xml.example config/config.xml
 ### Test system
 * `./tasks/dev/run-tests` performs quick system check-up.
 
-## TODO (maybe)
+## TODO
 
 * Docker support
+* Strategy backtesting
 * TA module
+* Support for more exchanges
+* Web management interface
+* User data support (user-defined indicators, strategies)
