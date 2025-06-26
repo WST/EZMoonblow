@@ -400,7 +400,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 */
 	protected function updatePosition(Market $market, IStrategy $strategy, IPosition $position): void {
 		// Update current price for position
-		$currentPrice = $this->getCurrentPrice($market->getPair());
+		$currentPrice = $this->getCurrentPrice($market);
 		if ($currentPrice) {
 			$position->updateCurrentPrice($currentPrice);
 		}

@@ -2,103 +2,482 @@
 
 namespace Izzy\Exchanges;
 
+use Exception;
+use InvalidArgumentException;
+use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\Candle;
+use Izzy\Financial\Market;
 use Izzy\Financial\Money;
+use Izzy\Financial\Pair;
+use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IPosition;
 use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;
+use KuCoin\SDK\PrivateApi\Order;
 use KuCoin\SDK\PublicApi\Currency;
+use KuCoin\SDK\PublicApi\Symbol;
 
 /**
- * KuCoin exchange driver.
+ * Driver for working with KuCoin exchange.
+ * Provides integration with KuCoin cryptocurrency exchange API.
  */
 class KuCoin extends AbstractExchangeDriver
 {
+	/** @var string Exchange name identifier. */
 	protected string $exchangeName = 'KuCoin';
 
+	/** @var Account Account API instance for balance operations. */
 	private ?Account $account;
 
+	/** @var Currency Currency API instance for price data. */
 	private ?Currency $currency;
 
-	protected function refreshAccountBalance() {
-		// TODO: вычислять эквивалентную стоимость других активов, не только [0]
-		$accountList = $this->account->getList();
-		$currencies = array_map(fn($price) => floatval($price), $this->currency->getPrices());
-		$sum = array_reduce($accountList, function($carry, $item) use ($currencies) {
-			$symbol = $item['currency'];
-			return $carry + ($item['balance'] * $currencies[$symbol]);
-		});
+	/** @var Order Order API instance for trading operations. */
+	private ?Order $order;
 
-		$result = Money::from($sum);
-		//$this->log("Баланс на {$this->exchangeName}: $result");
-		$this->saveBalance($result);
-	}
+	/** @var Symbol Symbol API instance for market data. */
+	private ?Symbol $symbol;
 
+	/**
+	 * Connect to the KuCoin exchange using API credentials.
+	 * 
+	 * @return bool True if connection successful, false otherwise.
+	 */
 	public function connect(): bool {
-		KuCoinApi::setBaseUri('https://api.kucoin.com');
-		$key = $this->dbRow['key'];
-		$secret = $this->dbRow['secret'];
-		$password = $this->dbRow['password'];
-		$auth = new Auth($key, $secret, $password, Auth::API_KEY_VERSION_V2);
+		try {
+			KuCoinApi::setBaseUri('https://api.kucoin.com');
+			$key = $this->config->getKey();
+			$secret = $this->config->getSecret();
+			$password = $this->config->getPassword();
+			$auth = new Auth($key, $secret, $password, Auth::API_KEY_VERSION_V2);
 
-		$this->account = new Account($auth);
+			$this->account = new Account($auth);
+			$this->currency = new Currency($auth);
+			$this->order = new Order($auth);
+			$this->symbol = new Symbol($auth);
 
-		$this->currency = new Currency($auth);
+			// Test connection by requesting account info.
+			$accountList = $this->account->getList();
+			if (empty($accountList)) {
+				$this->logger->error("Failed to get account data from KuCoin, connection not established.");
+				return false;
+			}
 
-		return true;
+			return true;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to connect to exchange {$this->exchangeName}: " . $e->getMessage());
+			return false;
+		}
 	}
 
+	/**
+	 * Disconnect from the exchange.
+	 * 
+	 * @return void
+	 */
 	public function disconnect(): void {
-		// TODO: Implement disconnect() method.
+		$this->account = null;
+		$this->currency = null;
+		$this->order = null;
+		$this->symbol = null;
 	}
 
-	protected function refreshSpotOrders(): void {
-
-	}
-
+	/**
+	 * Refresh total account balance information from KuCoin exchange.
+	 * Calculates total balance in USDT equivalent.
+	 */
 	public function updateBalance(): void {
-		// TODO: Implement updateBalance() method.
+		try {
+			$accountList = $this->account->getList();
+			$currencies = array_map(fn($price) => floatval($price), $this->currency->getPrices());
+			
+			$sum = array_reduce($accountList, function($carry, $item) use ($currencies) {
+				$symbol = $item['currency'];
+				$balance = floatval($item['balance']);
+				$price = $currencies[$symbol] ?? 0;
+				return $carry + ($balance * $price);
+			}, 0.0);
+
+			$result = Money::from($sum);
+			$this->saveBalance($result);
+		} catch (Exception $e) {
+			$this->logger->error("Failed to update wallet balance on {$this->exchangeName}: " . $e->getMessage());
+		}
 	}
 
-	public function getCurrentPosition(IPair $pair): ?IPosition {
-		// TODO: Implement getCurrentPosition() method.
+	/**
+	 * Convert internal timeframe to KuCoin interval format.
+	 * 
+	 * @param TimeFrameEnum $timeframe Internal timeframe enum.
+	 * @return string|null KuCoin interval string or null if not supported.
+	 */
+	private function timeframeToKuCoinInterval(TimeFrameEnum $timeframe): ?string {
+		return match ($timeframe->value) {
+			'1m' => '1min',
+			'3m' => '3min',
+			'5m' => '5min',
+			'15m' => '15min',
+			'30m' => '30min',
+			'1h' => '1hour',
+			'2h' => '2hour',
+			'4h' => '4hour',
+			'6h' => '6hour',
+			'12h' => '12hour',
+			'1d' => '1day',
+			'1w' => '1week',
+			'1M' => '1month',
+			default => null,
+		};
 	}
 
-	public function getCurrentPrice(IPair $pair): ?float {
-		// TODO: Implement getCurrentPrice() method.
+	/**
+	 * @inheritDoc
+	 */
+	public function getCandles(
+		IPair $pair,
+		int $limit = 100,
+		?int $startTime = null,
+		?int $endTime = null
+	): array {
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$timeframe = $pair->getTimeframe();
+			$kuCoinInterval = $this->timeframeToKuCoinInterval($timeframe);
+			
+			if (!$kuCoinInterval) {
+				$this->logger->error("Unknown timeframe {$timeframe->value} for KuCoin.");
+				return [];
+			}
+			
+			// KuCoin API использует время в секундах, а не миллисекундах
+			$startAt = $startTime ? (int)($startTime / 1000) : (time() - 86400); // 24 часа назад
+			$endAt = $endTime ? (int)($endTime / 1000) : time();
+
+			$response = $this->symbol->getKLines($ticker, $startAt, $endAt, $kuCoinInterval);
+			
+			if (empty($response)) {
+				return []; // No candles received.
+			}
+
+			$candles = array_map(
+				fn($item) => new Candle(
+					(int)$item[0], // timestamp.
+					(float)$item[1], // open.
+					(float)$item[3], // high.
+					(float)$item[4], // low.
+					(float)$item[2], // close.
+					(float)$item[5]  // volume.
+				),
+				$response
+			);
+
+			// Sort candles by time (oldest to newest).
+			usort($candles, fn($a, $b) => $a->getOpenTime() - $b->getOpenTime());
+
+			return $candles;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get candles for {$ticker} on {$this->exchangeName}: " . $e->getMessage());
+			return [];
+		}
 	}
 
-	public function openLong(IPair $pair, Money $amount, ?float $price = null): bool {
-		// TODO: Implement openLong() method.
+	/**
+	 * @inheritDoc
+	 */
+	public function getCurrentPrice(IMarket $market): ?Money {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$response = $this->symbol->getTicker($ticker);
+			
+			if ($response && isset($response['price'])) {
+				return Money::from($response['price']);
+			}
+
+			$this->logger->error("Failed to get current price for {$ticker}: invalid response");
+			return null;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get current price for {$ticker}: " . $e->getMessage());
+			return null;
+		}
 	}
 
-	public function openShort(IPair $pair, Money $amount, ?float $price = null): bool {
-		// TODO: Implement openShort() method.
+	/**
+	 * @inheritDoc
+	 */
+	public function getCurrentPosition(IMarket $market): ?IPosition {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$baseCurrency = $pair->getBaseCurrency();
+			
+			$accountList = $this->account->getList();
+			$baseCurrencyAccount = array_filter($accountList, fn($account) => $account['currency'] === $baseCurrency);
+			
+			if (!empty($baseCurrencyAccount)) {
+				$account = reset($baseCurrencyAccount);
+				$balance = floatval($account['balance']);
+				
+				if ($balance > 0) {
+					// We have a position in this currency.
+					$currentPrice = $this->getCurrentPrice($market);
+					if (!$currentPrice) {
+						return null;
+					}
+
+					return new Position(
+						Money::from($balance, $baseCurrency),
+						PositionDirectionEnum::LONG,
+						$currentPrice, // Approximate entry price.
+						$currentPrice,
+						'open',
+						''
+					);
+				}
+			}
+			
+			return null;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get current position for {$ticker}: " . $e->getMessage());
+			return null;
+		}
 	}
 
-	public function closePosition(IPair $pair, ?float $price = null): bool {
-		// TODO: Implement closePosition() method.
+	/**
+	 * Open a long position.
+	 *
+	 * @param IMarket $market
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			// Safety check: limit position size to $100.
+			if ($amount->getAmount() > 100.0) {
+				$this->logger->warning("Position size {$amount} exceeds $100 limit, reducing to $100");
+				$amount = Money::from(100.0, $amount->getCurrency());
+			}
+			
+			$params = [
+				'clientOid' => uniqid(),
+				'symbol' => $ticker,
+				'side' => 'buy',
+				'type' => $price ? 'limit' : 'market',
+				'funds' => (string)$amount->getAmount(),
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->order->createOrder($params);
+			
+			if ($response && isset($response['orderId'])) {
+				$this->logger->info("Successfully opened long position for {$ticker}: {$amount}");
+				
+				// Save position to database.
+				$currentPrice = $this->getCurrentPrice($market);
+				if ($currentPrice) {
+					$this->database->savePosition(
+						$this->exchangeName,
+						$ticker,
+						'spot',
+						'long',
+						$currentPrice,
+						$currentPrice,
+						$amount->getAmount(),
+						$amount->getCurrency(),
+						'open',
+						$response['orderId'],
+						$response['orderId']
+					);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to open long position for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to open long position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
 	}
 
-	public function buyAdditional(IPair $pair, Money $amount): bool {
-		// TODO: Implement buyAdditional() method.
+	/**
+	 * Open a short position (futures only).
+	 * KuCoin doesn't support futures trading in the basic API.
+	 *
+	 * @param IMarket $market
+	 * @param Money $amount Amount to invest.
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
+		$ticker = $market->getPair()->getExchangeTicker($this);
+		$this->logger->warning("Short positions not supported on KuCoin for {$ticker}");
+		return false;
 	}
 
-	public function sellAdditional(IPair $pair, Money $amount): bool {
-		// TODO: Implement sellAdditional() method.
+	/**
+	 * Close an existing position.
+	 *
+	 * @param IMarket $market
+	 * @param float|null $price Limit price (null for market order).
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function closePosition(IMarket $market, ?float $price = null): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$currentPosition = $this->getCurrentPosition($market);
+			if (!$currentPosition) {
+				$this->logger->warning("No position to close for {$ticker}");
+				return true; // Consider it successful if no position exists.
+			}
+			
+			$params = [
+				'clientOid' => uniqid(),
+				'symbol' => $ticker,
+				'side' => 'sell',
+				'type' => $price ? 'limit' : 'market',
+				'size' => (string)$currentPosition->getVolume()->getAmount(),
+			];
+
+			if ($price) {
+				$params['price'] = (string)$price;
+			}
+
+			$response = $this->order->createOrder($params);
+			
+			if ($response && isset($response['orderId'])) {
+				$this->logger->info("Successfully closed position for {$ticker}");
+				
+				// Update position status in database.
+				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
+				if ($dbPosition) {
+					$this->database->closePosition($dbPosition['id']);
+				}
+				
+				return true;
+			} else {
+				$this->logger->error("Failed to close position for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to close position for {$ticker}: " . $e->getMessage());
+			return false;
+		}
 	}
 
-	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array {
-		// TODO: Implement getCandles() method.
+	/**
+	 * Place a market order to buy additional volume (DCA).
+	 *
+	 * @param IMarket $market
+	 * @param Money $amount Amount to buy.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function buyAdditional(IMarket $market, Money $amount): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			// Safety check: limit DCA amount to $50.
+			if ($amount->getAmount() > 50.0) {
+				$this->logger->warning("DCA amount {$amount} exceeds $50 limit, reducing to $50");
+				$amount = Money::from(50.0, $amount->getCurrency());
+			}
+			
+			$params = [
+				'clientOid' => uniqid(),
+				'symbol' => $ticker,
+				'side' => 'buy',
+				'type' => 'market',
+				'funds' => (string)$amount->getAmount(),
+			];
+
+			$response = $this->order->createOrder($params);
+			
+			if ($response && isset($response['orderId'])) {
+				$this->logger->info("Successfully executed DCA buy for {$ticker}: {$amount}");
+				return true;
+			} else {
+				$this->logger->error("Failed to execute DCA buy for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to execute DCA buy for {$ticker}: " . $e->getMessage());
+			return false;
+		}
 	}
 
+	/**
+	 * Place a market order to sell additional volume.
+	 *
+	 * @param IMarket $market
+	 * @param Money $amount Amount to sell.
+	 * @return bool True if order placed successfully, false otherwise.
+	 */
+	public function sellAdditional(IMarket $market, Money $amount): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			// Safety check: limit sell amount to $50.
+			if ($amount->getAmount() > 50.0) {
+				$this->logger->warning("Sell amount {$amount} exceeds $50 limit, reducing to $50");
+				$amount = Money::from(50.0, $amount->getCurrency());
+			}
+			
+			$params = [
+				'clientOid' => uniqid(),
+				'symbol' => $ticker,
+				'side' => 'sell',
+				'type' => 'market',
+				'size' => (string)$amount->getAmount(),
+			];
+
+			$response = $this->order->createOrder($params);
+			
+			if ($response && isset($response['orderId'])) {
+				$this->logger->info("Successfully executed sell for {$ticker}: {$amount}");
+				return true;
+			} else {
+				$this->logger->error("Failed to execute sell for {$ticker}: invalid response");
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to execute sell for {$ticker}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function createMarket(IPair $pair): ?IMarket {
-		// TODO: Implement getMarket() method.
+		$candlesData = $this->getCandles($pair, 200);
+		if (empty($candlesData)) {
+			return null;
+		}
+
+		$market = new Market($pair, $this);
+		$market->setCandles($candlesData);
+		return $market;
 	}
 
+	/**
+	 * KuCoin uses tickers like "BTC-USDT" for pairs.
+	 * 
+	 * @param IPair $pair
+	 * @return string
+	 */
 	public function pairToTicker(IPair $pair): string {
-		// TODO: Implement pairToTicker() method.
+		return $pair->getBaseCurrency() . '-' . $pair->getQuoteCurrency();
 	}
 }

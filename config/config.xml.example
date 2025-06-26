@@ -50,5 +50,13 @@
 				<!-- TODO -->
 			</futures>
 		</exchange>
+		<exchange name="KuCoin" key="..." secret="..." password="..." enabled="yes" demo="no">
+			<spot>
+				<pair ticker="ETH/USDT" timeframe="4h" monitor="yes" trade="no" />
+			</spot>
+			<futures>
+				<!-- TODO -->
+			</futures>
+		</exchange>
 	</exchanges>
 </configuration>
