@@ -6,7 +6,7 @@ use DOMDocument;
 use DOMXPath;
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Interfaces\IExchangeDriver;
-use Izzy\System\Database;
+use Izzy\System\Database\Database;
 
 class Configuration
 {

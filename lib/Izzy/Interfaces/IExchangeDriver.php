@@ -63,15 +63,6 @@ interface IExchangeDriver
 	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool;
 
 	/**
-	 * Close an existing position.
-	 *
-	 * @param IMarket $market
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
-	 */
-	public function closePosition(IMarket $market, ?float $price = null): bool;
-
-	/**
 	 * Place a market order to buy additional volume (DCA).
 	 *
 	 * @param IMarket $market

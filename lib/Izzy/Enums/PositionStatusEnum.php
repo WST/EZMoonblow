@@ -2,10 +2,12 @@
 
 namespace Izzy\Enums;
 
+use InvalidArgumentException;
+
 enum PositionStatusEnum: string
 {
 	/**
-	 * The position has placed a limit order, but it wasn’t executed yet.
+	 * The position has placed a limit order, but it wasn't executed yet.
 	 */
 	case PENDING = 'PENDING';
 
@@ -26,7 +28,27 @@ enum PositionStatusEnum: string
 	case ERROR = 'ERROR';
 
 	/**
-	 * The position was cancelled without entering “OPEN” state.
+	 * The position was cancelled without entering "OPEN" state.
 	 */
 	case CANCELED = 'CANCELED';
+
+	public function isOpen(): bool {
+		return $this === self::OPEN;
+	}
+
+	public function isPending(): bool {
+		return $this === self::PENDING;
+	}
+
+	public function isFinished(): bool {
+		return $this === self::FINISHED;
+	}
+
+	public function isError(): bool {
+		return $this === self::ERROR;
+	}
+
+	public function isCanceled(): bool {
+		return $this === self::CANCELED;
+	}
 }

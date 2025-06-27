@@ -3,9 +3,7 @@
 namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
-use Izzy\Configuration\Configuration;
 use Izzy\Financial\Money;
-use Izzy\System\Database;
 
 /**
  * Analyzer application for monitoring and analyzing exchange balances.

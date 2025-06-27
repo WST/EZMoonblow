@@ -5,6 +5,7 @@ namespace Izzy\Financial;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
+use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 
 /**
@@ -12,6 +13,8 @@ use Izzy\Interfaces\IPosition;
  */
 class Position implements IPosition
 {
+	private IMarket $market;
+	
 	/**
 	 * Position volume.
 	 */
@@ -59,6 +62,7 @@ class Position implements IPosition
 	 * @param string $positionId Position ID from exchange.
 	 */
 	public function __construct(
+		IMarket $market,
 		Money $volume,
 		PositionDirectionEnum $direction,
 		Money $entryPrice,
@@ -66,6 +70,7 @@ class Position implements IPosition
 		PositionStatusEnum $status,
 		string $positionId
 	) {
+		$this->market = $market;
 		$this->volume = $volume;
 		$this->direction = $direction;
 		$this->entryPrice = $entryPrice;
@@ -128,7 +133,14 @@ class Position implements IPosition
 	 * @inheritDoc
 	 */
 	public function isOpen(): bool {
-		return $this->status === 'open';
+		return $this->status->isOpen();
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function isActive(): bool {
+		return $this->status->isOpen() || $this->status->isPending();
 	}
 
 	/**
@@ -150,11 +162,11 @@ class Position implements IPosition
 
 	/**
 	 * Update position status.
-	 * 
-	 * @param string $status New status.
+	 *
+	 * @param PositionStatusEnum $status New status.
 	 * @return void
 	 */
-	public function updateStatus(string $status): void {
+	public function updateStatus(PositionStatusEnum $status): void {
 		$this->status = $status;
 	}
 
@@ -164,5 +176,9 @@ class Position implements IPosition
 
 	public function close(): void {
 		// TODO: Implement close() method.
+	}
+
+	public function getMarket(): IMarket {
+		return $this->market;
 	}
 }

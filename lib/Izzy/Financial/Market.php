@@ -13,7 +13,7 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
-use Izzy\System\Database;
+use Izzy\System\Database\Database;
 use Izzy\Traits\HasMarketTypeTrait;
 
 class Market implements IMarket

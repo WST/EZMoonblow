@@ -3,14 +3,14 @@
 namespace Izzy\AbstractApplications;
 
 use Izzy\Configuration\Configuration;
-use Izzy\System\Database;
+use Izzy\System\Database\Database;
 use Slim\App;
 use Slim\Factory\AppFactory;
 
 /**
  * Base class for all web applications.
  */
-abstract class WebApplication
+abstract class WebApplication extends IzzyApplication
 {
 	protected App $slimApp;
 
@@ -20,13 +20,7 @@ abstract class WebApplication
 	
 	public function __construct() {
 		$this->slimApp = AppFactory::create();
-
-		// Load the configuration.
-		$this->configuration = Configuration::getInstance();
-
-		// Connect to the database.
-		$this->database = $this->configuration->openDatabase();
-		$this->database->connect();
+		parent::__construct();
 	}
 	
 	public function run(): void {

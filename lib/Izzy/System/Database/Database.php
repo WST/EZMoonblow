@@ -1,10 +1,13 @@
 <?php
 
-namespace Izzy\System;
+namespace Izzy\System\Database;
 
+use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
 use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IPosition;
 use PDO;
 use PDOException;
 
@@ -267,6 +270,7 @@ class Database
 			$result = $this->exec($sql);
 			return is_int($result);
 		} catch (PDOException $e) {
+			$this->setError($e);
 			return false;
 		}
 	}
@@ -417,52 +421,6 @@ class Database
 	}
 
 	/**
-	 * Save position information to database.
-	 *
-	 * @param string $exchangeName Exchange name.
-	 * @param string $ticker Trading pair ticker.
-	 * @param string $marketType Market type (spot/futures).
-	 * @param string $direction Position direction (long/short).
-	 * @param Money $entryPrice Entry price.
-	 * @param Money $currentPrice Current price.
-	 * @param float $volume Position volume.
-	 * @param string $currency Currency.
-	 * @param string $status Position status.
-	 * @param string|null $positionId Position ID from exchange.
-	 * @param string|null $orderId Order ID from exchange.
-	 * @return bool True if saved successfully, false otherwise.
-	 */
-	public function savePosition(
-		string $exchangeName,
-		string $ticker,
-		string $marketType,
-		string $direction,
-		Money $entryPrice,
-		Money $currentPrice,
-		float $volume,
-		string $currency,
-		string $status,
-		?string $positionId = null,
-		?string $orderId = null
-	): bool {
-		$data = [
-			'exchange_name' => $exchangeName,
-			'ticker' => $ticker,
-			'market_type' => $marketType,
-			'direction' => $direction,
-			'entry_price' => $entryPrice->getAmount(),
-			'current_price' => $currentPrice->getAmount(),
-			'volume' => $volume,
-			'currency' => $currency,
-			'status' => $status,
-			'position_id' => $positionId,
-			'order_id' => $orderId
-		];
-
-		return $this->insert('positions', $data);
-	}
-
-	/**
 	 * Update position information in database.
 	 * 
 	 * @param int $positionId Database position ID.
@@ -474,17 +432,42 @@ class Database
 	}
 
 	/**
-	 * Get current position for a trading pair.
+	 * Get current position for a market.
 	 *
 	 * @param IMarket $market
-	 * @return IPosition|false Position data or null if not found.
+	 * @return IPosition|false Position data or false if not found.
 	 */
 	public function getStoredPositionByMarket(IMarket $market): IPosition|false {
 		$exchangeName = $market->getExchangeName();
 		$ticker = $market->getTicker();
+		
+		// Look for a row in the table.
 		$row = $this->selectOneRow('positions', '*', ['exchange_name' => $exchangeName, 'ticker' => $ticker]);
-		$positionVolume = $row ? $row['volume'] : 0;
-		$position = new Position();
+		if (!$row) return false;
+		
+		// Prices and position volume.
+		$entryPrice = Money::from($row['entry_price'], $row['quote_currency']);
+		$currentPrice = Money::from($row['current_price'], $row['quote_currency']);
+		$volume = Money::from($row['volume'], $row['base_currency']);
+		
+		// Position direction and status.
+		$direction = PositionDirectionEnum::from($row['direction']);
+		$status = PositionStatusEnum::from($row['status']);
+		
+		// Now let’s build and return a Position object.
+		return new Position(
+			$market,
+			$volume,
+			$direction,
+			$entryPrice,
+			$currentPrice,
+			$status,
+			$row['exchange_position_id'] ?? ''
+		);
+	}
+	
+	public function savePosition(IPosition $position): bool {
+		
 	}
 
 	/**
@@ -506,16 +489,6 @@ class Database
 	}
 
 	/**
-	 * Close position by setting status to 'closed'.
-	 * 
-	 * @param int $positionId Database position ID.
-	 * @return bool True if closed successfully, false otherwise.
-	 */
-	public function closePosition(int $positionId): bool {
-		return $this->update('positions', ['status' => 'closed'], ['id' => $positionId]);
-	}
-
-	/**
 	 * Update position current price.
 	 * 
 	 * @param int $positionId Database position ID.
@@ -532,5 +505,19 @@ class Database
 	
 	public function getErrorMessage(): string {
 		return $this->errorMessage;
+	}
+
+	public function getFieldList($table): array {
+		$result = [];
+		$columns = $this->queryAllRows("SHOW COLUMNS FROM `$table`");
+		foreach($columns as $column) {
+			$result[] = $column['Field'];
+		}
+		return $result;
+	}
+
+	public function lastInsertId(): false|int {
+		$lastInsertId = $this->pdo->lastInsertId();
+		return $lastInsertId ?  (int) $lastInsertId : false;
 	}
 }

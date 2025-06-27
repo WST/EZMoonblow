@@ -255,56 +255,6 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Close an existing position.
-	 *
-	 * @param IMarket $market
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
-	 */
-	public function closePosition(IMarket $market, ?float $price = null): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$currentPosition = $this->getCurrentPosition($market);
-			if (!$currentPosition) {
-				$this->logger->warning("No position to close for $ticker");
-				return true; // Consider it successful if no position exists
-			}
-			
-			$params = [
-				'currency_pair' => $ticker,
-				'side' => 'sell',
-				'amount' => (string)$currentPosition->getVolume()->getAmount(),
-				'type' => $price ? 'limit' : 'market'
-			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
-
-			$response = $this->spotApi->createOrder($params);
-			
-			if ($response && $response->getId()) {
-				$this->logger->info("Successfully closed position for $ticker");
-				
-				// Update position status in database
-				$dbPosition = $this->database->getStoredPositionByMarket($this->exchangeName, $ticker);
-				if ($dbPosition) {
-					$this->database->closePosition($dbPosition['id']);
-				}
-				
-				return true;
-			} else {
-				$this->logger->error("Failed to close position for $ticker: invalid response");
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to close position for $ticker: " . $e->getMessage());
-			return false;
-		}
-	}
-
-	/**
 	 * Place a market order to buy additional volume (DCA).
 	 *
 	 * @param IMarket $market

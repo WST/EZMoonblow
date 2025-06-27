@@ -299,57 +299,6 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function closePosition(IMarket $market, ?float $price = null): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$currentPosition = $this->getCurrentPosition($market);
-			if (!$currentPosition) {
-				$this->logger->warning("No position to close for pair $pair");
-				return true; // Consider it successful if no position exists
-			}
-
-			$category = $currentPosition->getDirection()->isLong() ? 'spot' : 'linear';
-			$side = $currentPosition->getDirection()->isLong() ? 'Sell' : 'Buy';
-			$orderType = $price ? 'Limit' : 'Market';
-			
-			$params = [
-				'category' => $category,
-				'symbol' => $ticker,
-				'side' => $side,
-				'orderType' => $orderType,
-				'qty' => (string)$currentPosition->getVolume()->getAmount(),
-			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
-
-			$response = $this->api->orderApi()->submitOrder($params);
-			
-			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully closed position for $ticker");
-				
-				// Update position status in database
-				$dbPosition = $this->database->getStoredPositionByMarket($this->exchangeName, $ticker);
-				if ($dbPosition) {
-					$this->database->closePosition($dbPosition['id']);
-				}
-				
-				return true;
-			} else {
-				$this->logger->error("Failed to close position for $ticker: " . json_encode($response));
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to close position for $ticker: " . $e->getMessage());
-			return false;
-		}
-	}
-
-	/**
-	 * @inheritDoc
-	 */
 	public function buyAdditional(IMarket $market, Money $amount): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);

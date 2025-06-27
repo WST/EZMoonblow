@@ -323,56 +323,6 @@ class KuCoin extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Close an existing position.
-	 *
-	 * @param IMarket $market Market instance.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
-	 */
-	public function closePosition(IMarket $market, ?float $price = null): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$currentPosition = $this->getCurrentPosition($market);
-			if (!$currentPosition) {
-				$this->logger->warning("No position to close for $ticker.");
-				return true;
-			}
-
-			$params = [
-				'clientOid' => uniqid(),
-				'symbol' => $ticker,
-				'side' => 'sell',
-				'type' => $price ? 'limit' : 'market',
-				'size' => (string)$currentPosition->getVolume()->getAmount(),
-			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
-
-			$response = $this->order->createOrder($params);
-
-			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully closed position for $ticker.");
-
-				$dbPosition = $this->database->getStoredPositionByMarket($this->getName(), $ticker);
-				if ($dbPosition) {
-					$this->database->closePosition($dbPosition['id']);
-				}
-
-				return true;
-			} else {
-				$this->logger->error("Failed to close position for $ticker: invalid response.");
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to close position for $ticker: " . $e->getMessage() . ".");
-			return false;
-		}
-	}
-
-	/**
 	 * Place a market order to buy additional volume (DCA).
 	 *
 	 * @param IMarket $market Market instance.

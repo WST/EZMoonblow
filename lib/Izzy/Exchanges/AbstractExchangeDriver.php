@@ -14,7 +14,7 @@ use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
 use Izzy\Strategies\StrategyFactory;
-use Izzy\System\Database;
+use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 
 /**

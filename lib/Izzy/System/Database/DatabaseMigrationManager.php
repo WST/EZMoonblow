@@ -1,6 +1,8 @@
 <?php
 
-namespace Izzy\System;
+namespace Izzy\System\Database;
+
+use Izzy\System\Logger;
 
 class DatabaseMigrationManager
 {
