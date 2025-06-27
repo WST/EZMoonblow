@@ -19,6 +19,10 @@ class Configuration
 		$this->xpath = new DOMXpath($this->document);
 	}
 
+	public static function getInstance(): static {
+		return new self(IZZY_CONFIG . "/config.xml");
+	}
+
 	/**
 	 * Создать драйверы бирж.
 	 * @return IExchangeDriver[]

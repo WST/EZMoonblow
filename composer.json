@@ -6,7 +6,9 @@
     "kucoin/kucoin-php-sdk": "~1.1.0",
     "ext-dom": "*",
     "ext-gd": "*",
-    "ext-ctype": "*"
+    "ext-ctype": "*",
+    "slim/slim": "4.*",
+    "ext-http": "*"
   },
   "autoload": {
     "psr-4": {"Izzy\\": "lib/Izzy/", "GateApi\\": "SDK/GateApi/"}

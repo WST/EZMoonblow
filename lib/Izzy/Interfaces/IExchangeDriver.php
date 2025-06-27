@@ -35,14 +35,6 @@ interface IExchangeDriver
 	public function disconnect(): void;
 
 	/**
-	 * Get current position for a trading pair.
-	 *
-	 * @param IMarket $market
-	 * @return IPosition|null Current position or null if no position.
-	 */
-	public function getCurrentPosition(IMarket $market): ?IPosition;
-
-	/**
 	 * Get current market price for a trading pair.
 	 *
 	 * @param IMarket $market

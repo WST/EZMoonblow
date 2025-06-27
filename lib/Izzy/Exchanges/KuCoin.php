@@ -245,46 +245,6 @@ class KuCoin extends AbstractExchangeDriver
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	public function getCurrentPosition(IMarket $market): ?IPosition {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$baseCurrency = $pair->getBaseCurrency();
-
-			$accountList = $this->account->getList();
-			$baseCurrencyAccount = array_filter($accountList, fn($account) => $account['currency'] === $baseCurrency);
-
-			if (!empty($baseCurrencyAccount)) {
-				$account = reset($baseCurrencyAccount);
-				$balance = floatval($account['balance']);
-
-				if ($balance > 0) {
-					$currentPrice = $this->getCurrentPrice($market);
-					if (!$currentPrice) {
-						return null;
-					}
-
-					return new Position(
-						Money::from($balance, $baseCurrency),
-						PositionDirectionEnum::LONG,
-						$currentPrice,
-						$currentPrice,
-						'open',
-						''
-					);
-				}
-			}
-
-			return null;
-		} catch (Exception $e) {
-			$this->logger->error("Failed to get current position for $ticker: " . $e->getMessage() . ".");
-			return null;
-		}
-	}
-
-	/**
 	 * Open a long position.
 	 *
 	 * @param IMarket $market Market instance.
@@ -358,7 +318,7 @@ class KuCoin extends AbstractExchangeDriver
 	 */
 	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
 		$ticker = $market->getPair()->getExchangeTicker($this);
-		$this->logger->warning("Short positions are not supported on KuCoin for $ticker.");
+		$this->logger->warning("Short positions are TODO");
 		return false;
 	}
 
@@ -396,7 +356,7 @@ class KuCoin extends AbstractExchangeDriver
 			if ($response && isset($response['orderId'])) {
 				$this->logger->info("Successfully closed position for $ticker.");
 
-				$dbPosition = $this->database->getCurrentPosition($this->getName(), $ticker);
+				$dbPosition = $this->database->getStoredPositionByMarket($this->getName(), $ticker);
 				if ($dbPosition) {
 					$this->database->closePosition($dbPosition['id']);
 				}
@@ -452,44 +412,9 @@ class KuCoin extends AbstractExchangeDriver
 		}
 	}
 
-	/**
-	 * Place a market order to sell additional volume.
-	 *
-	 * @param IMarket $market Market instance.
-	 * @param Money $amount Amount to sell.
-	 * @return bool True if order placed successfully, false otherwise.
-	 */
 	public function sellAdditional(IMarket $market, Money $amount): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			// Safety check: limit sell amount to $50.
-			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("Sell amount $amount exceeds $50 limit, reducing to $50.");
-				$amount = Money::from(50.0, $amount->getCurrency());
-			}
-
-			$params = [
-				'clientOid' => uniqid(),
-				'symbol' => $ticker,
-				'side' => 'sell',
-				'type' => 'market',
-				'size' => (string)$amount->getAmount(),
-			];
-
-			$response = $this->order->createOrder($params);
-
-			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully executed sell for $ticker: $amount.");
-				return true;
-			} else {
-				$this->logger->error("Failed to execute sell for $ticker: invalid response.");
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to execute sell for $ticker: " . $e->getMessage() . ".");
-			return false;
-		}
+		// TODO: Implement sellAdditional() method.
+		return false;
 	}
 
 	/**

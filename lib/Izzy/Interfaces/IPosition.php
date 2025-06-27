@@ -3,6 +3,7 @@
 namespace Izzy\Interfaces;
 
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
 
 /**
@@ -48,9 +49,9 @@ interface IPosition
 
 	/**
 	 * Get position status: 'open', 'closed', 'pending'.
-	 * @return string
+	 * @return PositionStatusEnum
 	 */
-	public function getStatus(): string;
+	public function getStatus(): PositionStatusEnum;
 
 	/**
 	 * Check if position is open.

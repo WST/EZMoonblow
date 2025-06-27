@@ -1,5 +1,10 @@
-#!/usr/bin/env php
-<?php
+#!/usr/bin/bash
 
-// This is going to be a script to run a web server for development purposes.
-die("TODO" . PHP_EOL);
+# Get project’s root directory.
+IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+# Let’s go to the web directory.
+cd "$IZZY_ROOT/web"
+
+# Start PHP’s build-in debug web server.
+php -S 127.0.0.1:9090

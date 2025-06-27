@@ -3,6 +3,8 @@
 namespace Izzy\System;
 
 use Izzy\Financial\Money;
+use Izzy\Financial\Position;
+use Izzy\Interfaces\IMarket;
 use PDO;
 use PDOException;
 
@@ -473,21 +475,16 @@ class Database
 
 	/**
 	 * Get current position for a trading pair.
-	 * 
-	 * @param string $exchangeName Exchange name.
-	 * @param string $ticker Trading pair ticker.
-	 * @return array|null Position data or null if not found.
+	 *
+	 * @param IMarket $market
+	 * @return IPosition|false Position data or null if not found.
 	 */
-	public function getCurrentPosition(string $exchangeName, string $ticker): ?array {
-		return $this->selectOneRow(
-			'positions',
-			'*',
-			[
-				'exchange_name' => $exchangeName,
-				'ticker' => $ticker,
-				'status' => 'open'
-			]
-		);
+	public function getStoredPositionByMarket(IMarket $market): IPosition|false {
+		$exchangeName = $market->getExchangeName();
+		$ticker = $market->getTicker();
+		$row = $this->selectOneRow('positions', '*', ['exchange_name' => $exchangeName, 'ticker' => $ticker]);
+		$positionVolume = $row ? $row['volume'] : 0;
+		$position = new Position();
 	}
 
 	/**

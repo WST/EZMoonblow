@@ -13,6 +13,7 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
+use Izzy\System\Database;
 use Izzy\Traits\HasMarketTypeTrait;
 
 class Market implements IMarket
@@ -57,13 +58,21 @@ class Market implements IMarket
 	 */
 	private ?IndicatorFactory $indicatorFactory = null;
 
+	/**
+	 * Link with the database.
+	 * @var Database 
+	 */
+	private Database $database;
+
 	public function __construct(
 		Pair $pair,
-		IExchangeDriver $exchange
+		IExchangeDriver $exchange,
+		Database $database,
 	) {
 		$this->marketType = $pair->getMarketType();
 		$this->exchange = $exchange;
 		$this->pair = $pair;
+		$this->database = $database;
 	}
 
 	/**
@@ -174,9 +183,39 @@ class Market implements IMarket
 			$candle->setMarket($this);
 		}
 	}
-	
-	public function getCurrentPosition(): ?IPosition {
-		return $this->exchange->getCurrentPosition($this->pair);
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getCurrentPosition(): IPosition|false {
+		// First, determine the pair we are trading.
+		$pair = $this->getPair();
+		
+		// Now, get the proper ticker in the format appropriate for the current exchange.
+		$ticker = $pair->getExchangeTicker($this->exchange);
+
+		/*
+		 * 1. Fetch the position from the database.
+		 * 2. Check the position status recorded in the database
+		 * --------------------------------------------------------------------------------------------
+		 * 3. If the status is pending, check the presence of a “buy” limit order on the exchange.
+		 * 4. If the order exists, the position is still pending, we update price info and return the position.
+		 * 5. If the order does not exist, we check the balance of the base currency on the exchange.
+		 * 6. If the balance of the base currency on the exchange is greater or equals stored, we
+		 *    set the position status to “open”, update price info and return the position.
+		 * --------------------------------------------------------------------------------------------
+		 * 7. If the status is open and the balance of the base currency is less than stored,
+		 *    we set the position status to “finished”, update the information and return the position.
+		 * 8. If the status is open and the balance is greater or equals stored, we update the price info
+		 *    and return the position.
+		 * --------------------------------------------------------------------------------------------
+		 * 9. If the status is finished, we return false.
+		 */
+		
+		// Fetching the position info from the database.
+		$position = $this->database->getStoredPositionByMarket($this);
+		var_dump($position);
+		return false;
 	}
 
 	public function updateChart(): void {
@@ -297,7 +336,7 @@ class Market implements IMarket
 	        
 	        return $exchangeName . $marketType . $ticker . $timeframe;
 	    } else {
-	        $format = " %s, %s, %s, %s ";
+	        $format = "%s, %s, %s, %s";
 	        $args = [
 				$this->getExchange()->getName(),
 	            $this->getMarketType()->name,
@@ -318,12 +357,20 @@ class Market implements IMarket
 	}
 
 	public function openLongPosition(Money $volume): IPosition|false {
-		$success = $this->exchange->openLong($this->pair, $volume);
+		$success = $this->exchange->openLong($this, $volume);
 		return $this->getCurrentPosition();
 	}
 
 	public function openShortPosition(Money $volume): IPosition|false {
-		$success = $this->exchange->openShort($this->pair, $volume);
+		$success = $this->exchange->openShort($this, $volume);
 		return $this->getCurrentPosition();
+	}
+
+	public function hasOpenPosition() {
+		// TODO
+	}
+	
+	public function getExchangeName(): string {
+		return $this->exchange->getName();
 	}
 }

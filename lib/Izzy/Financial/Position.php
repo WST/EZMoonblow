@@ -3,6 +3,8 @@
 namespace Izzy\Financial;
 
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionFinishReasonEnum;
+use Izzy\Enums\PositionStatusEnum;
 use Izzy\Interfaces\IPosition;
 
 /**
@@ -31,14 +33,20 @@ class Position implements IPosition
 	private Money $currentPrice;
 
 	/**
-	 * Position status: 'open', 'closed', 'pending'.
+	 * Position status.
 	 */
-	private string $status;
+	private PositionStatusEnum $status;
 
 	/**
 	 * Position ID from exchange.
 	 */
 	private string $positionId;
+
+	/**
+	 * Reason of finishing the position. Always null if the position is still active.
+	 * @var PositionFinishReasonEnum|null 
+	 */
+	private ?PositionFinishReasonEnum $finishReason = null;
 
 	/**
 	 * Constructor.
@@ -47,7 +55,7 @@ class Position implements IPosition
 	 * @param PositionDirectionEnum $direction Position direction.
 	 * @param Money $entryPrice Entry price.
 	 * @param Money $currentPrice Current market price.
-	 * @param string $status Position status.
+	 * @param PositionStatusEnum $status Position status.
 	 * @param string $positionId Position ID from exchange.
 	 */
 	public function __construct(
@@ -55,7 +63,7 @@ class Position implements IPosition
 		PositionDirectionEnum $direction,
 		Money $entryPrice,
 		Money $currentPrice,
-		string $status,
+		PositionStatusEnum $status,
 		string $positionId
 	) {
 		$this->volume = $volume;
@@ -112,7 +120,7 @@ class Position implements IPosition
 	/**
 	 * @inheritDoc
 	 */
-	public function getStatus(): string {
+	public function getStatus(): PositionStatusEnum {
 		return $this->status;
 	}
 

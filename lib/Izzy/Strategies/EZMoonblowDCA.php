@@ -7,7 +7,7 @@ use Izzy\Indicators\RSI;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IMarket;
 
-class EZMoonblowAbstractDCA extends AbstractDCAStrategy
+class EZMoonblowDCA extends AbstractDCAStrategy
 {
 	public function useIndicators(): array {
 		return [RSI::class];
@@ -18,7 +18,7 @@ class EZMoonblowAbstractDCA extends AbstractDCAStrategy
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
-		if (!$this->market) {
+		/*if (!$this->market) {
 			return false;
 		}
 
@@ -36,7 +36,8 @@ class EZMoonblowAbstractDCA extends AbstractDCAStrategy
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
 
 		// Buy when RSI shows oversold condition
-		return $rsiSignal === 'oversold';
+		return $rsiSignal === 'oversold';*/
+		return true; // Temporary enable always entering long
 	}
 
 	/**

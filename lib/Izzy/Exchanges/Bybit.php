@@ -224,62 +224,6 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public function getCurrentPosition(IMarket $market): ?IPosition {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			if ($pair->isSpot()) {
-				// For spot, check if we have any balance of the base currency
-				$accountInfo = $this->api->accountApi()->getWalletBalance(['accountType' => 'UNIFIED']);
-				
-				// There is no open position.
-				if (!isset($accountInfo['list'][0]['coin'])) {
-					return null;
-				}
-
-				// Extract base currency from ticker (e.g., BTCUSDT -> BTC)
-				$baseCurrency = $pair->getBaseCurrency();
-				
-				// TODO: fetch position from the database.
-			} else {
-				// For futures, get position directly
-				$params = [
-					'category' => 'linear',
-					'symbol' => $ticker
-				];
-
-				$response = $this->api->positionApi()->getPositionInfo($params);
-				
-				if (empty($response['list'])) {
-					return null;
-				}
-
-				foreach ($response['list'] as $positionData) {
-					if ($positionData['symbol'] === $ticker) {
-						$positionSize = $positionData['size'];
-						$direction = $positionSize > 0 ? PositionDirectionEnum::LONG : PositionDirectionEnum::SHORT;
-						return new Position(
-							Money::from(abs($positionSize)),
-							$direction,
-							Money::from($positionData['avgPrice']),
-							Money::from($positionData['markPrice']),
-							'open',
-							$positionData['positionIdx'] ?? ''
-						);
-					}
-				}
-
-			}
-			return null;
-		} catch (Exception $e) {
-			$this->logger->error("Failed to get current position for $market: " . $e->getMessage());
-			return null;
-		}
-	}
-
-	/**
 	 * Open a long position.
 	 *
 	 * @param IMarket $market
@@ -289,13 +233,8 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
 		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
 		try {
-			// Safety check: limit position size to $100
-			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100");
-				$amount->setAmount(100.0);
-			}
-
 			$category = 'spot'; // Default to spot
 			$side = 'Buy';
 			$orderType = $price ? 'Limit' : 'Market';
@@ -307,6 +246,9 @@ class Bybit extends AbstractExchangeDriver
 				'orderType' => $orderType,
 				'qty' => $this->calculateQuantity($market, $amount, $price)->formatForOrder(),
 			];
+			
+			var_dump($params);
+			return false;
 
 			if ($price) {
 				$params['price'] = (string)$price;
@@ -350,63 +292,8 @@ class Bybit extends AbstractExchangeDriver
 	 * @inheritDoc
 	 */
 	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			// Safety check: limit position size to $100
-			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100");
-				$amount->setAmount(100.0);
-			}
-
-			$category = 'linear'; // Futures only
-			$side = 'Sell';
-			$orderType = $price ? 'Limit' : 'Market';
-			
-			$params = [
-				'category' => $category,
-				'symbol' => $ticker,
-				'side' => $side,
-				'orderType' => $orderType,
-				'qty' => $this->calculateQuantity($pair, $amount, $price)->formatForOrder(),
-			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
-
-			$response = $this->api->orderApi()->submitOrder($params);
-			
-			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully opened short position for $ticker: $amount");
-				
-				// Save position to database
-				$currentPrice = $this->getCurrentPrice($market);
-				if ($currentPrice) {
-					$this->database->savePosition(
-						$this->exchangeName,
-						$ticker,
-						'futures',
-						'short',
-						$currentPrice,
-						$currentPrice,
-						$amount->getAmount(),
-						$amount->getCurrency(),
-						'open',
-						$response['result']['orderId'],
-						$response['result']['orderId']
-					);
-				}
-				
-				return true;
-			} else {
-				$this->logger->error("Failed to open short position for $ticker: " . json_encode($response));
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to open short position for $ticker: " . $e->getMessage());
-			return false;
-		}
+		// TODO
+		return false;
 	}
 
 	/**
@@ -444,7 +331,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->logger->info("Successfully closed position for $ticker");
 				
 				// Update position status in database
-				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
+				$dbPosition = $this->database->getStoredPositionByMarket($this->exchangeName, $ticker);
 				if ($dbPosition) {
 					$this->database->closePosition($dbPosition['id']);
 				}
@@ -500,36 +387,8 @@ class Bybit extends AbstractExchangeDriver
 	 * @inheritDoc
 	 */
 	public function sellAdditional(IMarket $market, Money $amount): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			// Safety check: limit sell amount to $50
-			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("Sell amount $amount exceeds $50 limit, reducing to $50");
-				$amount->setAmount(50.0);
-			}
-
-			$params = [
-				'category' => 'spot',
-				'symbol' => $ticker,
-				'side' => 'Sell',
-				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($market, $amount, null)->formatForOrder(),
-			];
-
-			$response = $this->api->orderApi()->submitOrder($params);
-			
-			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully executed sell for $ticker: $amount");
-				return true;
-			} else {
-				$this->logger->error("Failed to execute sell for $ticker: " . json_encode($response));
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to execute sell for $ticker: " . $e->getMessage());
-			return false;
-		}
+		// TODO
+		return false;
 	}
 
 	/**

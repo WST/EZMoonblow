@@ -176,43 +176,6 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * @inheritDoc
-	 */
-	public function getCurrentPosition(IMarket $market): ?IPosition {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$baseCurrency = $pair->getBaseCurrency();
-			
-			$params = ['currency' => $baseCurrency];
-
-			$response = $this->walletApi->getTotalBalance($params);
-			
-			if ($response && $response->getTotal() && (float)$response->getTotal()->getAmount() > 0) {
-				// We have a position in this currency
-				$currentPrice = $this->getCurrentPrice($market);
-				if (!$currentPrice) {
-					return null;
-				}
-
-				return new Position(
-					new Money((float)$response->getTotal()->getAmount(), $baseCurrency),
-					PositionDirectionEnum::LONG,
-					$currentPrice, // Approximate entry price
-					$currentPrice,
-					'open',
-					''
-				);
-			}
-			
-			return null;
-		} catch (Exception $e) {
-			$this->logger->error("Failed to get current position for $ticker: " . $e->getMessage());
-			return null;
-		}
-	}
-
-	/**
 	 * Open a long position.
 	 *
 	 * @param IMarket $market
@@ -325,7 +288,7 @@ class Gate extends AbstractExchangeDriver
 				$this->logger->info("Successfully closed position for $ticker");
 				
 				// Update position status in database
-				$dbPosition = $this->database->getCurrentPosition($this->exchangeName, $ticker);
+				$dbPosition = $this->database->getStoredPositionByMarket($this->exchangeName, $ticker);
 				if ($dbPosition) {
 					$this->database->closePosition($dbPosition['id']);
 				}
@@ -384,35 +347,8 @@ class Gate extends AbstractExchangeDriver
 	 * @inheritDoc
 	 */
 	public function sellAdditional(IMarket $market, Money $amount): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			// Safety check: limit sell amount to $50
-			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("Sell amount $amount exceeds $50 limit, reducing to $50");
-				$amount = new Money(50.0, $amount->getCurrency());
-			}
-			
-			$params = [
-				'currency_pair' => $ticker,
-				'side' => 'sell',
-				'amount' => $this->calculateQuantity($market, $amount, null),
-				'type' => 'market'
-			];
-
-			$response = $this->spotApi->createOrder($params);
-			
-			if ($response && $response->getId()) {
-				$this->logger->info("Successfully executed sell for $ticker: $amount");
-				return true;
-			} else {
-				$this->logger->error("Failed to execute sell for $ticker: invalid response");
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to execute sell for $ticker: " . $e->getMessage());
-			return false;
-		}
+		// TODO
+		return false;
 	}
 
 	/**

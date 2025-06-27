@@ -80,7 +80,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			return null;
 		}
 
-		$market = new Market($pair, $this);
+		$market = new Market($pair, $this, $this->database);
 		$market->setCandles($candlesData);
 		return $market;
 	}
@@ -356,16 +356,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		if (!$strategy) {
 			return;
 		}
-
-		// Get current position
-		$currentPosition = $this->getCurrentPosition($market);
+		
+		// Do we already have an open position?
+		$hasOpenPosition = $market->hasOpenPosition();
 		
 		// If no position is open, check for entry signals
-		if (!$currentPosition || !$currentPosition->isOpen()) {
+		if (!$hasOpenPosition) {
 			$this->checkEntrySignals($market, $strategy);
 		} else {
 			// If position is open, update it (check for DCA, etc.)
-			$this->updatePosition($market, $strategy, $currentPosition);
+			$this->updatePosition($market, $strategy, $market->getCurrentPosition());
 		}
 	}
 

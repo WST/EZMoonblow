@@ -24,7 +24,7 @@ class ConsoleApplication
 		$this->logger = Logger::getLogger();
 
 		// Load the configuration.
-		$this->configuration = new Configuration(IZZY_CONFIG . "/config.xml");
+		$this->configuration = Configuration::getInstance();
 
 		// Connect to the database.
 		$this->database = $this->configuration->openDatabase();
