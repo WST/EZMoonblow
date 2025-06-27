@@ -2,6 +2,7 @@
 
 namespace Izzy\Financial;
 
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
@@ -188,7 +189,14 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		return $this->market;
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public static function getTableName(): string {
 		return 'positions';
+	}
+
+	public function getMarketType(): MarketTypeEnum {
+		// TODO: Implement getMarketType() method.
 	}
 }

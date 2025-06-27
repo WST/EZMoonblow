@@ -193,7 +193,7 @@ class Market implements IMarket
 		// Now, get the proper ticker in the format appropriate for the current exchange.
 		$ticker = $pair->getExchangeTicker($this->exchange);
 
-		/*
+		/* FOR SPOT
 		 * 1. Fetch the position from the database.
 		 * 2. Check the position status recorded in the database
 		 * --------------------------------------------------------------------------------------------
@@ -212,7 +212,16 @@ class Market implements IMarket
 		 */
 		
 		// Fetching the position info from the database.
-		$position = $this->getStoredPosition();
+		$storedPosition = $this->getStoredPosition();
+		
+		// Get the position status recorded in the database.
+		$storedStatus = $storedPosition->getStatus();
+		
+		// If the status is pending, check the presence of a “buy” limit order on the exchange.
+		if ($storedStatus->isPending()) {
+			
+		}
+		
 		$this->getExchange()->getLogger()->info('NO OPEN POSITION FOR NOW');
 		return false;
 	}
@@ -385,6 +394,7 @@ class Market implements IMarket
 		$where = [
 			'position_exchange_name' =>  $this->getExchangeName(),
 			'position_ticker' => $this->getTicker(),
+			'position_market_type' => $this->getMarketType()->value,
 		];
 		return $this->database->selectOneObject(Position::class, $where, $this);
 	}

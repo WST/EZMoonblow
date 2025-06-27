@@ -2,6 +2,7 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
@@ -70,4 +71,6 @@ interface IPosition
 	 * @return void
 	 */
 	public function close(): void;
+
+	public function getMarketType(): MarketTypeEnum;
 }
