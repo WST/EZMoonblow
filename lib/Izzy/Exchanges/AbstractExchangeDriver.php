@@ -59,7 +59,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	public function __construct(ExchangeConfiguration $config, ConsoleApplication $application) {
 		$this->config = $config;
 		$this->logger = Logger::getLogger();
-		$this->database = $application->database;
+		$this->database = $application->getDatabase();
 	}
 
 	/**

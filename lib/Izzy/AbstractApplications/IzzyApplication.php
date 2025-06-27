@@ -36,5 +36,12 @@ abstract class IzzyApplication
 		// Connect to the database.
 		$this->database = $this->configuration->openDatabase();
 		$this->database->connect();
+		
+		// Set up logger.
+		$this->logger = Logger::getLogger();
+	}
+
+	public function getDatabase(): Database {
+		return $this->database;
 	}
 }
