@@ -60,10 +60,10 @@ interface IPosition
 	public function isOpen(): bool;
 
 	/**
-	 * Get position ID from exchange.
-	 * @return string
+	 * Izzy’s internal Position identifier.
+	 * @return int
 	 */
-	public function getPositionId(): string;
+	public function getPositionId(): int;
 
 	/**
 	 * Market close the position.

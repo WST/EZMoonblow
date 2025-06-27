@@ -409,7 +409,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		// Update current price for position
 		$currentPrice = $this->getCurrentPrice($market);
 		if ($currentPrice) {
-			$position->updateCurrentPrice($currentPrice);
+			$position->setCurrentPrice($currentPrice);
 		}
 
 		// Let strategy update position (DCA logic, etc.)

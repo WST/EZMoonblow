@@ -373,4 +373,8 @@ class Market implements IMarket
 	public function getExchangeName(): string {
 		return $this->exchange->getName();
 	}
+
+	public function getDatabase(): Database {
+		return $this->database;
+	}
 }

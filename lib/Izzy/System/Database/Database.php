@@ -440,63 +440,17 @@ class Database
 	public function getStoredPositionByMarket(IMarket $market): IPosition|false {
 		$exchangeName = $market->getExchangeName();
 		$ticker = $market->getTicker();
-		
-		// Look for a row in the table.
-		$row = $this->selectOneRow('positions', '*', ['exchange_name' => $exchangeName, 'ticker' => $ticker]);
-		if (!$row) return false;
-		
-		// Prices and position volume.
-		$entryPrice = Money::from($row['entry_price'], $row['quote_currency']);
-		$currentPrice = Money::from($row['current_price'], $row['quote_currency']);
-		$volume = Money::from($row['volume'], $row['base_currency']);
-		
-		// Position direction and status.
-		$direction = PositionDirectionEnum::from($row['direction']);
-		$status = PositionStatusEnum::from($row['status']);
-		
-		// Now let’s build and return a Position object.
-		return new Position(
-			$market,
-			$volume,
-			$direction,
-			$entryPrice,
-			$currentPrice,
-			$status,
-			$row['exchange_position_id'] ?? ''
+
+		$exchangeNameQuoted = $this->quote($exchangeName);
+		$tickerQuoted = $this->quote($ticker);
+		return $this->queryOneObject(
+			Position::class,
+			"SELECT * FROM positions WHERE position_exchange_name = $exchangeNameQuoted AND position_ticker = $tickerQuoted"
 		);
 	}
 	
 	public function savePosition(IPosition $position): bool {
 		
-	}
-
-	/**
-	 * Get all open positions for an exchange.
-	 * 
-	 * @param string $exchangeName Exchange name.
-	 * @return array Array of open positions.
-	 */
-	public function getOpenPositions(string $exchangeName): array {
-		return $this->selectAllRows(
-			'positions',
-			'*',
-			[
-				'exchange_name' => $exchangeName,
-				'status' => 'open'
-			],
-			'created_at DESC'
-		);
-	}
-
-	/**
-	 * Update position current price.
-	 * 
-	 * @param int $positionId Database position ID.
-	 * @param float $currentPrice New current price.
-	 * @return bool True if updated successfully, false otherwise.
-	 */
-	public function updatePositionPrice(int $positionId, float $currentPrice): bool {
-		return $this->update('positions', ['current_price' => $currentPrice], ['id' => $positionId]);
 	}
 
 	private function setError(PDOException|\Exception $e): void {
@@ -519,5 +473,15 @@ class Database
 	public function lastInsertId(): false|int {
 		$lastInsertId = $this->pdo->lastInsertId();
 		return $lastInsertId ?  (int) $lastInsertId : false;
+	}
+
+	public function queryOneObject($object_type, $sql, $userdata = null) {
+		$row = $this->queryOneRow($sql);
+		if (!$row) return false;
+		if (is_null($userdata)) {
+			return new $object_type($this, $row);
+		} else {
+			return new $object_type($this, $row, $userdata);
+		}
 	}
 }

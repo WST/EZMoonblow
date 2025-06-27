@@ -7,43 +7,20 @@ use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
+use Izzy\System\Database\SurrogatePKDatabaseRecord;
 
 /**
  * Base implementation of position interface.
  */
-class Position implements IPosition
+class Position extends SurrogatePKDatabaseRecord implements IPosition
 {
-	private IMarket $market;
+	private string $tableName = 'positions';
 	
 	/**
-	 * Position volume.
+	 * Market.
+	 * @var IMarket 
 	 */
-	private Money $volume;
-
-	/**
-	 * Position direction: 'long' or 'short'.
-	 */
-	private PositionDirectionEnum $direction;
-
-	/**
-	 * Entry price of the position.
-	 */
-	private Money $entryPrice;
-
-	/**
-	 * Current market price.
-	 */
-	private Money $currentPrice;
-
-	/**
-	 * Position status.
-	 */
-	private PositionStatusEnum $status;
-
-	/**
-	 * Position ID from exchange.
-	 */
-	private string $positionId;
+	private IMarket $market;
 
 	/**
 	 * Reason of finishing the position. Always null if the position is still active.
@@ -52,102 +29,131 @@ class Position implements IPosition
 	private ?PositionFinishReasonEnum $finishReason = null;
 
 	/**
-	 * Constructor.
+	 * Builds a Position object from a database row.
 	 *
-	 * @param Money $volume Position volume.
-	 * @param PositionDirectionEnum $direction Position direction.
-	 * @param Money $entryPrice Entry price.
-	 * @param Money $currentPrice Current market price.
-	 * @param PositionStatusEnum $status Position status.
-	 * @param string $positionId Position ID from exchange.
+	 * @param IMarket $market
+	 * @param array $row
 	 */
 	public function __construct(
+		IMarket $market,
+		array $row = [],
+	) {
+		// Link to the Market.
+		$this->market = $market;
+		
+		// Build the parent.
+		parent::__construct(
+			$market->getDatabase(),
+			$this->tableName,
+			$row, 
+			'id'
+		);
+
+		// Prefix for column names.
+		parent::setFieldNamePrefix('position');
+	}
+
+	/**
+	 * Builds a Position object from a set of values.
+	 * 
+	 * @param IMarket $market
+	 * @param Money $volume
+	 * @param PositionDirectionEnum $direction
+	 * @param Money $entryPrice
+	 * @param Money $currentPrice
+	 * @param PositionStatusEnum $status
+	 * @param string $exchangePositionId
+	 * @return static
+	 */
+	public static function create(
 		IMarket $market,
 		Money $volume,
 		PositionDirectionEnum $direction,
 		Money $entryPrice,
 		Money $currentPrice,
 		PositionStatusEnum $status,
-		string $positionId
-	) {
-		$this->market = $market;
-		$this->volume = $volume;
-		$this->direction = $direction;
-		$this->entryPrice = $entryPrice;
-		$this->currentPrice = $currentPrice;
-		$this->status = $status;
-		$this->positionId = $positionId;
+		string $exchangePositionId
+	): static {
+		$row = [];
+		return new self($market, $row);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getVolume(): Money {
-		return $this->volume;
+		return Money::from($this->row['position_volume']);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getDirection(): PositionDirectionEnum {
-		return $this->direction;
+		return PositionDirectionEnum::from($this->row['position_direction']);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getEntryPrice(): Money {
-		return $this->entryPrice;
+		return Money::from($this->row['position_entry_price'], $this->row['position_quote_currency']);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getCurrentPrice(): Money {
-		return $this->currentPrice;
+		return Money::from($this->row['position_current_price'], $this->row['position_quote_currency']);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getUnrealizedPnL(): Money {
-		$volume = $this->volume->getAmount();
-		
-		if ($this->direction->isLong()) {
-			$pnl = ($this->currentPrice->getAmount() - $this->entryPrice->getAmount()) * $volume;
+		$volume = $this->getVolume()->getAmount();		
+		if ($this->getDirection()->isLong()) {
+			$pnl = ($this->getCurrentPrice()->getAmount() - $this->getEntryPrice()->getAmount()) * $volume;
 		} else {
-			$pnl = ($this->entryPrice->getAmount() - $this->currentPrice->getAmount()) * $volume;
+			$pnl = ($this->getEntryPrice()->getAmount() - $this->getCurrentPrice()->getAmount()) * $volume;
 		}
 
-		return new Money($pnl, $this->volume->getCurrency());
+		return new Money($pnl, $this->getVolume()->getCurrency());
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getStatus(): PositionStatusEnum {
-		return $this->status;
+		return PositionStatusEnum::from($this->row['position_status']);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function isOpen(): bool {
-		return $this->status->isOpen();
+		return $this->getStatus()->isOpen();
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function isActive(): bool {
-		return $this->status->isOpen() || $this->status->isPending();
+		$status = $this->getStatus();
+		return $status->isOpen() || $status->isPending();
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getPositionId(): string {
-		return $this->positionId;
+	public function getPositionId(): int {
+		return (int) $this->row['position_id'];
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getExchangePositionId(): string {
+		return (int) $this->row['position_id_on_exchange'];
 	}
 
 	/**
@@ -156,8 +162,8 @@ class Position implements IPosition
 	 * @param Money $currentPrice New current price.
 	 * @return void
 	 */
-	public function updateCurrentPrice(Money $currentPrice): void {
-		$this->currentPrice = $currentPrice;
+	public function setCurrentPrice(Money $currentPrice): void {
+		$this->row['position_current_price'] = $currentPrice->getAmount();
 	}
 
 	/**
@@ -166,8 +172,8 @@ class Position implements IPosition
 	 * @param PositionStatusEnum $status New status.
 	 * @return void
 	 */
-	public function updateStatus(PositionStatusEnum $status): void {
-		$this->status = $status;
+	public function setStatus(PositionStatusEnum $status): void {
+		$this->row['position_status'] = $status->value;
 	}
 
 	public function getUnrealizedPnLPercent(): float {

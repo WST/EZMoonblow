@@ -3,6 +3,7 @@
 namespace Izzy\Interfaces;
 
 use Izzy\Financial\Money;
+use Izzy\System\Database\Database;
 
 interface IMarket
 {
@@ -35,4 +36,6 @@ interface IMarket
 	public function openLongPosition(Money $volume): IPosition|false;
 
 	public function openShortPosition(Money $volume): IPosition|false;
+
+	public function getDatabase(): Database;
 }
