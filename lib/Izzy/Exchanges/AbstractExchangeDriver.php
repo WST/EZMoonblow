@@ -80,7 +80,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			return null;
 		}
 
-		$market = new Market($pair, $this, $this->database);
+		$market = new Market($this, $pair);
 		$market->setCandles($candlesData);
 		return $market;
 	}
@@ -457,5 +457,13 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			$quantity = $currentPrice ? ($amount->getAmount() / $currentPrice) : 0.001;
 		}
 		return Money::from($quantity, $pair->getBaseCurrency());
+	}
+	
+	public function getDatabase(): Database {
+		return $this->database;
+	}
+	
+	public function getLogger(): Logger {
+		return $this->logger;
 	}
 }

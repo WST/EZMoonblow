@@ -6,6 +6,7 @@ use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
 use Izzy\Financial\Position;
+use Izzy\Interfaces\IDatabaseEntity;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use PDO;
@@ -430,24 +431,6 @@ class Database
 	public function updatePosition(int $positionId, array $data): bool {
 		return $this->update('positions', $data, ['id' => $positionId]);
 	}
-
-	/**
-	 * Get current position for a market.
-	 *
-	 * @param IMarket $market
-	 * @return IPosition|false Position data or false if not found.
-	 */
-	public function getStoredPositionByMarket(IMarket $market): IPosition|false {
-		$exchangeName = $market->getExchangeName();
-		$ticker = $market->getTicker();
-
-		$exchangeNameQuoted = $this->quote($exchangeName);
-		$tickerQuoted = $this->quote($ticker);
-		return $this->queryOneObject(
-			Position::class,
-			"SELECT * FROM positions WHERE position_exchange_name = $exchangeNameQuoted AND position_ticker = $tickerQuoted"
-		);
-	}
 	
 	public function savePosition(IPosition $position): bool {
 		
@@ -475,13 +458,24 @@ class Database
 		return $lastInsertId ?  (int) $lastInsertId : false;
 	}
 
-	public function queryOneObject($object_type, $sql, $userdata = null) {
-		$row = $this->queryOneRow($sql);
+	/**
+	 * Selects one ORM object from its table.
+	 * @param $objectType
+	 * @param string|array $where
+	 * @param null $userdata
+	 * @return false|mixed
+	 */
+	public function selectOneObject(
+		$objectType,
+		string|array $where = '1',
+		$userdata = null
+	): IDatabaseEntity|false {
+		$row = $this->selectOneRow($objectType::getTableName(), '*', $where);
 		if (!$row) return false;
 		if (is_null($userdata)) {
-			return new $object_type($this, $row);
+			return new $objectType($this, $row);
 		} else {
-			return new $object_type($this, $row, $userdata);
+			return new $objectType($this, $row, $userdata);
 		}
 	}
 }

@@ -1,6 +1,8 @@
 <?php
 
-namespace Izzy\System\Database;
+namespace Izzy\System\Database\ORM;
+
+use Izzy\System\Database\Database;
 
 abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 {
@@ -19,9 +21,9 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 	/**
 	 * Warning: only single column surrogate keys are supported!
 	 */
-	public function __construct(Database $database, string $table, array $row, string $pk_field) {
+	public function __construct(Database $database, array $row, string $pk_field) {
 		$fresh = !isset($row[$pk_field]);
-		parent::__construct($database, $table, $row, [$pk_field], $fresh);
+		parent::__construct($database, $row, [$pk_field], $fresh);
 		$this->pkField = $pk_field;
 		if(isset($row[$pk_field])) {
 			$this->pkValue = (int) $row[$pk_field];

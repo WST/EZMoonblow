@@ -65,14 +65,13 @@ class Market implements IMarket
 	private Database $database;
 
 	public function __construct(
-		Pair $pair,
 		IExchangeDriver $exchange,
-		Database $database,
+		Pair $pair,
 	) {
 		$this->marketType = $pair->getMarketType();
 		$this->exchange = $exchange;
 		$this->pair = $pair;
-		$this->database = $database;
+		$this->database = $exchange->getDatabase();
 	}
 
 	/**
@@ -213,8 +212,8 @@ class Market implements IMarket
 		 */
 		
 		// Fetching the position info from the database.
-		$position = $this->database->getStoredPositionByMarket($this);
-		var_dump($position);
+		$position = $this->getStoredPosition();
+		$this->getExchange()->getLogger()->info('NO OPEN POSITION FOR NOW');
 		return false;
 	}
 
@@ -376,5 +375,17 @@ class Market implements IMarket
 
 	public function getDatabase(): Database {
 		return $this->database;
+	}
+
+	/**
+	 * Get a stored position for this market.
+	 * @return IPosition|false Position data or false if not found.
+	 */
+	public function getStoredPosition(): IPosition|false {
+		$where = [
+			'position_exchange_name' =>  $this->getExchangeName(),
+			'position_ticker' => $this->getTicker(),
+		];
+		return $this->database->selectOneObject(Position::class, $where, $this);
 	}
 }

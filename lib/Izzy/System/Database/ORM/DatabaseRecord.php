@@ -1,24 +1,21 @@
 <?php
 
-namespace Izzy\System\Database;
+namespace Izzy\System\Database\ORM;
 
 use ArrayAccess;
+use Izzy\Interfaces\IDatabaseEntity;
+use Izzy\System\Database\Database;
 
 /**
  * Database record.
  */
-abstract class DatabaseRecord implements ArrayAccess
+abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity
 {
 	/**
 	 * Link with the database.
 	 * @var Database 
 	 */
 	protected Database $database;
-	
-	/**
-	 * Name of the database table storing objects of this kind.
-	 */
-	protected string $table = '';
 
 	/**
 	 * Data row.
@@ -61,13 +58,11 @@ abstract class DatabaseRecord implements ArrayAccess
 	 */
 	public function __construct(
 		Database $database,
-		string $table,
 		array $row,
 		?array $pkFields = NULL,
 		bool $isFresh = false
 	) {
 		$this->database = $database;
-		$this->table = $table;
 		$this->row = $row;
 		$this->pkFields = $pkFields;
 		$this->isFresh = $isFresh;
@@ -87,17 +82,17 @@ abstract class DatabaseRecord implements ArrayAccess
 	 */
 	public function save(): bool|int {
 		// Prepare the data, keeping in mind that it may have extra fields.
-		$table_columns = array_flip($this->database->getFieldList($this->table));
+		$table_columns = array_flip($this->database->getFieldList(static::getTableName()));
 		$row = array_intersect_key($this->row, $table_columns);
 
 		// Save the data and indicate it.
 		if($this->isFresh) {
 			// A fresh record.
-			$success = $this->database->insert($this->table, $row);
+			$success = $this->database->insert(static::getTableName(), $row);
 			$this->isFresh = false;
 		} else {
 			// An already existing record.
-			$success = $this->database->update($this->table, $row, $this->pkValues);
+			$success = $this->database->update(static::getTableName(), $row, $this->pkValues);
 		}
 
 		return $success;
@@ -117,7 +112,7 @@ abstract class DatabaseRecord implements ArrayAccess
 		}
 
 		// Write the modifications.
-		$this->database->delete($this->table, implode(' AND ', $where));
+		$this->database->delete(static::getTableName(), implode(' AND ', $where));
 
 		// Deletion successful.
 		return true;

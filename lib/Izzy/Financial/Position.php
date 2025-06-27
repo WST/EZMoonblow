@@ -7,15 +7,14 @@ use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
-use Izzy\System\Database\SurrogatePKDatabaseRecord;
+use Izzy\System\Database\Database;
+use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 
 /**
  * Base implementation of position interface.
  */
 class Position extends SurrogatePKDatabaseRecord implements IPosition
 {
-	private string $tableName = 'positions';
-	
 	/**
 	 * Market.
 	 * @var IMarket 
@@ -31,12 +30,14 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	/**
 	 * Builds a Position object from a database row.
 	 *
-	 * @param IMarket $market
+	 * @param Database $database
 	 * @param array $row
+	 * @param IMarket $market
 	 */
 	public function __construct(
-		IMarket $market,
-		array $row = [],
+		Database $database,
+		array $row,
+		IMarket $market /* passed as user data */
 	) {
 		// Link to the Market.
 		$this->market = $market;
@@ -44,7 +45,6 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		// Build the parent.
 		parent::__construct(
 			$market->getDatabase(),
-			$this->tableName,
 			$row, 
 			'id'
 		);
@@ -75,7 +75,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		string $exchangePositionId
 	): static {
 		$row = [];
-		return new self($market, $row);
+		return new self($market->getDatabase(), $row, $market);
 	}
 
 	/**
@@ -186,5 +186,9 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 
 	public function getMarket(): IMarket {
 		return $this->market;
+	}
+
+	public static function getTableName(): string {
+		return 'positions';
 	}
 }
