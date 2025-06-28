@@ -50,3 +50,5 @@ cp config/config.xml.example config/config.xml
 * Support for more exchanges
 * Web management interface
 * User data support (user-defined indicators, strategies)
+* Support for position hedging (having both Short and Long positions open at the same time)
+* Configurable notifications with Telegram & XMPP support
