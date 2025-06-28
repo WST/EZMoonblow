@@ -14,12 +14,18 @@ class DatabaseMigrationManager
 	 */
 	private int $padding = 0;
 
-	private int $paddingWidth = 2;
+	private int $paddingWidth = 1;
 
 	/**
 	 * Tracks current migration status: if one action fails, we consider the whole migration failed. 
 	 */
 	private bool $currentStatus = true;
+
+	/**
+	 * Indicates that the current migration has called some real actions. Used to track empty migrations.
+	 * @var bool 
+	 */
+	private bool $migrationHasPerformedActions = false;
 
 	/**
 	 * Cache of the already applied migration numbers.
@@ -47,8 +53,9 @@ class DatabaseMigrationManager
 	}
 	
 	protected function logDatabaseOperationWithStatus(string $description, bool $successful = true): void {
-		$status = $successful ? "\033[48;5;22;1m ✅  OK  \033[0m" : "\033[41m ❌ fail \033[0m";
-		$this->logger->info(str_repeat(' ', $this->padding * $this->paddingWidth) . $status . ' ' . $description);
+		$statusIcon = $successful ? "✅" : "❌";
+		$method = $successful ? [$this->logger, 'info'] : [$this->logger, 'error'];
+		$method(str_repeat(' ', $this->padding * $this->paddingWidth) . $statusIcon . ' ' . $description);
 	}
 
 	protected function logDatabaseOperation(string $description): void {
@@ -99,13 +106,32 @@ class DatabaseMigrationManager
 	 */
 	public function createTable(string $table, array $fields, array $keys = [], string $engine = 'InnoDB'): void {
 		$success = $this->db->createTable($table, $fields, $keys, $engine);
-		if (!$success) {
-			$this->currentStatus = false;
-		}
+		$this->updateCurrentStatus($success);
 		$this->logDatabaseOperationWithStatus("Creating table “{$table}”...", $success);
+		$this->migrationHasPerformedActions = true;
 	}
-	
-	public function exec(): void {
+
+	/**
+	 * @param string $table
+	 * @param string $columnName
+	 * @param string $columnType
+	 * @return void
+	 */
+	public function addTableColumn(string $table, string $columnName, string $columnType): void {
+		$sql = "ALTER TABLE {$table} ADD COLUMN $columnName $columnType";
+		$success = !($this->db->exec($sql) === false);
+		$this->migrationHasPerformedActions = true;
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Adding column “{$columnName}” to table “{$table}”...", $success);
+	}
+
+	/**
+	 * Execute some SQL code and output a comment.
+	 * @param $sql
+	 * @param $comment
+	 * @return void
+	 */
+	public function exec($sql, $comment): void {
 		
 	}
 
@@ -132,18 +158,28 @@ class DatabaseMigrationManager
 		// By default, we assume successful execution.
 		$this->currentStatus = true;
 		
+		// However, we need to skip empty migrations for convenient development process.
+		$this->migrationHasPerformedActions = false;
+		
 		// Pass the control to the migration file.
 		$this->requireIfValid($filename);
 		
 		// If the migration was successful, mark it as applied.
-		if ($this->currentStatus) {
+		$currentMigrationOverallStatus = $this->currentStatus && $this->migrationHasPerformedActions;  
+		if ($currentMigrationOverallStatus) {
 			$this->markApplied($number);
 		}
 		
 		// Report the migration status.
-		$statusText = $this->currentStatus ? 'finished' : 'failed';
-		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $this->currentStatus);
+		$statusText = $currentMigrationOverallStatus ? 'finished' : 'failed';
+		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $currentMigrationOverallStatus);
 		$this->resetPadding();
+		
+		// If a migration has failed, we shouldn’t be applying the further migrations.
+		if (!$currentMigrationOverallStatus) {
+			$this->logDatabaseOperation("Exiting due to a failed migration.");
+			die(-1);
+		}
 	}
 
 	/**
@@ -218,5 +254,11 @@ class DatabaseMigrationManager
 	
 	public function resetPadding(): void {
 		$this->padding = 0;
+	}
+
+	private function updateCurrentStatus(bool $success): void {
+		if (!$success) {
+			$this->currentStatus = false;
+		}
 	}
 }
