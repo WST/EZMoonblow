@@ -24,8 +24,10 @@ class Money
 		return $this->currency;
 	}
 
-	public function format($format = '%.2f'): string {
-		return sprintf($format, $this->amount) . " " . $this->currency;
+	public function format($format = '%.2f', bool $appendCurrency = true): string {
+		$result = sprintf($format, $this->amount);
+		if ($appendCurrency) $result .= " $this->currency";
+		return $result;
 	}
 
 	public function __toString(): string {
@@ -37,6 +39,6 @@ class Money
 	}
 
 	public function formatForOrder(): string {
-		return $this->format('%.6f');
+		return $this->format('%.6f', false);
 	}
 }

@@ -82,6 +82,8 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 		$market = new Market($this, $pair);
 		$market->setCandles($candlesData);
+		$market->initializeConfiguredIndicators();
+		$market->initializeStrategy(); // sets up strategy indicators as well
 		return $market;
 	}
 	
@@ -134,10 +136,6 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		// Update markets.
 		$this->logger->info("Updating market data for {$this->getName()}");
 		$this->updateMarkets();
-		
-		// Process trading signals.
-		$this->logger->info("Processing trading signals for {$this->getName()}");
-		$this->processMarkets();
 		
 		// Update charts for all markets.
 		$this->logger->info("Updating charts for all markets on {$this->getName()}");
@@ -217,9 +215,6 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 					$pair = $this->spotPairs[$ticker];
 					$candles = $this->getCandles($pair);
 					$market->setCandles($candles);
-					
-					// Set strategy for this market if not already set
-					$this->setupStrategyForMarket($market);
 				}
 			}
 			
@@ -229,234 +224,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 					$pair = $this->futuresPairs[$ticker];
 					$candles = $this->getCandles($pair);
 					$market->setCandles($candles);
-					
-					// Set strategy for this market if not already set
-					$this->setupStrategyForMarket($market);
 				}
 			}
 			
-			// Setup indicators for this market if not already done.
-			$this->setupIndicatorsForMarket($market);
-			
 			// Calculate all indicators.
 			$market->calculateIndicators();
-		}
-	}
 
-	/**
-	 * Setup strategy for a specific market based on configuration.
-	 * 
-	 * @param Market $market Market instance.
-	 * @return void
-	 */
-	protected function setupStrategyForMarket(Market $market): void {
-		// Skip if strategy is already set.
-		if ($market->getStrategy()) {
-			return;
+			// Process trading signals.
+			$this->logger->info("Processing trading signals for {$this->getName()}");
+			$market->processTrading();
 		}
-
-		$pair = $market->getPair();
-		$strategyName = $pair->getStrategyName();
-		
-		if (empty($strategyName)) {
-			return;
-		}
-		
-		try {
-			$strategyParams = $pair->getStrategyParams();
-			$strategy = StrategyFactory::create($strategyName, $market, $strategyParams);
-			$market->setStrategy($strategy);
-			$this->logger->info("Set strategy $strategyName for market $market");
-		} catch (\Exception $e) {
-			$this->logger->error("Failed to set strategy $strategyName for market $market: " . $e->getMessage());
-		}
-	}
-
-	/**
-	 * Setup indicators for a specific market based on configuration.
-	 * 
-	 * @param Market $market Market instance.
-	 * @return void
-	 */
-	protected function setupIndicatorsForMarket(Market $market): void {
-		// Skip if indicators are already set up.
-		if (!empty($market->getIndicators())) {
-			return;
-		}
-		
-		$ticker = $market->getTicker();
-		
-		// Get indicators configuration for this pair.
-		$indicatorsConfig = $this->getIndicatorsConfig($ticker);
-		
-		if (empty($indicatorsConfig)) {
-			return;
-		}
-		
-		// Create and add indicators.
-		foreach ($indicatorsConfig as $indicatorType => $parameters) {
-			try {
-				$indicator = IndicatorFactory::create($market, $indicatorType, $parameters);
-				$market->addIndicator($indicator);
-				$this->logger->info("Added indicator {$indicatorType} to market $market");
-			} catch (\Exception $e) {
-				$this->logger->error("Failed to add indicator {$indicatorType} to market {$ticker}: " . $e->getMessage());
-			}
-		}
-	}
-
-	/**
-	 * Get indicators configuration for a trading pair.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @return array Indicators configuration.
-	 */
-	protected function getIndicatorsConfig(string $ticker): array
-	{
-		// Try to get indicators from spot pairs first
-		$spotConfig = $this->config->getIndicatorsConfig($ticker, MarketTypeEnum::SPOT);
-		if (!empty($spotConfig)) {
-			return $spotConfig;
-		}
-		
-		// Try to get indicators from futures pairs
-		$futuresConfig = $this->config->getIndicatorsConfig($ticker, MarketTypeEnum::FUTURES);
-		if (!empty($futuresConfig)) {
-			return $futuresConfig;
-		}
-		
-		// Return empty array if no configuration found
-		return [];
-	}
-
-	/**
-	 * Process all markets for trading signals.
-	 * This method is called periodically to check for trading opportunities.
-	 * 
-	 * @return void
-	 */
-	public function processMarkets(): void {
-		foreach ($this->markets as $ticker => $market) {
-			try {
-				$this->checkStrategySignals($market);
-			} catch (\Exception $e) {
-				$this->logger->error("Error processing market {$ticker}: " . $e->getMessage());
-			}
-		}
-	}
-
-	/**
-	 * Check strategy signals for a specific market.
-	 * 
-	 * @param Market $market Market instance.
-	 * @return void
-	 */
-	protected function checkStrategySignals(Market $market): void {
-		$strategy = $market->getStrategy();
-		if (!$strategy) {
-			return;
-		}
-		
-		// Do we already have an open position?
-		$hasOpenPosition = $market->hasOpenPosition();
-		
-		// If no position is open, check for entry signals
-		if (!$hasOpenPosition) {
-			$this->checkEntrySignals($market, $strategy);
-		} else {
-			// If position is open, update it (check for DCA, etc.)
-			$this->updatePosition($market, $strategy, $market->getCurrentPosition());
-		}
-	}
-
-	/**
-	 * Check for entry signals (shouldLong, shouldShort).
-	 * 
-	 * @param Market $market Market instance.
-	 * @return void
-	 */
-	protected function checkEntrySignals(Market $market): void {
-		$strategy = $market->getStrategy();
-		if (!$strategy) {
-			$this->logger->warning("No strategy set for market {$market->getTicker()}");
-			return;
-		}
-		
-		// Check for long entry signal
-		if ($strategy->shouldLong()) {
-			$this->logger->info("Long signal detected for {$market}");
-			$this->executeLongEntry($market);
-			return;
-		}
-
-		// Check for short entry signal (only for futures)
-		if ($market->isFutures() && $strategy->shouldShort()) {
-			$this->logger->info("Short signal detected for {$market}");
-			$this->executeShortEntry($market);
-			return;
-		}
-	}
-
-	/**
-	 * Update existing position (DCA, etc.).
-	 * 
-	 * @param Market $market Market instance.
-	 * @param IStrategy $strategy Strategy instance.
-	 * @param IPosition $position Current position.
-	 * @return void
-	 */
-	protected function updatePosition(Market $market, IStrategy $strategy, IPosition $position): void {
-		// Update current price for position
-		$currentPrice = $this->getCurrentPrice($market);
-		if ($currentPrice) {
-			$position->setCurrentPrice($currentPrice);
-		}
-
-		// Let strategy update position (DCA logic, etc.)
-		$strategy->updatePosition($position);
-	}
-
-	/**
-	 * Execute long entry order.
-	 * 
-	 * @param Market $market Market instance.
-	 * @return void
-	 */
-	protected function executeLongEntry(Market $market): void {
-		$this->logger->info("Long entry detected for {$market}");
-		$market->getStrategy()->handleLong($market);
-	}
-
-	/**
-	 * Execute short entry order.
-	 * 
-	 * @param Market $market Market instance.
-	 * @return void
-	 */
-	protected function executeShortEntry(Market $market): void {
-		$this->logger->info("Short entry detected for {$market}");
-		$market->getStrategy()->handleShort($market);
-	}
-
-	/**
-	 * Calculate quantity based on amount and price.
-	 *
-	 * @param IMarket $market
-	 * @param Money $amount Amount in USDT.
-	 * @param float|null $price Price per unit.
-	 * @return Money Quantity as string.
-	 */
-	protected function calculateQuantity(IMarket $market, Money $amount, ?float $price): Money {
-		$pair = $market->getPair();
-		if ($price) {
-			// Limit orders.
-			$quantity = $amount->getAmount() / $price;
-		} else {
-			// For market orders, use a rough estimate.
-			$currentPrice = $this->getCurrentPrice($market)->getAmount();
-			$quantity = $currentPrice ? ($amount->getAmount() / $currentPrice) : 0.001;
-		}
-		return Money::from($quantity, $pair->getBaseCurrency());
 	}
 	
 	public function getDatabase(): Database {
@@ -465,5 +242,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	
 	public function getLogger(): Logger {
 		return $this->logger;
+	}
+	
+	public function getExchangeConfiguration(): ExchangeConfiguration {
+		return $this->config;
 	}
 }

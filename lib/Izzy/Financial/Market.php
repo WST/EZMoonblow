@@ -13,6 +13,7 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
+use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Database\Database;
 use Izzy\Traits\HasMarketTypeTrait;
 
@@ -127,14 +128,6 @@ class Market implements IMarket
 		return $this->getMaxPrice() - $this->getMinPrice();
 	}
 
-	public function setStrategy(IStrategy $strategy): void {
-		$this->strategy = $strategy;
-		$this->strategy->setMarket($this);
-		
-		// Initialize indicators from strategy
-		$this->initializeStrategyIndicators();
-	}
-
 	/**
 	 * Get active strategy for this market.
 	 * 
@@ -211,15 +204,20 @@ class Market implements IMarket
 		 * 9. If the status is finished, we return false.
 		 */
 		
-		// Fetching the position info from the database.
-		$storedPosition = $this->getStoredPosition();
-		
-		// Get the position status recorded in the database.
-		$storedStatus = $storedPosition->getStatus();
-		
-		// If the status is pending, check the presence of a “buy” limit order on the exchange.
-		if ($storedStatus->isPending()) {
+		if ($this->getMarketType()->isSpot()) {
+			// Fetching the position info from the database.
+			$storedPosition = $this->getStoredPosition();
+			if (!$storedPosition) return false;
 			
+			// Get the position status recorded in the database.
+			$storedStatus = $storedPosition->getStatus();
+
+			// If the status is pending, check the presence of a “buy” limit order on the exchange.
+			if ($storedStatus->isPending()) {
+
+			}
+		} else {
+			return false;
 		}
 		
 		$this->getExchange()->getLogger()->info('NO OPEN POSITION FOR NOW');
@@ -374,8 +372,14 @@ class Market implements IMarket
 		return $this->getCurrentPosition();
 	}
 
-	public function hasOpenPosition() {
-		// TODO
+	/**
+	 * Check if this Market has an active position.
+	 * By “active” we mean open or pending.
+	 * @return bool
+	 */
+	public function hasActivePosition(): bool {
+		$currentPosition = $this->getCurrentPosition();
+		return $currentPosition && $currentPosition->isActive();
 	}
 	
 	public function getExchangeName(): string {
@@ -397,5 +401,152 @@ class Market implements IMarket
 			'position_market_type' => $this->getMarketType()->value,
 		];
 		return $this->database->selectOneObject(Position::class, $where, $this);
+	}
+
+	/**
+	 * Setup strategy for this market based on configuration.
+	 * @return void
+	 */
+	public function initializeStrategy(): void {
+		// Skip if strategy is already set.
+		if ($this->getStrategy()) {
+			return;
+		}
+
+		$pair = $this->getPair();
+		$strategyName = $pair->getStrategyName();
+		if (empty($strategyName)) {
+			return;
+		}
+
+		try {
+			$strategyParams = $pair->getStrategyParams();
+			$strategy = StrategyFactory::create($strategyName, $this, $strategyParams);
+			$this->strategy = $strategy;
+			$this->exchange->getLogger()->info("Set strategy $strategyName for market $this");
+		} catch (Exception $e) {
+			$this->exchange->getLogger()->error("Failed to set strategy $strategyName for market $this: " . $e->getMessage());
+		}
+		$this->initializeStrategyIndicators();
+	}
+
+	/**
+	 * Perform trading routines.
+	 * @return void
+	 */
+	public function processTrading(): void {
+		$strategy = $this->getStrategy();
+		if (!$strategy) {
+			return;
+		}
+
+		// Do we already have an open position?
+		$hasActivePosition = $this->hasActivePosition();
+
+		// If no position is open, check for entry signals
+		if (!$hasActivePosition) {
+			$this->checkEntrySignals();
+		} else {
+			// If position is open, update it (check for DCA, etc.)
+			$this->updatePosition($this->getCurrentPosition());
+		}
+	}
+
+	/**
+	 * Check for entry signals (shouldLong, shouldShort).
+	 * Executed only if there is no active position yet.
+	 * @return void
+	 */
+	protected function checkEntrySignals(): void {
+		$strategy = $this->getStrategy();
+		if (!$strategy) {
+			$this->exchange->getLogger()->warning("No strategy set for market $this.");
+			return;
+		}
+
+		// Check for long entry signal
+		if ($strategy->shouldLong()) {
+			$this->exchange->getLogger()->info("Long signal detected for $this.");
+			$this->executeLongEntry();
+			return;
+		}
+
+		// Check for short entry signal (only for futures)
+		if ($this->isFutures() && $strategy->shouldShort()) {
+			$this->exchange->getLogger()->info("Short signal detected for $this.");
+			$this->executeShortEntry();
+			return;
+		}
+	}
+
+	/**
+	 * Execute long entry order.
+	 * @return void
+	 */
+	protected function executeLongEntry(): void {
+		$this->exchange->getLogger()->info("Long entry detected for $this.");
+		$this->getStrategy()->handleLong($this);
+	}
+
+	/**
+	 * Execute short entry order.
+	 * @return void
+	 */
+	protected function executeShortEntry(): void {
+		$this->exchange->getLogger()->info("Short entry detected for $this");
+		$this->getStrategy()->handleShort($this);
+	}
+
+	/**
+	 * Calculate quantity based on amount and price.
+	 * @param Money $amount Amount.
+	 * @param float|null $price Price per unit.
+	 * @return Money Quantity as string.
+	 */
+	public function calculateQuantity(Money $amount, ?float $price): Money {
+		$pair = $this->getPair();
+		if ($price) {
+			// Limit orders.
+			$quantity = $amount->getAmount() / $price;
+		} else {
+			// For market orders, use a rough estimate.
+			$currentPrice = $this->getCurrentPrice()->getAmount();
+			$quantity = $currentPrice ? ($amount->getAmount() / $currentPrice) : 0.001;
+		}
+		return Money::from($quantity, $pair->getBaseCurrency());
+	}
+
+	/**
+	 * Setup indicators for a specific market based on configuration.
+	 * @return void
+	 */
+	public function initializeConfiguredIndicators(): void {
+		// Skip if indicators are already set up.
+		if (!empty($this->getIndicators())) {
+			return;
+		}
+
+		$ticker = $this->getTicker();
+
+		// Get indicators configuration for this pair.
+		$indicatorsConfig = $this->getExchange()->getExchangeConfiguration()->getIndicatorsConfig($this);
+		if (empty($indicatorsConfig)) {
+			return;
+		}
+
+		// Create and add indicators.
+		foreach ($indicatorsConfig as $indicatorType => $parameters) {
+			try {
+				$indicator = IndicatorFactory::create($this, $indicatorType, $parameters);
+				$this->addIndicator($indicator);
+				$this->getExchange()->getLogger()->info("Added indicator {$indicatorType} to market $this");
+			} catch (Exception $e) {
+				$this->getExchange()->getLogger()->error("Failed to add indicator {$indicatorType} to market $this: " . $e->getMessage());
+			}
+		}
+	}
+
+	private function getCurrentPrice(): Money {
+		return $this->getExchange()->getCurrentPrice($this);
 	}
 }

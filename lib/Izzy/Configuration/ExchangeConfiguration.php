@@ -9,6 +9,7 @@ use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
+use Izzy\Interfaces\IMarket;
 
 class ExchangeConfiguration
 {
@@ -164,13 +165,11 @@ class ExchangeConfiguration
 
 	/**
 	 * Get indicators configuration for a specific trading pair.
-	 * 
-	 * @param string $ticker Trading pair ticker.
-	 * @param MarketTypeEnum $marketType Market type.
+	 * @param IMarket $market
 	 * @return array Indicators configuration.
 	 */
-	public function getIndicatorsConfig(string $ticker, MarketTypeEnum $marketType = MarketTypeEnum::SPOT): array {
-		$marketElement = $this->getChildElementByTagName($this->exchangeElement, $marketType->toString());
+	public function getIndicatorsConfig(IMarket $market): array {
+		$marketElement = $this->getChildElementByTagName($this->exchangeElement, $market->getMarketType()->toString());
 		if (!$marketElement) {
 			return [];
 		}
@@ -178,7 +177,7 @@ class ExchangeConfiguration
 		// Find the pair element with matching ticker
 		$pairElement = null;
 		foreach ($marketElement->getElementsByTagName('pair') as $element) {
-			if ($element instanceof DOMElement && $element->getAttribute('ticker') === $ticker) {
+			if ($element instanceof DOMElement && $element->getAttribute('ticker') === $market->getTicker()) {
 				$pairElement = $element;
 				break;
 			}

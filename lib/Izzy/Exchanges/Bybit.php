@@ -8,6 +8,7 @@ use ByBit\SDK\Exceptions\HttpException;
 use Exception;
 use InvalidArgumentException;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Money;
@@ -235,47 +236,48 @@ class Bybit extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$category = 'spot'; // Default to spot
+			$category = 'spot';
 			$side = 'Buy';
 			$orderType = $price ? 'Limit' : 'Market';
+
+			// Spot Market Buy order, qty is quote currency
+			// {"category":"spot","symbol":"BTCUSDT","side":"Buy","orderType":"Market","qty":"200","timeInForce":"IOC","orderLinkId":"spot-test-04","isLeverage":0,"orderFilter":"Order"}
 			
 			$params = [
 				'category' => $category,
 				'symbol' => $pair->getExchangeTicker($this),
 				'side' => $side,
 				'orderType' => $orderType,
-				'qty' => $this->calculateQuantity($market, $amount, $price)->formatForOrder(),
+				'qty' => $market->calculateQuantity($amount, $price)->formatForOrder(),
 			];
-			
-			var_dump($params);
-			return false;
 
 			if ($price) {
 				$params['price'] = (string)$price;
 			}
+			
+			var_dump($params);
 
-			$response = $this->api->orderApi()->submitOrder($params);
+			$response = $this->api->tradeApi()->placeOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
 				$this->logger->warning("Successfully opened long position on Bybit for $market: $amount");
 				
 				// Save position to database
 				$currentPrice = $this->getCurrentPrice($market);
-				if ($currentPrice) {
-					$this->database->savePosition(
-						$this->exchangeName,
-						$pair->getExchangeTicker($this),
-						'spot',
-						'long',
-						$currentPrice,
-						$currentPrice,
-						$amount->getAmount(),
-						$amount->getCurrency(),
-						'open',
-						$response['result']['orderId'],
-						$response['result']['orderId']
-					);
-				}
+				$entryPrice = Money::from($currentPrice);
+				$positionStatus = ($orderType == 'Market') ? PositionStatusEnum::OPEN : PositionStatusEnum::PENDING;
+				
+				// Create and save the position. For the spot market, positions are emulated.
+				$position = Position::create(
+					$market,
+					$amount,
+					PositionDirectionEnum::LONG,
+					$entryPrice,
+					$currentPrice,
+					$positionStatus,
+					$response['result']['orderId']
+				);
+				$position->save();
 				
 				return true;
 			} else {
