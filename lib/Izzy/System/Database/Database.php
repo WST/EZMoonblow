@@ -473,9 +473,10 @@ class Database
 		$row = $this->selectOneRow($objectType::getTableName(), '*', $where);
 		if (!$row) return false;
 		if (is_null($userdata)) {
-			return new $objectType($this, $row);
+			$object = new $objectType($this, $row);
 		} else {
-			return new $objectType($this, $row, $userdata);
+			$object = new $objectType($this, $row, $userdata);
 		}
+		return $object;
 	}
 }

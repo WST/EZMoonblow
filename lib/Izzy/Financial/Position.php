@@ -48,7 +48,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		parent::__construct(
 			$market->getDatabase(),
 			$row, 
-			'id'
+			'position_id'
 		);
 
 		// Prefix for column names.
