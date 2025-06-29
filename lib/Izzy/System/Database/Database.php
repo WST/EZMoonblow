@@ -421,21 +421,6 @@ class Database
 		return Money::from(0.0);
 	}
 
-	/**
-	 * Update position information in database.
-	 * 
-	 * @param int $positionId Database position ID.
-	 * @param array $data Data to update.
-	 * @return bool True if updated successfully, false otherwise.
-	 */
-	public function updatePosition(int $positionId, array $data): bool {
-		return $this->update('positions', $data, ['id' => $positionId]);
-	}
-	
-	public function savePosition(IPosition $position): bool {
-		
-	}
-
 	private function setError(PDOException|\Exception $e): void {
 		$this->errorMessage = $e->getMessage();
 	}

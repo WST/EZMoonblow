@@ -4,16 +4,11 @@ namespace Izzy\Exchanges;
 
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Configuration\ExchangeConfiguration;
-use Izzy\Enums\MarketTypeEnum;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
-use Izzy\Indicators\IndicatorFactory;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
-use Izzy\Interfaces\IPosition;
-use Izzy\Interfaces\IStrategy;
-use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 

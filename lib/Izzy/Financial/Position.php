@@ -76,6 +76,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		PositionStatusEnum $status,
 		string $exchangePositionId
 	): static {
+		$now = time();
 		$row = [
 			'position_exchange_name' => $market->getExchangeName(),
 			'position_ticker' => $market->getTicker(),
@@ -89,6 +90,8 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 			'position_status' => $status->toString(),
 			'position_id_on_exchange' => $exchangePositionId,
 			'position_order_id' => $exchangePositionId,
+			'position_created_at' => $now,
+			'position_updated_at' => $now,
 		];
 		return new self($market->getDatabase(), $row, $market);
 	}
@@ -181,6 +184,10 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		$this->row['position_current_price'] = $currentPrice->getAmount();
 	}
 
+	public function setUpdatedAt(string $date): void {
+		$this->row['position_updated_at'] = $date;
+	}
+
 	/**
 	 * Update position status.
 	 *
@@ -220,5 +227,14 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	 */
 	public function buyAdditional(Money $dcaAmount): void {
 		Logger::getLogger()->warning("DCA AVERAGING");
+	}
+	
+	public function updateInfo(): bool {
+		$market = $this->getMarket();
+		$exchange = $market->getExchange();
+		$currentPrice = $exchange->getCurrentPrice($market);
+		$this->setCurrentPrice($currentPrice);
+		$this->setUpdatedAt(time());
+		return self::save();
 	}
 }

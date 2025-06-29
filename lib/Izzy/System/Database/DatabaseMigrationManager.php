@@ -126,6 +126,20 @@ class DatabaseMigrationManager
 	}
 
 	/**
+	 * @param string $table
+	 * @param string $columnName
+	 * @param string $columnType
+	 * @return void
+	 */
+	public function modifyTableColumn(string $table, string $columnName, string $columnType): void {
+		$sql = "ALTER TABLE {$table} MODIFY COLUMN $columnName $columnType";
+		$success = !($this->db->exec($sql) === false);
+		$this->migrationHasPerformedActions = true;
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Modifying column “{$columnName}” of table “{$table}”...", $success);
+	}
+
+	/**
 	 * Execute some SQL code and output a comment.
 	 * @param $sql
 	 * @param $comment

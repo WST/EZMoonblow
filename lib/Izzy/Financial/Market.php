@@ -552,12 +552,14 @@ class Market implements IMarket
 	 * @param IPosition $currentPosition
 	 * @return void
 	 * Called only on an existent and active position.
-	 * TODO: update position info from the exchange.
 	 */
 	private function updatePosition(IPosition $currentPosition): void {
 		if (!method_exists($this->strategy, 'updatePosition')) {
 			return;
 		}
+		
+		// Update position info from the Exchange.
+		$currentPosition->updateInfo();
 		
 		// All checks passed, we can ask the Strategy to update our active Position.
 		$this->strategy->updatePosition($currentPosition);
