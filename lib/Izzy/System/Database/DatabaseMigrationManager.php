@@ -275,4 +275,12 @@ class DatabaseMigrationManager
 			$this->currentStatus = false;
 		}
 	}
+	
+	public function renameColumn(string $table, string $columnName, string $newColumnName): void {
+		$sql = "ALTER TABLE {$table} RENAME COLUMN $columnName TO $newColumnName";
+		$success = !($this->db->exec($sql) === false);
+		$this->migrationHasPerformedActions = true;
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Modifying column “{$columnName}” of table “{$table}”...", $success);
+	}
 }

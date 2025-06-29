@@ -1,21 +1,25 @@
 <?php
 
-namespace Izzy\Exchanges;
+namespace Izzy\Exchanges\Bybit;
 
 use ByBit\SDK\ByBitApi;
 use ByBit\SDK\Enums\AccountType;
+use ByBit\SDK\Enums\OrderStatus;
 use ByBit\SDK\Exceptions\HttpException;
 use Exception;
 use InvalidArgumentException;
+use Izzy\Enums\OrderStatusEnum;
+use Izzy\Enums\OrderTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Exchanges\AbstractExchangeDriver;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Money;
+use Izzy\Financial\Order;
 use Izzy\Financial\Pair;
 use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IPair;
 
 /**
@@ -329,5 +333,61 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	public function pairToTicker(IPair $pair): string {
 		return $pair->getBaseCurrency() . $pair->getQuoteCurrency();
+	}
+	
+	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false {
+		$params = [
+			'category' => 'spot',
+			'symbol' => $market->getPair()->getExchangeTicker($this),
+			'orderId' => $orderIdOnExchange,
+		];
+		$response = $this->api->tradeApi()->getOpenOrders($params);
+
+		// If there is no order list in the response, there was probably no such order.
+		if (!isset($response['list'])) return false;
+
+		// But if it’s empty, we also think that there was no such order.
+		if (empty($response['list'])) return false;
+		
+		// Order info is an array. Let’s build an object for convenience.
+		$orderInfo = $response['list'][0];
+		return $this->orderInfoToObject($orderInfo);
+	}
+
+	/**
+	 * @param IMarket $market
+	 * @param string $orderIdOnExchange
+	 * @return bool
+	 */
+	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool {
+		$order = $this->getOrderById($market, $orderIdOnExchange);
+		return ($order !== false) && $order->isActive();
+	}
+
+	/**
+	 * Create an Order object from Bybit-specific order info array.
+	 * @param array $orderInfo
+	 * @return Order
+	 */
+	private function orderInfoToObject(array $orderInfo): Order {
+		$order = new Order();
+		$order->setVolume(Money::from($orderInfo['qty']));
+		$order->setOrderType(OrderTypeEnum::from($orderInfo['orderType']));
+		$order->setStatus($this->getOrderStatusFromInfoString($orderInfo['orderStatus']));
+		$order->setIdOnExchange($orderInfo['orderId']);
+		return $order;
+	}
+
+	/**
+	 * Get an OrderTypeEnum from Bybit-specific order info element.
+	 * @param mixed $orderStatus
+	 * @return OrderStatusEnum
+	 */
+	private function getOrderStatusFromInfoString(string $orderStatus): OrderStatusEnum {
+		return match ($orderStatus) {
+			'New' => OrderStatusEnum::NewOrder,
+			'PartiallyFilled' => OrderStatusEnum::PartiallyFilled,
+			'Filled' => OrderStatusEnum::Filled,
+		};
 	}
 }

@@ -37,7 +37,7 @@ class ExchangeConfiguration
 	
 	public function connectToExchange(ConsoleApplication $application): IExchangeDriver|false {
 		$exchangeName = $this->getName();
-		$className = "\\Izzy\\Exchanges\\$exchangeName";
+		$className = "\\Izzy\\Exchanges\\$exchangeName\\$exchangeName";
 		if (!class_exists($className)) return false;
 		$exchange = new $className($this, $application);
 		$exchange->connect();

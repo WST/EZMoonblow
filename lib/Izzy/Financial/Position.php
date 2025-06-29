@@ -29,7 +29,11 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	const string FVolume = 'position_volume';
 	const string FBaseCurrency = 'position_base_currency';
 	const string FQuoteCurrency = 'position_quote_currency';
-	const string FOrderId = 'position_order_id';
+	
+	/** Ids of the related orders on the Exchange */
+	const string FEntryOrderIdOnExchange = 'position_entry_order_id_on_exchange';
+	const string FTPOrderIdOnExchange = 'position_tp_order_id_on_exchange';
+	const string FSLOrderIdOnExchange = 'position_tp_order_id_on_exchange';
 	
 	const string FCreatedAt = 'position_created_at';
 	const string FUpdatedAt = 'position_updated_at';
@@ -107,7 +111,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 			self::FQuoteCurrency => $market->getPair()->getQuoteCurrency(),
 			self::FStatus => $status->toString(),
 			self::FIdOnExchange => $exchangePositionId,
-			self::FOrderId => $exchangePositionId,
+			self::FEntryOrderIdOnExchange => $exchangePositionId,
 			self::FCreatedAt => $now,
 			self::FUpdatedAt => $now,
 		];
@@ -118,28 +122,28 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	 * @inheritDoc
 	 */
 	public function getVolume(): Money {
-		return Money::from($this->row['position_volume']);
+		return Money::from($this->row[self::FVolume]);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getDirection(): PositionDirectionEnum {
-		return PositionDirectionEnum::from($this->row['position_direction']);
+		return PositionDirectionEnum::from($this->row[self::FDirection]);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getEntryPrice(): Money {
-		return Money::from($this->row['position_entry_price'], $this->row['position_quote_currency']);
+		return Money::from($this->row[self::FEntryPrice], $this->row[self::FQuoteCurrency]);
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getCurrentPrice(): Money {
-		return Money::from($this->row['position_current_price'], $this->row['position_quote_currency']);
+		return Money::from($this->row[self::FCurrentPrice], $this->row[self::FQuoteCurrency]);
 	}
 
 	/**
@@ -160,7 +164,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	 * @inheritDoc
 	 */
 	public function getStatus(): PositionStatusEnum {
-		return PositionStatusEnum::from($this->row['position_status']);
+		return PositionStatusEnum::from($this->row[self::FStatus]);
 	}
 
 	/**
@@ -182,14 +186,18 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	 * @inheritDoc
 	 */
 	public function getPositionId(): int {
-		return (int) $this->row['position_id'];
+		return (int) $this->row[self::FId];
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getExchangePositionId(): string {
-		return (int) $this->row['position_id_on_exchange'];
+	public function getIdOnExchange(): string {
+		return $this->row[self::FIdOnExchange];
+	}
+	
+	public function getEntryOrderIdOnExchange(): string {
+		return $this->row[self::FEntryOrderIdOnExchange];
 	}
 
 	/**
@@ -248,11 +256,44 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	}
 	
 	public function updateInfo(): bool {
+		/* FOR SPOT
+		 * --------------------------------------------------------------------------------------------
+		 * 7. If the status is open and the balance of the base currency is less than stored,
+		 *    we set the position status to “finished”, update the information and return the position.
+		 * 8. If the status is open and the balance is greater or equals stored, we update the price info
+		 *    and return the position.
+		 * --------------------------------------------------------------------------------------------
+		 * 9. If the status is finished, we return false.
+		 */
 		$market = $this->getMarket();
 		$exchange = $market->getExchange();
 		$currentPrice = $exchange->getCurrentPrice($market);
+		
+		// Get current position status.
+		$currentStatus = $this->getStatus();
+		
+		// If the status is pending, check the presence of a “buy” limit order on the exchange.
+		if ($currentStatus->isPending()) {
+			$orderIdOnExchange = $this->getEntryOrderIdOnExchange();
+			$orderExists = $this->getMarket()->hasOrder($orderIdOnExchange);
+
+			/*
+			 * If the order does not exist, we need to check the balance of the base currency on the exchange
+			 * to ensure successful execution of the order.
+			 * ^ TODO, for now we just turn the position into open status.
+			 */
+			if (!$orderExists) {
+				$this->setStatus(PositionStatusEnum::OPEN);
+			}
+		}
+		
+		// If the status is open, TODO.
+		
+		// Whatever we did, we need to update current price and update time.
 		$this->setCurrentPrice($currentPrice);
 		$this->setUpdatedAt(time());
+		
+		// Save the changes.
 		return self::save();
 	}
 }

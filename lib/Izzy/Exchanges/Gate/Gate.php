@@ -1,19 +1,17 @@
 <?php
 
-namespace Izzy\Exchanges;
+namespace Izzy\Exchanges\Gate;
 
 use Exception;
 use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
 use GateApi\Configuration;
-use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Exchanges\AbstractExchangeDriver;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Money;
-use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IPair;
 
 /**

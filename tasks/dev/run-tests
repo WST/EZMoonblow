@@ -6,9 +6,6 @@ require_once 'lib/common.php';
 use Izzy\Configuration\Configuration;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
-use Izzy\Exchanges\Bybit;
-use Izzy\Exchanges\Gate;
-use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\RealApplications\Analyzer;
 

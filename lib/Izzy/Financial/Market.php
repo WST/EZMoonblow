@@ -180,45 +180,13 @@ class Market implements IMarket
 	 * @inheritDoc
 	 */
 	public function getCurrentPosition(): IPosition|false {
-		// First, determine the pair we are trading.
-		$pair = $this->getPair();
-		
-		// Now, get the proper ticker in the format appropriate for the current exchange.
-		$ticker = $pair->getExchangeTicker($this->exchange);
-
-		/* FOR SPOT
-		 * 1. Fetch the position from the database.
-		 * 2. Check the position status recorded in the database
-		 * --------------------------------------------------------------------------------------------
-		 * 3. If the status is pending, check the presence of a “buy” limit order on the exchange.
-		 * 4. If the order exists, the position is still pending, we update price info and return the position.
-		 * 5. If the order does not exist, we check the balance of the base currency on the exchange.
-		 * 6. If the balance of the base currency on the exchange is greater or equals stored, we
-		 *    set the position status to “open”, update price info and return the position.
-		 * --------------------------------------------------------------------------------------------
-		 * 7. If the status is open and the balance of the base currency is less than stored,
-		 *    we set the position status to “finished”, update the information and return the position.
-		 * 8. If the status is open and the balance is greater or equals stored, we update the price info
-		 *    and return the position.
-		 * --------------------------------------------------------------------------------------------
-		 * 9. If the status is finished, we return false.
-		 */
-		
 		if ($this->getMarketType()->isSpot()) {
 			// Fetching the position info from the database.
 			$storedPosition = $this->getStoredPosition();
 			if (!$storedPosition) return false;
-			
-			// Get the position status recorded in the database.
-			$storedStatus = $storedPosition->getStatus();
-
-			// If the status is pending, check the presence of a “buy” limit order on the exchange.
-			if ($storedStatus->isPending()) {
-
-			}
-			
 			return $storedPosition;
 		} else {
+			// TODO: futures
 			return false;
 		}
 	}
@@ -562,5 +530,9 @@ class Market implements IMarket
 		// All checks passed, we can ask the Strategy to update our active Position.
 		$this->strategy->updatePosition($currentPosition);
 		$currentPosition->save();
+	}
+
+	public function hasOrder(string $orderIdOnExchange) {
+		return $this->exchange->hasActiveOrder($this, $orderIdOnExchange);
 	}
 }

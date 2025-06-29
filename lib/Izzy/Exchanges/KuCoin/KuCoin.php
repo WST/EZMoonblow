@@ -1,17 +1,15 @@
 <?php
 
-namespace Izzy\Exchanges;
+namespace Izzy\Exchanges\KuCoin;
 
 use Exception;
-use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Exchanges\AbstractExchangeDriver;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
-use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
-use Izzy\Interfaces\IPosition;
 use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;

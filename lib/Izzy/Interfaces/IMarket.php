@@ -31,4 +31,6 @@ interface IMarket
 	public function openShortPosition(Money $volume): IPosition|false;
 
 	public function getDatabase(): Database;
+
+	public function hasOrder(string $orderIdOnExchange);
 }
