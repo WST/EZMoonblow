@@ -47,20 +47,18 @@ interface IExchangeDriver
 	 *
 	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool;
+	public function openLong(IMarket $market, Money $amount): bool;
 
 	/**
 	 * Open a short position (futures only).
 	 *
 	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool;
+	public function openShort(IMarket $market, Money $amount): bool;
 
 	/**
 	 * Place a market order to buy additional volume (DCA).

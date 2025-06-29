@@ -229,31 +229,19 @@ class Bybit extends AbstractExchangeDriver
 	 *
 	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
+	public function openLong(IMarket $market, Money $amount): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$category = 'spot';
-			$side = 'Buy';
-			$orderType = $price ? 'Limit' : 'Market';
-
-			// Spot Market Buy order, qty is quote currency
-			// {"category":"spot","symbol":"BTCUSDT","side":"Buy","orderType":"Market","qty":"200","timeInForce":"IOC","orderLinkId":"spot-test-04","isLeverage":0,"orderFilter":"Order"}
-			
 			$params = [
-				'category' => $category,
+				'category' => 'spot',
 				'symbol' => $pair->getExchangeTicker($this),
-				'side' => $side,
-				'orderType' => $orderType,
+				'side' => 'Buy',
+				'orderType' => 'Market',
 				'qty' => $amount->formatForOrder(), // qty is provided in USDT
 			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
 
 			$response = $this->api->tradeApi()->placeOrder($params);
 			
@@ -263,7 +251,7 @@ class Bybit extends AbstractExchangeDriver
 				// Save position to database
 				$currentPrice = $this->getCurrentPrice($market);
 				$entryPrice = Money::from($currentPrice);
-				$positionStatus = ($orderType == 'Market') ? PositionStatusEnum::OPEN : PositionStatusEnum::PENDING;
+				$positionStatus = PositionStatusEnum::OPEN;
 				
 				// Create and save the position. For the spot market, positions are emulated.
 				$position = Position::create(
@@ -279,11 +267,11 @@ class Bybit extends AbstractExchangeDriver
 				
 				return true;
 			} else {
-				$this->logger->error("Failed to open long position for {$pair->getTicker()}: " . json_encode($response));
+				$this->logger->error("Failed to open long position on $market: " . json_encode($response));
 				return false;
 			}
 		} catch (Exception $e) {
-			$this->logger->error("Failed to open long position for {$pair->getTicker()}: " . $e->getMessage());
+			$this->logger->error("Failed to open long position on $market: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -303,21 +291,15 @@ class Bybit extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			// Safety check: limit DCA amount to $50
-			if ($amount->getAmount() > 50.0) {
-				$this->logger->warning("DCA amount $amount exceeds $50 limit, reducing to $50");
-				$amount->setAmount(50.0);
-			}
-
 			$params = [
 				'category' => 'spot',
 				'symbol' => $ticker,
 				'side' => 'Buy',
 				'orderType' => 'Market',
-				'qty' => $this->calculateQuantity($market, $amount, null)->formatForOrder(),
+				'qty' => $amount->formatForOrder(),
 			];
 
-			$response = $this->api->orderApi()->submitOrder($params);
+			$response = $this->api->tradeApi()->placeOrder($params);
 			
 			if (isset($response['result']['orderId'])) {
 				$this->logger->info("Successfully executed DCA buy for $ticker: $amount");

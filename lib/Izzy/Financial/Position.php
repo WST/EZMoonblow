@@ -17,6 +17,24 @@ use Izzy\System\Logger;
  */
 class Position extends SurrogatePKDatabaseRecord implements IPosition
 {
+	const string FId = 'position_id';
+	const string FExchangeName = 'position_exchange_name';
+	const string FTicker = 'position_ticker';
+	const string FMarketType = 'position_market_type';
+	const string FDirection = 'position_direction';
+	const string FStatus = 'position_status';
+	const string FIdOnExchange = 'position_id_on_exchange';
+	const string FCurrentPrice = 'position_current_price';
+	const string FEntryPrice = 'position_entry_price';
+	const string FVolume = 'position_volume';
+	const string FBaseCurrency = 'position_base_currency';
+	const string FQuoteCurrency = 'position_quote_currency';
+	const string FOrderId = 'position_order_id';
+	
+	const string FCreatedAt = 'position_created_at';
+	const string FUpdatedAt = 'position_updated_at';
+	const string FFinishedAt = 'position_finished_at';
+
 	/**
 	 * Market.
 	 * @var IMarket 
@@ -48,7 +66,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		parent::__construct(
 			$market->getDatabase(),
 			$row, 
-			'position_id'
+			self::FId
 		);
 
 		// Prefix for column names.
@@ -78,20 +96,20 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	): static {
 		$now = time();
 		$row = [
-			'position_exchange_name' => $market->getExchangeName(),
-			'position_ticker' => $market->getTicker(),
-			'position_market_type' => $market->getMarketType()->toString(),
-			'position_direction' => $direction->toString(),
-			'position_entry_price' => $entryPrice->getAmount(),
-			'position_current_price' => $currentPrice->getAmount(),
-			'position_volume' => $volume->getAmount(),
-			'position_base_currency' => $market->getPair()->getBaseCurrency(),
-			'position_quote_currency' => $market->getPair()->getQuoteCurrency(),
-			'position_status' => $status->toString(),
-			'position_id_on_exchange' => $exchangePositionId,
-			'position_order_id' => $exchangePositionId,
-			'position_created_at' => $now,
-			'position_updated_at' => $now,
+			self::FExchangeName => $market->getExchangeName(),
+			self::FTicker => $market->getTicker(),
+			self::FMarketType => $market->getMarketType()->toString(),
+			self::FDirection => $direction->toString(),
+			self::FEntryPrice => $entryPrice->getAmount(),
+			self::FCurrentPrice => $currentPrice->getAmount(),
+			self::FVolume => $volume->getAmount(),
+			self::FBaseCurrency => $market->getPair()->getBaseCurrency(),
+			self::FQuoteCurrency => $market->getPair()->getQuoteCurrency(),
+			self::FStatus => $status->toString(),
+			self::FIdOnExchange => $exchangePositionId,
+			self::FOrderId => $exchangePositionId,
+			self::FCreatedAt => $now,
+			self::FUpdatedAt => $now,
 		];
 		return new self($market->getDatabase(), $row, $market);
 	}

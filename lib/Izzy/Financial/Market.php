@@ -395,9 +395,9 @@ class Market implements IMarket
 	 */
 	public function getStoredPosition(): IPosition|false {
 		$where = [
-			'position_exchange_name' =>  $this->getExchangeName(),
-			'position_ticker' => $this->getTicker(),
-			'position_market_type' => $this->getMarketType()->value,
+			Position::FExchangeName =>  $this->getExchangeName(),
+			Position::FTicker => $this->getTicker(),
+			Position::FMarketType => $this->getMarketType()->value,
 		];
 		return $this->database->selectOneObject(Position::class, $where, $this);
 	}
@@ -523,8 +523,6 @@ class Market implements IMarket
 		if (!empty($this->getIndicators())) {
 			return;
 		}
-
-		$ticker = $this->getTicker();
 
 		// Get indicators configuration for this pair.
 		$indicatorsConfig = $this->getExchange()->getExchangeConfiguration()->getIndicatorsConfig($this);
