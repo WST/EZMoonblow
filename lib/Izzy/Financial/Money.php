@@ -39,6 +39,6 @@ class Money
 	}
 
 	public function formatForOrder(): string {
-		return $this->format('%.6f', false);
+		return $this->format('%.4f', false);
 	}
 }

@@ -10,6 +10,7 @@ use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
+use Izzy\System\Logger;
 
 /**
  * Base implementation of position interface.
@@ -75,7 +76,20 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		PositionStatusEnum $status,
 		string $exchangePositionId
 	): static {
-		$row = [];
+		$row = [
+			'position_exchange_name' => $market->getExchangeName(),
+			'position_ticker' => $market->getTicker(),
+			'position_market_type' => $market->getMarketType()->toString(),
+			'position_direction' => $direction->toString(),
+			'position_entry_price' => $entryPrice->getAmount(),
+			'position_current_price' => $currentPrice->getAmount(),
+			'position_volume' => $volume->getAmount(),
+			'position_base_currency' => $market->getPair()->getBaseCurrency(),
+			'position_quote_currency' => $market->getPair()->getQuoteCurrency(),
+			'position_status' => $status->toString(),
+			'position_id_on_exchange' => $exchangePositionId,
+			'position_order_id' => $exchangePositionId,
+		];
 		return new self($market->getDatabase(), $row, $market);
 	}
 
@@ -198,5 +212,13 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 
 	public function getMarketType(): MarketTypeEnum {
 		// TODO: Implement getMarketType() method.
+	}
+
+	/**
+	 * @param Money $dcaAmount
+	 * @return void
+	 */
+	public function buyAdditional(Money $dcaAmount): void {
+		Logger::getLogger()->warning("DCA AVERAGING");
 	}
 }

@@ -75,8 +75,8 @@ abstract class AbstractDCAStrategy extends Strategy
 	 */
 	public function updatePosition(IPosition $position): void {
 		$dcaLevels = $this->getDCALevels();
-		$entryPrice = $position->getEntryPrice()->toFloat();
-		$currentPrice = $position->getCurrentPrice();
+		$entryPrice = $position->getEntryPrice()->getAmount();
+		$currentPrice = $position->getCurrentPrice()->getAmount();
 		
 		// Calculate current price drop percentage
 		$priceDropPercent = (($currentPrice - $entryPrice) / $entryPrice) * 100;
@@ -85,9 +85,8 @@ abstract class AbstractDCAStrategy extends Strategy
 		foreach ($dcaLevels as $level) {
 			if ($priceDropPercent <= $level) {
 				// Execute DCA buy order
-				$exchange = $this->market->getExchange();
 				$dcaAmount = new Money(5.0, 'USDT'); // $5 DCA amount
-				$exchange->buyAdditional($this->market->getPair(), $dcaAmount);
+				$position->buyAdditional($dcaAmount);
 				break;
 			}
 		}

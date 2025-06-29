@@ -248,18 +248,16 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $pair->getExchangeTicker($this),
 				'side' => $side,
 				'orderType' => $orderType,
-				'qty' => $market->calculateQuantity($amount, $price)->formatForOrder(),
+				'qty' => $amount->formatForOrder(), // qty is provided in USDT
 			];
 
 			if ($price) {
 				$params['price'] = (string)$price;
 			}
-			
-			var_dump($params);
 
 			$response = $this->api->tradeApi()->placeOrder($params);
 			
-			if (isset($response['result']['orderId'])) {
+			if (isset($response['orderId'])) {
 				$this->logger->warning("Successfully opened long position on Bybit for $market: $amount");
 				
 				// Save position to database
@@ -275,7 +273,7 @@ class Bybit extends AbstractExchangeDriver
 					$entryPrice,
 					$currentPrice,
 					$positionStatus,
-					$response['result']['orderId']
+					$response['orderId']
 				);
 				$position->save();
 				

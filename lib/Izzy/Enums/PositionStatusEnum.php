@@ -51,4 +51,8 @@ enum PositionStatusEnum: string
 	public function isCanceled(): bool {
 		return $this === self::CANCELED;
 	}
+
+	public function toString(): string {
+		return $this->value;
+	}
 }

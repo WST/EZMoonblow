@@ -73,4 +73,6 @@ interface IPosition
 	public function close(): void;
 
 	public function getMarketType(): MarketTypeEnum;
+
+	public function buyAdditional(Money $dcaAmount);
 }

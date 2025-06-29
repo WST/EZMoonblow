@@ -46,12 +46,12 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 	 */
 	public function save(): bool|int {
 		// Prepare data for writing, removing extra fields that might have been pulled from other tables.
-		$table_columns = array_flip($this->database->getFieldList($this->table));
+		$table_columns = array_flip($this->database->getFieldList(static::getTableName()));
 		$row = array_intersect_key($this->row, $table_columns);
 
 		if($this->isFresh) {
 			// Write the data.
-			$success = $this->database->insert($this->table, $row);
+			$success = $this->database->insert(static::getTableName(), $row);
 			if (!$success) return false;
 			$this->pkValue = $this->database->lastInsertId(); // Note: we are not handling a possible false here.
 			$this->row[$this->pkField] = $this->pkValue;
@@ -64,7 +64,7 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 		}
 
 		// Update the data.
-		$this->database->update($this->table, $row, [$this->pkField => $this->pkValue]);
+		$this->database->update(static::getTableName(), $row, [$this->pkField => $this->pkValue]);
 
 		// Return the current surrogate primary key value.
 		return $this->pkValue;
@@ -79,7 +79,7 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 
 		// Deleting.
 		if(is_int($this->pkValue)) {
-			return $this->database->delete($this->table, [$this->pkField => $this->pkValues]);
+			return $this->database->delete(static::getTableName(), [$this->pkField => $this->pkValues]);
 		}
 	}
 }

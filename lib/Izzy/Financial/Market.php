@@ -216,12 +216,11 @@ class Market implements IMarket
 			if ($storedStatus->isPending()) {
 
 			}
+			
+			return $storedPosition;
 		} else {
 			return false;
 		}
-		
-		$this->getExchange()->getLogger()->info('NO OPEN POSITION FOR NOW');
-		return false;
 	}
 
 	public function updateChart(): void {
@@ -435,20 +434,19 @@ class Market implements IMarket
 	 * @return void
 	 */
 	public function processTrading(): void {
+		// Do we have a Strategy?
 		$strategy = $this->getStrategy();
 		if (!$strategy) {
 			return;
 		}
 
 		// Do we already have an open position?
-		$hasActivePosition = $this->hasActivePosition();
-
-		// If no position is open, check for entry signals
-		if (!$hasActivePosition) {
-			$this->checkEntrySignals();
-		} else {
+		$currentPosition = $this->getCurrentPosition();
+		if ($currentPosition && $currentPosition->isActive()) {
 			// If position is open, update it (check for DCA, etc.)
 			$this->updatePosition($this->getCurrentPosition());
+		} else {
+			$this->checkEntrySignals();
 		}
 	}
 
@@ -548,5 +546,21 @@ class Market implements IMarket
 
 	private function getCurrentPrice(): Money {
 		return $this->getExchange()->getCurrentPrice($this);
+	}
+
+	/**
+	 * @param IPosition $currentPosition
+	 * @return void
+	 * Called only on an existent and active position.
+	 * TODO: update position info from the exchange.
+	 */
+	private function updatePosition(IPosition $currentPosition): void {
+		if (!method_exists($this->strategy, 'updatePosition')) {
+			return;
+		}
+		
+		// All checks passed, we can ask the Strategy to update our active Position.
+		$this->strategy->updatePosition($currentPosition);
+		$currentPosition->save();
 	}
 }
