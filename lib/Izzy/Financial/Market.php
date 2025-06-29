@@ -185,8 +185,10 @@ class Market implements IMarket
 			$storedPosition = $this->getStoredPosition();
 			if (!$storedPosition) return false;
 			return $storedPosition;
-		} else {
-			// For a futures market:
+		}
+
+		if ($this->getMarketType()->isFutures()) {
+			// For a futures market.
 			$storedPosition = $this->getStoredPosition();
 			if ($storedPosition) {
 				$this->exchange->getLogger()->debug("Found a stored position for $this");
@@ -425,7 +427,7 @@ class Market implements IMarket
 		$currentPosition = $this->getCurrentPosition();
 		if ($currentPosition && $currentPosition->isActive()) {
 			// If position is open, update it (check for DCA, etc.)
-			$this->updatePosition($this->getCurrentPosition());
+			$this->updatePosition($currentPosition);
 		} else {
 			$this->checkEntrySignals();
 		}

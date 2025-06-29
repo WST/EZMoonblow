@@ -261,6 +261,8 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		$market = $this->getMarket();
 		$exchange = $market->getExchange();
 
+		Logger::getLogger()->debug("Updating stored position info for $market");
+
 		/**
 		 * Spot market. Positions are emulated.
 		 */
@@ -305,6 +307,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		 * Futures. Positions are real.
 		 */
 		if ($market->getMarketType()->isFutures()) {
+			
 			$this->setUpdatedAt(time());
 		}
 		
