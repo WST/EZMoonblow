@@ -41,4 +41,9 @@ class Money
 	public function formatForOrder(): string {
 		return $this->format('%.4f', false);
 	}
+
+	public function isLessThan(Money $otherAmount): bool {
+		$diff = ($otherAmount->getAmount() - $this->amount);
+		return ($diff > 0);
+	}
 }

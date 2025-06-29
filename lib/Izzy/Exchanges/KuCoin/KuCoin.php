@@ -388,4 +388,8 @@ class KuCoin extends AbstractExchangeDriver
 	public function pairToTicker(IPair $pair): string {
 		return $pair->getBaseCurrency() . '-' . $pair->getQuoteCurrency();
 	}
+
+	public function getSpotBalanceByCurrency(string $coin): Money {
+		return Money::from(0.0, $coin);
+	}
 }

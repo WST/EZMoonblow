@@ -307,4 +307,8 @@ class Gate extends AbstractExchangeDriver
 	public function pairToTicker(IPair $pair): string {
 		return $pair->getBaseCurrency() . '_' . $pair->getQuoteCurrency();
 	}
+
+	public function getSpotBalanceByCurrency(string $coin): Money {
+		return Money::from(0.00, $coin);
+	}
 }

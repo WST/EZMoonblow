@@ -17,6 +17,7 @@ use Izzy\System\Logger;
  */
 class Position extends SurrogatePKDatabaseRecord implements IPosition
 {
+	/** Position attributes */
 	const string FId = 'position_id';
 	const string FExchangeName = 'position_exchange_name';
 	const string FTicker = 'position_ticker';
@@ -35,6 +36,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	const string FTPOrderIdOnExchange = 'position_tp_order_id_on_exchange';
 	const string FSLOrderIdOnExchange = 'position_tp_order_id_on_exchange';
 	
+	/** Important timestamps */
 	const string FCreatedAt = 'position_created_at';
 	const string FUpdatedAt = 'position_updated_at';
 	const string FFinishedAt = 'position_finished_at';
@@ -268,6 +270,8 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		$market = $this->getMarket();
 		$exchange = $market->getExchange();
 		$currentPrice = $exchange->getCurrentPrice($market);
+		$baseCurrency = $market->getPair()->getBaseCurrency();
+		$currentAmountOfBaseCurrency = $exchange->getSpotBalanceByCurrency($baseCurrency);
 		
 		// Get current position status.
 		$currentStatus = $this->getStatus();
@@ -288,6 +292,13 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		}
 		
 		// If the status is open, TODO.
+		if ($currentStatus->isOpen()) {
+			$positionVolume = $this->getVolume();
+			if ($currentAmountOfBaseCurrency->isLessThan($positionVolume)) {
+				// The whole amount of the base currency was sold.
+				$this->setStatus(PositionStatusEnum::FINISHED);
+			}
+		}
 		
 		// Whatever we did, we need to update current price and update time.
 		$this->setCurrentPrice($currentPrice);

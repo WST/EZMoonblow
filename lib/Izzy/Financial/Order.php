@@ -24,7 +24,11 @@ class Order
 	 * @var string 
 	 */
 	protected string $idOnExchange;
-	
+
+	/**
+	 * Amount in base currency.
+	 * @var Money 
+	 */
 	protected Money $volume;
 
 	public function setStatus(OrderStatusEnum $orderStatus): void {
@@ -41,6 +45,10 @@ class Order
 
 	public function setVolume(Money $volume): void {
 		$this->volume = $volume;
+	}
+	
+	public function getVolume(): Money {
+		return $this->volume;
 	}
 	
 	public function __construct() {

@@ -247,6 +247,7 @@ class Bybit extends AbstractExchangeDriver
 				'qty' => $amount->formatForOrder(), // qty is provided in USDT
 			];
 
+			// Make an API call.
 			$response = $this->api->tradeApi()->placeOrder($params);
 			
 			if (isset($response['orderId'])) {
@@ -256,6 +257,10 @@ class Bybit extends AbstractExchangeDriver
 				$currentPrice = $this->getCurrentPrice($market);
 				$entryPrice = Money::from($currentPrice);
 				$positionStatus = PositionStatusEnum::OPEN;
+				
+				// Now get the order by it’s ID to see the exact amount.
+				$order = $this->getOrderById($market, $response['orderId']);
+				$orderAmountInBaseCurrency = $order->getVolume();
 				
 				// Create and save the position. For the spot market, positions are emulated.
 				$position = Position::create(
@@ -371,7 +376,7 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	private function orderInfoToObject(array $orderInfo): Order {
 		$order = new Order();
-		$order->setVolume(Money::from($orderInfo['qty']));
+		$order->setVolume(Money::from($orderInfo['cumExecQty']));
 		$order->setOrderType(OrderTypeEnum::from($orderInfo['orderType']));
 		$order->setStatus($this->getOrderStatusFromInfoString($orderInfo['orderStatus']));
 		$order->setIdOnExchange($orderInfo['orderId']);
@@ -389,5 +394,12 @@ class Bybit extends AbstractExchangeDriver
 			'PartiallyFilled' => OrderStatusEnum::PartiallyFilled,
 			'Filled' => OrderStatusEnum::Filled,
 		};
+	}
+
+	public function getSpotBalanceByCurrency(string $coin): Money {
+		$params = ['accountType' => 'UNIFIED', 'coin' => $coin];
+		$response = $this->api->assetApi()->getSingleCoinBalance($params);
+		$balanceInfo = $response['balance'];
+		return Money::from($balanceInfo['walletBalance'], $coin);
 	}
 }

@@ -103,4 +103,6 @@ interface IExchangeDriver
 	public function createMarket(IPair $pair): ?IMarket;
 	
 	public function pairToTicker(IPair $pair): string;
+
+	public function getSpotBalanceByCurrency(string $coin): Money;
 }
