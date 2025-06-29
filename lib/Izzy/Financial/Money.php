@@ -46,4 +46,8 @@ class Money
 		$diff = ($otherAmount->getAmount() - $this->amount);
 		return ($diff > 0);
 	}
+
+	public function isZero(): bool {
+		return $this->amount < 0.0001;
+	}
 }

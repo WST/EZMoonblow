@@ -258,51 +258,55 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	}
 	
 	public function updateInfo(): bool {
-		/* FOR SPOT
-		 * --------------------------------------------------------------------------------------------
-		 * 7. If the status is open and the balance of the base currency is less than stored,
-		 *    we set the position status to “finished”, update the information and return the position.
-		 * 8. If the status is open and the balance is greater or equals stored, we update the price info
-		 *    and return the position.
-		 * --------------------------------------------------------------------------------------------
-		 * 9. If the status is finished, we return false.
-		 */
 		$market = $this->getMarket();
 		$exchange = $market->getExchange();
-		$currentPrice = $exchange->getCurrentPrice($market);
-		$baseCurrency = $market->getPair()->getBaseCurrency();
-		$currentAmountOfBaseCurrency = $exchange->getSpotBalanceByCurrency($baseCurrency);
-		
-		// Get current position status.
-		$currentStatus = $this->getStatus();
-		
-		// If the status is pending, check the presence of a “buy” limit order on the exchange.
-		if ($currentStatus->isPending()) {
-			$orderIdOnExchange = $this->getEntryOrderIdOnExchange();
-			$orderExists = $this->getMarket()->hasOrder($orderIdOnExchange);
 
-			/*
-			 * If the order does not exist, we need to check the balance of the base currency on the exchange
-			 * to ensure successful execution of the order.
-			 * ^ TODO, for now we just turn the position into open status.
-			 */
-			if (!$orderExists) {
-				$this->setStatus(PositionStatusEnum::OPEN);
+		/**
+		 * Spot market. Positions are emulated.
+		 */
+		if ($market->getMarketType()->isSpot()) {
+			$currentPrice = $exchange->getCurrentPrice($market);
+			$baseCurrency = $market->getPair()->getBaseCurrency();
+			$currentAmountOfBaseCurrency = $exchange->getSpotBalanceByCurrency($baseCurrency);
+
+			// Get current position status.
+			$currentStatus = $this->getStatus();
+
+			// If the status is pending, check the presence of a “buy” limit order on the exchange.
+			if ($currentStatus->isPending()) {
+				$orderIdOnExchange = $this->getEntryOrderIdOnExchange();
+				$orderExists = $this->getMarket()->hasOrder($orderIdOnExchange);
+
+				/*
+				 * If the order does not exist, we need to check the balance of the base currency on the exchange
+				 * to ensure successful execution of the order.
+				 * ^ TODO, for now we just turn the position into open status.
+				 */
+				if (!$orderExists) {
+					$this->setStatus(PositionStatusEnum::OPEN);
+				}
 			}
+
+			// If the status is open, check if the position is finished.
+			if ($currentStatus->isOpen()) {
+				$positionVolume = $this->getVolume();
+				if ($currentAmountOfBaseCurrency->isLessThan($positionVolume)) {
+					// The whole amount of the base currency was sold.
+					$this->setStatus(PositionStatusEnum::FINISHED);
+				}
+			}
+
+			// Whatever we did, we need to update current price and update time.
+			$this->setCurrentPrice($currentPrice);
+			$this->setUpdatedAt(time());
 		}
 		
-		// If the status is open, TODO.
-		if ($currentStatus->isOpen()) {
-			$positionVolume = $this->getVolume();
-			if ($currentAmountOfBaseCurrency->isLessThan($positionVolume)) {
-				// The whole amount of the base currency was sold.
-				$this->setStatus(PositionStatusEnum::FINISHED);
-			}
+		/**
+		 * Futures. Positions are real.
+		 */
+		if ($market->getMarketType()->isFutures()) {
+			$this->setUpdatedAt(time());
 		}
-		
-		// Whatever we did, we need to update current price and update time.
-		$this->setCurrentPrice($currentPrice);
-		$this->setUpdatedAt(time());
 		
 		// Save the changes.
 		return self::save();

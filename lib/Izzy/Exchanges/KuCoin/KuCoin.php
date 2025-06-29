@@ -10,6 +10,7 @@ use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
+use Izzy\Interfaces\IPosition;
 use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;
@@ -391,5 +392,9 @@ class KuCoin extends AbstractExchangeDriver
 
 	public function getSpotBalanceByCurrency(string $coin): Money {
 		return Money::from(0.0, $coin);
+	}
+
+	public function getCurrentFuturesPosition(IMarket $market): IPosition|false {
+		return false;
 	}
 }

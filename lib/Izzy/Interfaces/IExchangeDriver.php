@@ -105,4 +105,6 @@ interface IExchangeDriver
 	public function pairToTicker(IPair $pair): string;
 
 	public function getSpotBalanceByCurrency(string $coin): Money;
+
+	public function getCurrentFuturesPosition(IMarket $market): IPosition|false;
 }

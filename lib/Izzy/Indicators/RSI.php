@@ -14,17 +14,17 @@ class RSI extends AbstractIndicator
     /**
      * Default RSI period.
      */
-    private const DEFAULT_PERIOD = 14;
+    private const int DEFAULT_PERIOD = 14;
     
     /**
      * Default overbought threshold.
      */
-    private const DEFAULT_OVERBOUGHT = 70;
+    private const int DEFAULT_OVERBOUGHT = 69;
     
     /**
      * Default oversold threshold.
      */
-    private const DEFAULT_OVERSOLD = 30;
+    private const int DEFAULT_OVERSOLD = 31;
     
     /**
      * Get indicator name.

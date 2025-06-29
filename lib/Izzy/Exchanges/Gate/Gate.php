@@ -13,6 +13,7 @@ use Izzy\Financial\Candle;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
+use Izzy\Interfaces\IPosition;
 
 /**
  * Driver for working with Gate exchange.
@@ -310,5 +311,9 @@ class Gate extends AbstractExchangeDriver
 
 	public function getSpotBalanceByCurrency(string $coin): Money {
 		return Money::from(0.00, $coin);
+	}
+
+	public function getCurrentFuturesPosition(IMarket $market): IPosition|false {
+		return false;
 	}
 }

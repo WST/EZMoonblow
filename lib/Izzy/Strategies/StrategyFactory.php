@@ -18,6 +18,7 @@ class StrategyFactory
 	 */
 	private static array $strategies = [
 		'EZMoonblowDCA' => EZMoonblowDCA::class,
+		'EZMoonblowDCAWithShorts' => EZMoonblowDCAWithShorts::class,
 		// Add more strategies here as they are implemented
 	];
 

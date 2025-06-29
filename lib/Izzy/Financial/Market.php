@@ -181,13 +181,26 @@ class Market implements IMarket
 	 */
 	public function getCurrentPosition(): IPosition|false {
 		if ($this->getMarketType()->isSpot()) {
-			// Fetching the position info from the database.
+			// For a spot market, we emulate the positions by using a database.
 			$storedPosition = $this->getStoredPosition();
 			if (!$storedPosition) return false;
 			return $storedPosition;
 		} else {
-			// TODO: futures
-			return false;
+			// For a futures market:
+			$storedPosition = $this->getStoredPosition();
+			if ($storedPosition) {
+				$this->exchange->getLogger()->debug("Found a stored position for $this");
+				return $storedPosition;
+			} else {
+				$positionFromExchange = $this->exchange->getCurrentFuturesPosition($this);
+				if ($positionFromExchange) {
+					$this->exchange->getLogger()->debug("Found position on the exchange for $this");
+					$positionFromExchange->save();
+					return $positionFromExchange;
+				} else {
+					return false;
+				}
+			}
 		}
 	}
 

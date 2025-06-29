@@ -25,11 +25,14 @@ abstract class Strategy implements IStrategy
 
 	/**
 	 * Get strategy parameters.
-	 * 
 	 * @return array Strategy parameters.
 	 */
 	public function getParams(): array {
 		return $this->params;
+	}
+	
+	public function getParam(string $name): ?string {
+		return $this->params[$name] ?? null;
 	}
 
 	/**

@@ -21,6 +21,7 @@ use Izzy\Financial\Pair;
 use Izzy\Financial\Position;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
+use Izzy\Interfaces\IPosition;
 
 /**
  * Driver for working with Bybit exchange.
@@ -246,6 +247,8 @@ class Bybit extends AbstractExchangeDriver
 				'orderType' => 'Market',
 				'qty' => $amount->formatForOrder(), // qty is provided in USDT
 			];
+			
+			var_dump($params); return false;
 
 			// Make an API call.
 			$response = $this->api->tradeApi()->placeOrder($params);
@@ -401,5 +404,64 @@ class Bybit extends AbstractExchangeDriver
 		$response = $this->api->assetApi()->getSingleCoinBalance($params);
 		$balanceInfo = $response['balance'];
 		return Money::from($balanceInfo['walletBalance'], $coin);
+	}
+
+	public function getCurrentFuturesPosition(IMarket $market): IPosition|false {
+		$pair = $market->getPair();
+		$marketType = $market->getMarketType();
+		if (!$marketType->isFutures()) {
+			$this->logger->error("Trying to get a futures position on a spot market: $market");
+			return false;
+		}
+		
+		$params = [
+			'category' => 'linear',
+			'symbol' => $pair->getExchangeTicker($this),
+		];
+		
+		$response = $this->api->positionApi()->getPositionInfo($params);
+		$positionList = $response['list'];
+		
+		/*
+		 * Bybit always returns 2 positions in 1 list for two-way mode.
+		 * Long has positionIdx = 1, Short has positionIdx = 2.
+		 */
+		foreach ($positionList as $positionInfo) {
+			$positionIdx = $positionInfo['positionIdx'];
+			$positionSize = Money::from($positionInfo['size'], $pair->getBaseCurrency());
+			$avgPrice = Money::from($positionInfo['avgPrice'], $pair->getQuoteCurrency());
+			$currentPrice = Money::from($positionInfo['markPrice'], $pair->getQuoteCurrency());
+			
+			// Skip empty positions.
+			if ($positionSize->isZero()) continue;
+			
+			// It’s a Long position.
+			if ($positionIdx == 1) {
+				return Position::create(
+					$market,
+					$positionSize,
+					PositionDirectionEnum::LONG,
+					$avgPrice, // NOTE: this is the average price, not the “entry” price!
+					$currentPrice,
+					PositionStatusEnum::OPEN,
+					''
+				);
+			}
+			
+			// It’s a Short position.
+			if ($positionIdx == 2) {
+				return Position::create(
+					$market,
+					$positionSize,
+					PositionDirectionEnum::SHORT,
+					$avgPrice, // NOTE: this is the average price, not the “entry” price!
+					$currentPrice,
+					PositionStatusEnum::OPEN,
+					''
+				);
+			}
+		}
+		
+		return false;
 	}
 }
