@@ -25,11 +25,14 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	const string FDirection = 'position_direction';
 	const string FStatus = 'position_status';
 	const string FIdOnExchange = 'position_id_on_exchange';
-	const string FCurrentPrice = 'position_current_price';
-	const string FEntryPrice = 'position_entry_price';
 	const string FVolume = 'position_volume';
 	const string FBaseCurrency = 'position_base_currency';
 	const string FQuoteCurrency = 'position_quote_currency';
+	
+	/** Prices */
+	const string FInitialEntryPrice = 'position_initial_entry_price';
+	const string FAverageEntryPrice = 'position_average_entry_price';
+	const string FCurrentPrice = 'position_current_price';
 	
 	/** Ids of the related orders on the Exchange */
 	const string FEntryOrderIdOnExchange = 'position_entry_order_id_on_exchange';
@@ -106,7 +109,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 			self::FTicker => $market->getTicker(),
 			self::FMarketType => $market->getMarketType()->toString(),
 			self::FDirection => $direction->toString(),
-			self::FEntryPrice => $entryPrice->getAmount(),
+			self::FInitialEntryPrice => $entryPrice->getAmount(),
 			self::FCurrentPrice => $currentPrice->getAmount(),
 			self::FVolume => $volume->getAmount(),
 			self::FBaseCurrency => $market->getPair()->getBaseCurrency(),
@@ -138,7 +141,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	 * @inheritDoc
 	 */
 	public function getEntryPrice(): Money {
-		return Money::from($this->row[self::FEntryPrice], $this->row[self::FQuoteCurrency]);
+		return Money::from($this->row[self::FInitialEntryPrice], $this->row[self::FQuoteCurrency]);
 	}
 
 	/**
@@ -297,21 +300,28 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 					$this->setStatus(PositionStatusEnum::FINISHED);
 				}
 			}
-
-			// Whatever we did, we need to update current price and update time.
-			$this->setCurrentPrice($currentPrice);
-			$this->setUpdatedAt(time());
 		}
 		
 		/**
 		 * Futures. Positions are real.
 		 */
 		if ($market->getMarketType()->isFutures()) {
-			
-			$this->setUpdatedAt(time());
+			$positionOnExchange = $market->getExchange()->getCurrentFuturesPosition($market);
+			if (!$positionOnExchange) {
+				$this->setStatus(PositionStatusEnum::FINISHED);
+			} else {
+				$this->updateInfoFrom($positionOnExchange);
+			}
 		}
+
+		// Whatever we did, we need to update the update time.
+		$this->setUpdatedAt(time());
 		
 		// Save the changes.
 		return self::save();
+	}
+
+	private function updateInfoFrom(IPosition $positionOnExchange): void {
+		// TODO
 	}
 }

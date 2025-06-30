@@ -367,20 +367,6 @@ class KuCoin extends AbstractExchangeDriver
 	}
 
 	/**
-	 * {@inheritDoc}
-	 */
-	public function createMarket(IPair $pair): ?IMarket {
-		$candlesData = $this->getCandles($pair, 200);
-		if (empty($candlesData)) {
-			return null;
-		}
-
-		$market = new Market($pair, $this);
-		$market->setCandles($candlesData);
-		return $market;
-	}
-
-	/**
 	 * KuCoin uses tickers like "BTC-USDT" for pairs.
 	 *
 	 * @param IPair $pair Trading pair instance.

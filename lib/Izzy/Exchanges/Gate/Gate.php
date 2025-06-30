@@ -3,6 +3,7 @@
 namespace Izzy\Exchanges\Gate;
 
 use Exception;
+use GateApi\Api\FuturesApi;
 use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
@@ -29,6 +30,9 @@ class Gate extends AbstractExchangeDriver
 
 	/** @var SpotApi Spot API instance for trading operations. */
 	private SpotApi $spotApi;
+	
+	/** @var FuturesApi Futures API instance for futures trading operations. */
+	private FuturesApi $futuresApi;
 
 	/**
 	 * Refresh account balance information from Gate exchange.
@@ -60,6 +64,9 @@ class Gate extends AbstractExchangeDriver
 
 		// Create Spot API instance.
 		$this->spotApi = new SpotApi(null, $config);
+		
+		// Create Futures API instance.
+		$this->futuresApi = new FuturesApi(null, $config);
 
 		return true;
 	}
@@ -112,7 +119,12 @@ class Gate extends AbstractExchangeDriver
 				'interval' => $gateInterval,
 				'limit' => $limit,
 			];
-			$response = $this->spotApi->listCandlesticks($params);
+			
+			if ($pair->isSpot()) {
+				$response = $this->spotApi->listCandlesticks($params);
+			} else {
+				$response = $this->futuresApi->listFuturesCandlesticks($params);
+			}
 			
 			if (empty($response)) {
 				return [];
@@ -246,7 +258,7 @@ class Gate extends AbstractExchangeDriver
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
 	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
-		// Gate.io doesn't support futures trading in the basic API
+		// Gate.io doesn’t support futures trading in the basic API
 		// This is a placeholder implementation
 		$ticker = $market->getPair()->getExchangeTicker($this);
 		$this->logger->warning("Short positions not supported on Gate.io for $ticker");

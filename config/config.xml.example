@@ -26,12 +26,18 @@
 							6th: 1280 USDT @ -80% of entry price,
 							Max total position size: ~2520 USDT TODO: calculate and output max total to the console
 						-->
-						<param name="numberOfLevels" value="6" />
-						<param name="entryVolume" value="40" />
-						<param name="volumeMultiplier" value="2" />
-						<param name="priceDeviation" value="5%" />
-						<param name="priceDeviationMultiplier" value="2" />
-						<param name="expectedProfit" value="2%" />
+						<param name="numberOfLevelsLong" value="6" />
+   						<param name="entryVolumeLong" value="40" />
+                        <param name="volumeMultiplierLong" value="2" />
+                        <param name="priceDeviationMultiplierLong" value="2" />
+                        <param name="expectedProfitLong" value="2%" />
+                        <param name="numberOfLevelsShort" value="6" />
+                        <param name="entryVolumeShort" value="40" />
+                        <param name="priceDeviationShort" value="5%" />
+                        <param name="volumeMultiplierShort" value="2" />
+                        <param name="priceDeviationMultiplierShort" value="2" />
+                        <param name="expectedProfitShort" value="2%" />
+                        <param name="UseLimitDCAOrders" value="yes" />
 					</strategy>
 					<indicators>
 						<indicator type="RSI" period="14" overbought="70" oversold="30" />
