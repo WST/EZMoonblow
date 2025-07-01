@@ -6,13 +6,34 @@ This is a (very) simple (and still under construction) crypto trading bot projec
 
 ## For Developers and AI Assistants
 
-**📋 Important**: If you’re contributing to this project or working with AI assistance, please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project structure, and architectural patterns that must be followed.
+**📋 Important**: If you're contributing to this project or working with AI assistance, please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project structure, and architectural patterns that must be followed.
 
 ### Recommended development environment
 
 * Operating system: Linux, FreeBSD, NetBSD, macOS
 * IDE: PhpStorm
 * Shell: bash
+
+## Features
+
+### Core Trading System
+- 🤖 Automated cryptocurrency trading strategies (DCA, Long/Short)
+- 🏢 Multi-exchange support (Bybit, Gate, KuCoin)
+- 📈 Spot and futures market trading
+- 📊 Real-time market analysis and metrics collection
+- 📉 Technical indicators (RSI, extensible framework)
+- 💰 Balance tracking and portfolio monitoring
+- 📋 Task queue system for asynchronous operations
+- 🔄 Multi-process exchange monitoring
+- 📊 RRD-based chart generation and data storage
+
+### Telegram Integration
+- 📊 Interactive candlestick chart building for any trading pairs
+- 🏢 Multi-exchange support with easy switching
+- 📈 Spot and futures market analysis
+- ⏰ Various timeframes (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d, 1w, 1M)
+- 🔔 Strategy signal notifications
+- 💬 Interactive commands with inline buttons
 
 ## Usage
 
@@ -33,11 +54,102 @@ cp config/config.xml.example config/config.xml
 ./tasks/db/migrate
 ```
 
-### Usage
+### Configuration
 
-* `./trader.php` for trading,
-* `./analyzer.php` for collecting metrics,
-* `./notifier.php` for sending Telegram notifications.
+#### Telegram Bot Setup
+
+Add Telegram configuration to `config/config.xml`:
+
+```xml
+<telegram>
+    <token>YOUR_BOT_TOKEN</token>
+    <chat_id>YOUR_CHAT_ID</chat_id>
+</telegram>
+```
+
+#### Exchange Configuration
+
+Configure exchanges with trading pairs:
+
+```xml
+<exchanges>
+    <exchange name="Bybit" key="..." secret="..." enabled="yes" demo="yes">
+        <spot>
+            <pair ticker="BTC/USDT" timeframe="15m" monitor="yes" trade="no" />
+            <pair ticker="ETH/USDT" timeframe="15m" monitor="yes" trade="no" />
+        </spot>
+        <futures>
+            <pair ticker="SOL/USDT" timeframe="15m" monitor="yes" trade="no" leverage="5" />
+        </futures>
+    </exchange>
+</exchanges>
+```
+
+### Running Applications
+
+* `./trader.php` - Main trading application
+* `./analyzer.php` - Metrics collection and analysis
+* `./notifier.php` - **Telegram notifications and interactive bot**
+
+### Telegram Bot Usage
+
+The notifier application (`./notifier.php`) provides both notification and interactive bot functionality:
+
+#### Interactive Menu (Recommended)
+
+Use `/menu` for the most convenient experience:
+
+1. **📊 Build Chart** - Step-by-step chart building:
+   - Select exchange (Bybit, Gate, KuCoin)
+   - Choose market type (Spot/Futures)
+   - Pick trading pair
+   - Select timeframe
+   - Get instant chart
+
+2. **🏢 Exchange List** - View available exchanges
+3. **📋 Pairs List** - Browse trading pairs
+4. **❓ Help** - Get assistance
+
+#### Basic Commands
+
+- `/start` - Welcome message
+- `/help` - Detailed command reference
+- `/menu` - Interactive menu with buttons
+- `/exchanges` - List available exchanges
+- `/pairs <exchange> <type>` - Show trading pairs
+  - Example: `/pairs Bybit spot`
+- `/chart <exchange> <type> <pair> <timeframe>` - Build chart
+  - Example: `/chart Bybit spot BTC/USDT 15m`
+
+#### Usage Example
+
+```
+User: /menu
+Bot: 🎛️ Main Menu
+     [📊 Build Chart] [🏢 Exchange List]
+     [📋 Pairs List] [❓ Help]
+
+User: [clicks "📊 Build Chart"]
+Bot: 🏢 Select Exchange:
+     [Bybit] [Gate] [KuCoin] [🔙 Back]
+
+User: [clicks "Bybit"]
+Bot: 📈 Select Market Type for Bybit:
+     [💱 Spot] [📈 Futures] [🔙 Back]
+
+User: [clicks "💱 Spot"]
+Bot: 📊 Select Trading Pair (Bybit, spot):
+     [BTC/USDT] [ETH/USDT] [SOL/USDT] [🔙 Back]
+
+User: [clicks "BTC/USDT"]
+Bot: ⏰ Select Timeframe for BTC/USDT:
+     [1 minute] [5 minutes] [15 minutes] [30 minutes]
+     [1 hour] [4 hours] [1 day] [🔙 Back]
+
+User: [clicks "15 minutes"]
+Bot: ✅ Chart successfully built and sent!
+     [🔄 New Chart]
+```
 
 ### Test system
 * `./tasks/dev/run-tests` performs quick system check-up.

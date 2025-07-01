@@ -34,6 +34,7 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
+		return true;
 		// Get RSI signal
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
 		
