@@ -587,6 +587,10 @@ class Market implements IMarket
 		}
 	}
 
+	/**
+	 * Get the task attributes for this Market.
+	 * @return array
+	 */
 	public function getTaskMarketAttributes(): array {
 		return [
 			'pair' => $this->getPair()->getTicker(),
@@ -595,9 +599,19 @@ class Market implements IMarket
 			'exchange' => $this->getExchange()->getName(),
 		];
 	}
-	
-	public function taskAttributesMatch(array $taskAttributes): bool {
+
+	/**
+	 * Check if the given task’s market attributes match this Market’s attributes.
+	 * @param array $taskAttributes
+	 * @return bool
+	 */
+	public function taskMarketAttributesMatch(array $taskAttributes): bool {
 		$currentAttributes = $this->getTaskMarketAttributes();
-		return $taskAttributes == $currentAttributes;
+		foreach ($currentAttributes as $attribute => $value) {
+			// We don’t check the extra attributes, we only compare Market attributes instead.
+			if (!in_array($attribute, $taskAttributes)) continue;
+			if ($taskAttributes[$attribute] !== $value) return false;
+		}
+		return true;
 	}
 }

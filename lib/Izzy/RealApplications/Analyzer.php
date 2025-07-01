@@ -146,7 +146,7 @@ class Analyzer extends ConsoleApplication
 	/**
 	 * Generate all balance charts (daily, monthly, yearly).
 	 */
-	public function generateAllCharts(): void {
+	public function generateBalanceCharts(): void {
 		$this->logger->info("Generating balance charts...");
 		$this->generateDailyChart();
 		$this->generateMonthlyChart();
@@ -176,7 +176,7 @@ class Analyzer extends ConsoleApplication
 			// Generate balance charts every 10 minutes.
 			if ($iteration % 10 == 0) {
 				$this->cleanup();
-				$this->generateAllCharts();
+				$this->generateBalanceCharts();
 			}
 
 			$iteration++;
