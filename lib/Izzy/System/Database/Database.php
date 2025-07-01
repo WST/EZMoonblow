@@ -2,13 +2,8 @@
 
 namespace Izzy\System\Database;
 
-use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
-use Izzy\Financial\Position;
 use Izzy\Interfaces\IDatabaseEntity;
-use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
 use Izzy\System\QueueTask;
 use PDO;
 use PDOException;

@@ -4,7 +4,6 @@ namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Interfaces\IExchangeDriver;
-use JetBrains\PhpStorm\NoReturn;
 
 /**
  * Main class of the Trader application.
@@ -28,7 +27,6 @@ class Trader extends ConsoleApplication
 		$this->exchanges = $this->configuration->connectExchanges($this);
 	}
 
-	#[NoReturn]
 	public function run(): void {
 		// Show console message.
 		$this->logger->info('Trader is starting...');

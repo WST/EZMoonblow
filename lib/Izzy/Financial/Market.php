@@ -194,11 +194,11 @@ class Market implements IMarket
 					$this->exchange->getLogger()->debug("Found position on the exchange for $this");
 					$positionFromExchange->save();
 					return $positionFromExchange;
-				} else {
-					return false;
 				}
 			}
 		}
+		
+		return false;
 	}
 
 	/**

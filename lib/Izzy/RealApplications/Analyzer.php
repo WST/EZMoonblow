@@ -2,7 +2,6 @@
 
 namespace Izzy\RealApplications;
 
-use GuzzleHttp\Promise\TaskQueue;
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
