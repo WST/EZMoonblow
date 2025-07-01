@@ -57,6 +57,14 @@ class Configuration
 		return $this->xpath->evaluate('string(//database/password)');
 	}
 	
+	public function getTelegramToken(): string {
+		return $this->xpath->evaluate('string(//telegram/token)');
+	}
+	
+	public function getTelegramChatId(): int {
+		return intval($this->xpath->evaluate('string(//telegram/chat_id)'));
+	}
+	
 	public function openDatabase(): Database {
 		// Пока что поддерживаем только MySQL.
 		$engine = $this->xpath->evaluate('string(//database/@engine)');

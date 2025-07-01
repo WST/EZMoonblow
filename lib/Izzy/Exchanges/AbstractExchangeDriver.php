@@ -226,7 +226,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			$market->calculateIndicators();
 
 			// Process trading signals.
-			$this->logger->info("Processing trading signals for {$this->getName()}");
+			$this->logger->info("Processing trading signals for $market");
 			$market->processTrading();
 		}
 	}

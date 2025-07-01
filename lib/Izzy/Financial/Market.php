@@ -5,6 +5,7 @@ namespace Izzy\Financial;
 use Exception;
 use Izzy\Chart\Chart;
 use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Indicators\IndicatorFactory;
 use Izzy\Interfaces\ICandle;
@@ -448,7 +449,17 @@ class Market implements IMarket
 	protected function checkEntrySignals(): void {
 		$strategy = $this->getStrategy();
 		if (!$strategy) {
-			$this->exchange->getLogger()->warning("No strategy set for market $this.");
+			return;
+		}
+
+		// Is trading enabled for this Pair?
+		if (!$this->pair->isTradingEnabled()) {
+			// Process trading signals.
+			$this->exchange->getLogger()->info("Trading is disabled for $this");
+			if ($this->pair->isMonitoringEnabled()) {
+				// We notify the user about our intent to open a position only if trading is disabled.
+				$this->sendNewPositionIntentNotifications();
+			}
 			return;
 		}
 
@@ -556,5 +567,37 @@ class Market implements IMarket
 
 	public function hasOrder(string $orderIdOnExchange) {
 		return $this->exchange->hasActiveOrder($this, $orderIdOnExchange);
+	}
+
+	/**
+	 * 
+	 * @return void
+	 */
+	private function sendNewPositionIntentNotifications(): void {
+		// Check for long entry signal
+		if ($this->strategy->shouldLong()) {
+			QueueTask::addTelegramNotification_newPosition($this, PositionDirectionEnum::LONG);
+			return;
+		}
+
+		// Check for short entry signal (only for futures)
+		if ($this->isFutures() && $this->strategy->shouldShort()) {
+			QueueTask::addTelegramNotification_newPosition($this, PositionDirectionEnum::SHORT);
+			return;
+		}
+	}
+
+	public function getTaskMarketAttributes(): array {
+		return [
+			'pair' => $this->getPair()->getTicker(),
+			'timeframe' => $this->getPair()->getTimeframe()->value,
+			'marketType' => $this->getPair()->getMarketType()->value,
+			'exchange' => $this->getExchange()->getName(),
+		];
+	}
+	
+	public function taskAttributesMatch(array $taskAttributes): bool {
+		$currentAttributes = $this->getTaskMarketAttributes();
+		return $taskAttributes == $currentAttributes;
 	}
 }
