@@ -4,7 +4,10 @@ namespace Izzy\RealApplications;
 
 use GuzzleHttp\Promise\TaskQueue;
 use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Money;
+use Izzy\Financial\Pair;
 use Izzy\System\QueueTask;
 
 /**
@@ -16,20 +19,16 @@ class Analyzer extends ConsoleApplication
 	/** @var string RRD database file path for balance tracking. */
 	private string $balanceRrdFile;
 
-	/** @var string Charts output directory. */
-	private string $chartsDir;
-
 	/**
 	 * Constructor for the Analyzer application.
 	 */
 	public function __construct() {
 		parent::__construct();
 		$this->balanceRrdFile = IZZY_RRD . '/balance.rrd';
-		$this->chartsDir = IZZY_ROOT . '/charts';
 		
 		// Ensure charts directory exists.
-		if (!is_dir($this->chartsDir)) {
-			mkdir($this->chartsDir, 0755, true);
+		if (!is_dir(IZZY_CHARTS)) {
+			mkdir(IZZY_CHARTS, 0755, true);
 		}
 	}
 
@@ -81,7 +80,7 @@ class Analyzer extends ConsoleApplication
 	 */
 	private function generateBalanceChart(string $period, string $title, string $startTime, string $endTime = 'now'): void {
 		$filenameEscaped = escapeshellarg($this->balanceRrdFile);
-		$outputFile = $this->chartsDir . "/balance_{$period}.png";
+		$outputFile = IZZY_CHARTS . "/balance_{$period}.png";
 		$outputFileEscaped = escapeshellarg($outputFile);
 		
 		$command = "rrdtool graph $outputFileEscaped " .
@@ -165,7 +164,7 @@ class Analyzer extends ConsoleApplication
 		
 		$this->logger->info("Starting Analyzer application...");
 		$this->logger->info("Balance RRD file: $this->balanceRrdFile");
-		$this->logger->info("Charts directory: $this->chartsDir");
+		$this->logger->info("Charts directory: " . IZZY_CHARTS);
 		
 		while (true) {
 			// Update balance information.
@@ -187,7 +186,7 @@ class Analyzer extends ConsoleApplication
 	}
 	
 	private function cleanup(): void {
-		$files = glob($this->chartsDir . "/*.png");
+		$files = glob(IZZY_CHARTS . "/*.png");
 		foreach ($files as $file) {
 			$mtime = filemtime($file);
 			if ($mtime < time() - 3600) {
@@ -202,11 +201,23 @@ class Analyzer extends ConsoleApplication
 		
 		// Task is to draw a candlestick chart.
 		if ($taskType->isDrawCandlestickChart()) {
-			$this->logger->info("TASK: draw candlestick chart");
+			$this->handleDrawCandlestickChartTask($task->getAttributes());
 			$task->remove();
 			return;
 		}
 		
 		$this->logger->warning("Got an unknown task type: $taskType->value");
+	}
+
+	private function handleDrawCandlestickChartTask($attributes): void {
+		$ticker = $attributes['pair'];
+		$timeframe = TimeFrameEnum::from($attributes['timeframe']);
+		$exchangeName = $attributes['exchange'];
+		$marketType = MarketTypeEnum::from($attributes['marketType']);
+		$pair = new Pair($ticker, $timeframe, $exchangeName, $marketType);
+		$exchange = $this->configuration->connectExchange($this, $exchangeName);
+		if (!$exchange) return;
+		$market = $exchange->createMarket($pair);
+		$market->drawChart();
 	}
 }

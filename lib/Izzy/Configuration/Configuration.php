@@ -56,4 +56,15 @@ class Configuration
 
 		return new Database($host, $dbname, $username, $password);
 	}
+
+	public function connectExchange(ConsoleApplication $application, string $exchangeName): IExchangeDriver|false {
+		$exchanges = $this->xpath->query('//exchanges/exchange');
+		foreach ($exchanges as $exchangeConfigurationNode) {
+			$configExchangeName = $exchangeConfigurationNode->getAttribute('name');
+			if ($configExchangeName != $exchangeName) continue;
+			$exchangeConfiguration = new ExchangeConfiguration($exchangeConfigurationNode);
+			return $exchangeConfiguration->connectToExchange($application);
+		}
+		return false;
+	}
 }

@@ -201,13 +201,22 @@ class Market implements IMarket
 		}
 	}
 
-	public function updateChart(): void {
-		/*
+	/**
+	 * Draw the candlestick chart for this Market.
+	 * @return void
+	 */
+	public function drawChart(): void {
 		$filename = $this->pair->getChartFilename();
 		$chart = new Chart($this);
 		$chart->draw();
 		$chart->save($filename);
-		*/
+	}
+
+	/**
+	 * Schedule a task for updating the candlestick chart for this Market.
+	 * @return void
+	 */
+	public function updateChart(): void {
 		QueueTask::updateChart($this);
 	}
 

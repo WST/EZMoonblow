@@ -92,4 +92,8 @@ class QueueTask extends SurrogatePKDatabaseRecord
 	public function getType(): TaskTypeEnum {
 		return TaskTypeEnum::from($this->row['task_type']);
 	}
+
+	public function getAttributes(): array {
+		return json_decode($this->row['task_attributes'], true);
+	}
 }

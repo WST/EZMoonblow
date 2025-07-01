@@ -33,4 +33,6 @@ interface IMarket
 	public function getDatabase(): Database;
 
 	public function hasOrder(string $orderIdOnExchange);
+
+	public function drawChart();
 }
