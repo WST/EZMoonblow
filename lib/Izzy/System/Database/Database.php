@@ -9,6 +9,7 @@ use Izzy\Financial\Position;
 use Izzy\Interfaces\IDatabaseEntity;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
+use Izzy\System\QueueTask;
 use PDO;
 use PDOException;
 
@@ -463,5 +464,28 @@ class Database
 			$object = new $objectType($this, $row, $userdata);
 		}
 		return $object;
+	}
+	
+	public function selectAllObjects($objectType, string|array $where = '1', $userdata = null): array {
+		$results = [];
+		$rows = $this->selectAllRows($objectType::getTableName(), '*', $where);
+		foreach($rows as $row) {
+			if (is_null($userdata)) {
+				$object = new $objectType($this, $row);
+				$results[] = $object;
+			} else {
+				$object = new $objectType($this, $row, $userdata);
+				$results[] = $object;
+			}
+		}
+		return $results;
+	}
+
+	/**
+	 * @param string $appName
+	 * @return QueueTask[]
+	 */
+	public function getTasksByApp(string $appName): array {
+		return $this->selectAllObjects(QueueTask::class, [QueueTask::FRecipient => $appName]);
 	}
 }

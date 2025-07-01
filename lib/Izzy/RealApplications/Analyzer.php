@@ -2,8 +2,10 @@
 
 namespace Izzy\RealApplications;
 
+use GuzzleHttp\Promise\TaskQueue;
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Financial\Money;
+use Izzy\System\QueueTask;
 
 /**
  * Analyzer application for monitoring and analyzing exchange balances.
@@ -169,8 +171,11 @@ class Analyzer extends ConsoleApplication
 			// Update balance information.
 			$balance = $this->database->getTotalBalance();
 			$this->updateBalanceLog($balance);
+			
+			// Process scheduled tasks.
+			$this->processTasks();
 
-			// Generate charts every 10 minutes.
+			// Generate all charts every 10 minutes.
 			if ($iteration % 10 == 0) {
 				$this->generateAllCharts();
 			}
@@ -178,5 +183,19 @@ class Analyzer extends ConsoleApplication
 			$iteration++;
 			sleep(60);
 		}
+	}
+
+	protected function processTask(QueueTask $task): void {
+		$taskType = $task->getType();
+		$taskStatus = $task->getStatus();
+		
+		// Task is to draw a candlestick chart.
+		if ($taskType->isDrawCandlestickChart()) {
+			$this->logger->info("TASK: draw candlestick chart");
+			$task->delete();
+			return;
+		}
+		
+		$this->logger->warning("Got an unknown task type: $taskType->value");
 	}
 }

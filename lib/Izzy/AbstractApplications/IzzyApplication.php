@@ -44,4 +44,15 @@ abstract class IzzyApplication
 	public function getDatabase(): Database {
 		return $this->database;
 	}
+
+	/**
+	 * Process all tasks assigned to this Application. 
+	 */
+	private function processTasks(): void {
+		if (!is_callable([$this, 'processTask'])) return;
+		$tasks = $this->database->getTasksByApp(static::class);
+		foreach ($tasks as $task) {
+			static::processTask($task);
+		}
+	}
 }
