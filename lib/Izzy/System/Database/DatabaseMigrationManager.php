@@ -190,7 +190,7 @@ class DatabaseMigrationManager
 		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $currentMigrationOverallStatus);
 		$this->resetPadding();
 		
-		// If a migration has failed, we shouldn't be applying the further migrations.
+		// If a migration has failed, we shouldn’t be applying the further migrations.
 		if (!$currentMigrationOverallStatus) {
 			$this->logDatabaseOperation("Exiting due to a failed migration.");
 			die(-1);
@@ -231,7 +231,7 @@ class DatabaseMigrationManager
 			return is_file($migrationFile) && is_readable($migrationFile);
 		});
 
-		// Let's build the array of the migration files.
+		// Let’s build the array of the migration files.
 		$migrationFiles = [];
 		foreach ($phpFiles as $file) {
 			$matches = [];
@@ -253,7 +253,7 @@ class DatabaseMigrationManager
 			$this->logger->info("Database is up to date.");
 		}
 
-		// Finally, let's execute the migrations.
+		// Finally, let’s execute the migrations.
 		array_walk($migrationFiles, function($filename, $number) use ($manager) {
 			$manager->runMigration($number, $filename);
 		});
