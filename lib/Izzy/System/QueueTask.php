@@ -32,12 +32,40 @@ class QueueTask extends SurrogatePKDatabaseRecord
 	}
 
 	public static function updateChart(Market $sender): void {
+		$database = $sender->getDatabase();
+		$appName = Analyzer::getApplicationName();
+	
+		// Let’s check if such a task already exists.
+		$taskSudahAda = false;
+		$existingTasks = $database->selectAllRows(
+			QueueTask::getTableName(),
+			'*',
+			[self::FRecipient => $appName, self::FType => TaskTypeEnum::DRAW_CANDLESTICK_CHART->value],
+		);
+		
+		// If the attributes match, the task already exists then.
+		foreach ($existingTasks as $task) {
+			$taskAttributes = json_decode($task[self::FAttributes], true);
+			if ($taskAttributes['pair'] == $sender->getPair()->getTicker()
+				&& $taskAttributes['timeframe'] == $sender->getPair()->getTimeframe()->value
+				&& $taskAttributes['marketType'] == $sender->getPair()->getMarketType()->value
+				&& $taskAttributes['exchange'] == $sender->getExchange()->getName()) {
+				$taskSudahAda = true;
+			}
+		}
+		
+		// Skip adding an existing task.
+		if ($taskSudahAda) return;
+		
+		// New attributes.
 		$attributes = [
 			'pair' => $sender->getPair()->getTicker(),
 			'timeframe' => $sender->getPair()->getTimeframe(),
 			'marketType' => $sender->getPair()->getMarketType(),
 			'exchange' => $sender->getExchange()->getName(),
 		];
+		
+		// New row.
 		$row = [
 			self::FCreatedAt => time(),
 			self::FAttributes => json_encode($attributes),
@@ -45,8 +73,11 @@ class QueueTask extends SurrogatePKDatabaseRecord
 			self::FType => TaskTypeEnum::DRAW_CANDLESTICK_CHART->value,
 			self::FStatus => TaskStatusEnum::PENDING->value,
 		];
-		var_dump($row);
-		$task = new self($sender->getDatabase(), $row, self::FId);
+		
+		// New task.
+		$task = new self($database, $row, self::FId);
+		
+		// Saving the newly created task.
 		$task->save();
 	}
 
