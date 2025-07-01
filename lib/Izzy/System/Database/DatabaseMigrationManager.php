@@ -2,6 +2,7 @@
 
 namespace Izzy\System\Database;
 
+use Exception;
 use Izzy\System\Logger;
 
 class DatabaseMigrationManager
@@ -189,7 +190,7 @@ class DatabaseMigrationManager
 		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $currentMigrationOverallStatus);
 		$this->resetPadding();
 		
-		// If a migration has failed, we shouldn’t be applying the further migrations.
+		// If a migration has failed, we shouldn't be applying the further migrations.
 		if (!$currentMigrationOverallStatus) {
 			$this->logDatabaseOperation("Exiting due to a failed migration.");
 			die(-1);
@@ -230,7 +231,7 @@ class DatabaseMigrationManager
 			return is_file($migrationFile) && is_readable($migrationFile);
 		});
 
-		// Let’s build the array of the migration files.
+		// Let's build the array of the migration files.
 		$migrationFiles = [];
 		foreach ($phpFiles as $file) {
 			$matches = [];
@@ -252,7 +253,7 @@ class DatabaseMigrationManager
 			$this->logger->info("Database is up to date.");
 		}
 
-		// Finally, let’s execute the migrations.
+		// Finally, let's execute the migrations.
 		array_walk($migrationFiles, function($filename, $number) use ($manager) {
 			$manager->runMigration($number, $filename);
 		});
@@ -282,5 +283,71 @@ class DatabaseMigrationManager
 		$this->migrationHasPerformedActions = true;
 		$this->updateCurrentStatus($success);
 		$this->logDatabaseOperationWithStatus("Modifying column “{$columnName}” of table “{$table}”...", $success);
+	}
+
+	/**
+	 * Get the next available migration number.
+	 * @return int
+	 * @throws Exception
+	 */
+	public static function getNextMigrationNumber(): int {
+		$today = date('Ymd');
+		$migrationFiles = glob(IZZY_MIGRATIONS . '/' . $today . '*.php');
+		
+		$maxNumber = -1;
+		foreach ($migrationFiles as $file) {
+			$matches = [];
+			if (preg_match('/' . $today . '(\d{2})/', basename($file), $matches)) {
+				$number = (int)$matches[1];
+				if ($number > $maxNumber) {
+					$maxNumber = $number;
+				}
+			}
+		}
+		
+		$nextNumber = $maxNumber + 1;
+		if ($nextNumber > 99) {
+			throw new Exception("Migration limit for today has been reached (99). Try again tomorrow.");
+		}
+		
+		return $nextNumber;
+	}
+
+	/**
+	 * Create a new migration.
+	 * @param string $migrationName
+	 * @return string path to the newly created file.
+	 * @throws Exception
+	 */
+	public static function createMigration(string $migrationName): string {
+		if (!preg_match('/^[a-z0-9-]+$/', $migrationName)) {
+			throw new Exception("Migration name should contain only lowercase latin letters, digits and hyphens");
+		}
+		
+		$nextNumber = self::getNextMigrationNumber();
+		$today = date('Ymd');
+		$filename = sprintf('%s%02d-%s.php', $today, $nextNumber, $migrationName);
+		$filepath = IZZY_MIGRATIONS . '/' . $filename;
+		
+		$content = "<?php\n\n/* Put your migration code here. */\n";
+		
+		if (file_put_contents($filepath, $content) === false) {
+			throw new Exception("Could not create migration: " . $filepath);
+		}
+		
+		return $filepath;
+	}
+
+	/**
+	 * Ask the user to provide the name for a new migration.
+	 * @return string
+	 */
+	public static function promptMigrationName(): string {
+		echo "Migration name (i.e.: positions-update): ";
+		$handle = fopen("php://stdin", "r");
+		$migrationName = trim(fgets($handle));
+		fclose($handle);
+		
+		return $migrationName;
 	}
 }

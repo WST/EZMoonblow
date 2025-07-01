@@ -1,0 +1,15 @@
+#!/usr/bin/env php
+<?php
+
+use Izzy\System\Database\DatabaseMigrationManager;
+
+require dirname(dirname(__DIR__)) . '/lib/common.php';
+
+try {
+    $migrationName = DatabaseMigrationManager::promptMigrationName();
+    $file = DatabaseMigrationManager::createMigration($migrationName);
+    echo "Created migration: $file\n";
+} catch (Exception $e) {
+    echo "Error: " . $e->getMessage() . "\n";
+    die(-1);
+}
