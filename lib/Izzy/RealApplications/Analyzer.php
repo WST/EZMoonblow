@@ -210,11 +210,13 @@ class Analyzer extends ConsoleApplication
 	}
 
 	private function handleDrawCandlestickChartTask($attributes): void {
+		// Important task attributes
 		$ticker = $attributes['pair'];
 		$timeframe = TimeFrameEnum::from($attributes['timeframe']);
 		$exchangeName = $attributes['exchange'];
 		$marketType = MarketTypeEnum::from($attributes['marketType']);
 		$pair = new Pair($ticker, $timeframe, $exchangeName, $marketType);
+		$this->logger->info("Got a task for drawing a candlestick chart for $pair ($marketType->value, $timeframe->value) on $exchangeName");
 		$exchange = $this->configuration->connectExchange($this, $exchangeName);
 		if (!$exchange) return;
 		$market = $exchange->createMarket($pair);
