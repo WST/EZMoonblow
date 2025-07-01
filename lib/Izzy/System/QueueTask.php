@@ -144,10 +144,16 @@ class QueueTask extends SurrogatePKDatabaseRecord
 	}
 	
 	public function getCreatedAt(): int {
-		return intval($this->row['task_created_at']);
+		return intval($this->row[self::FCreatedAt]);
 	}
 
 	public function setStatus(TaskStatusEnum $newStatus): void {
 		$this->row[self::FStatus] = $newStatus->value;
+	}
+
+	public function isOlderThan(int $seconds): bool {
+		$now = time();
+		$limit = $now - $seconds;
+		return ($this->row[self::FCreatedAt] < $limit);
 	}
 }

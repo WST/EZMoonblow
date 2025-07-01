@@ -204,13 +204,14 @@ class Market implements IMarket
 
 	/**
 	 * Draw the candlestick chart for this Market.
-	 * @return void
+	 * @return string filename
 	 */
-	public function drawChart(): void {
+	public function drawChart(): string {
 		$filename = $this->pair->getChartFilename();
 		$chart = new Chart($this);
 		$chart->draw();
 		$chart->save($filename);
+		return $filename;
 	}
 
 	/**

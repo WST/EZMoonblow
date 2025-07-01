@@ -70,7 +70,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * @inheritDoc
 	 */
 	public function createMarket(IPair $pair): ?IMarket {
-		$candlesData = $this->getCandles($pair, 200);
+		$candlesData = $this->getCandles($pair);
 		if (empty($candlesData)) {
 			return null;
 		}
