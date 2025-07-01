@@ -331,12 +331,7 @@ class Database
 		[$whereClause, $whereParams] = $this->buildWhereClause($where);
 
 		// Build the UPDATE SQL query
-		$sql = sprintf(
-			"UPDATE `%s` SET %s WHERE %s",
-			$table,
-			implode(', ', $setClauses),
-			$whereClause
-		);
+		$sql = "UPDATE `".$table."` SET ".implode(', ', $setClauses)." WHERE ".$whereClause;
 
 		// Prepare and execute with combined parameters (data + where parameters)
 		$stmt = $this->pdo->prepare($sql);

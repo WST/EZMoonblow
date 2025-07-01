@@ -1,5 +1,27 @@
 #!/usr/bin/env php
 <?php
 
-// This is going to be a script to run a web server for development purposes.
-die("TODO" . PHP_EOL);
+use Izzy\Configuration\Configuration;
+
+// EZMoonblow core file.
+require dirname(dirname(__DIR__)) . '/lib/common.php';
+
+if (!function_exists('pcntl_exec')) {
+    echo "This script requires the PHP extension 'Pcntl'";
+    die(-1);
+}
+
+// Load configuration.
+$config = new Configuration(IZZY_CONFIG . '/config.xml');
+
+// MySQL access credentials.
+$dbHost = $config->getDatabaseHost();
+$dbName = $config->getDatabaseName();
+$dbUser = $config->getDatabaseUser();
+$dbPassword = $config->getDatabasePassword();
+
+$env = (version_compare(PHP_VERSION, '7.2.0')) ? getenv() : $_ENV;
+$args = ["--default-character-set=utf8mb4", "-u$dbUser", "-p$dbPassword", "-h", $dbHost, $dbName];
+$mysql_path = (PHP_OS_FAMILY == 'Darwin') ? '/usr/local/bin/mysql' : '/usr/bin/mysql';
+
+pcntl_exec($mysql_path, $args, $env);

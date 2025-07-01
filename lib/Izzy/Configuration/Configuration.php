@@ -41,6 +41,22 @@ class Configuration
 		return $result;
 	}
 	
+	public function getDatabaseHost(): string {
+		return $this->xpath->evaluate('string(//database/host)');
+	}
+	
+	public function getDatabaseName(): string {
+		return $this->xpath->evaluate('string(//database/dbname)');
+	}
+	
+	public function getDatabaseUser(): string {
+		return $this->xpath->evaluate('string(//database/username)');
+	}
+	
+	public function getDatabasePassword(): string {
+		return $this->xpath->evaluate('string(//database/password)');
+	}
+	
 	public function openDatabase(): Database {
 		// Пока что поддерживаем только MySQL.
 		$engine = $this->xpath->evaluate('string(//database/@engine)');
@@ -49,10 +65,10 @@ class Configuration
 		}
 		
 		// Получим реквизиты для доступа.
-		$host = $this->xpath->evaluate('string(//database/host)');
-		$username = $this->xpath->evaluate('string(//database/username)');
-		$password = $this->xpath->evaluate('string(//database/password)');
-		$dbname = $this->xpath->evaluate('string(//database/dbname)');
+		$host = $this->getDatabaseHost();
+		$username = $this->getDatabaseUser();
+		$password = $this->getDatabasePassword();
+		$dbname = $this->getDatabaseName();
 
 		return new Database($host, $dbname, $username, $password);
 	}
