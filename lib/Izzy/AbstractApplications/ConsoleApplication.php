@@ -12,14 +12,7 @@ use Izzy\Traits\SingletonTrait;
  */
 abstract class ConsoleApplication extends IzzyApplication
 {
-	private string $applicationName;
-	
-	public function __construct($applicationName) {
-		$this->applicationName = $applicationName;
+	public function __construct() {
 		parent::__construct();
-	}
-	
-	public function getApplicationName(): string {
-		return $this->applicationName;
 	}
 }

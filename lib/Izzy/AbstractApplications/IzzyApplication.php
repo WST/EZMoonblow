@@ -48,11 +48,16 @@ abstract class IzzyApplication
 	/**
 	 * Process all tasks assigned to this Application. 
 	 */
-	private function processTasks(): void {
+	protected function processTasks(): void {
 		if (!is_callable([$this, 'processTask'])) return;
-		$tasks = $this->database->getTasksByApp(static::class);
+		$this->logger->info("Processing scheduled tasks for " . static::getApplicationName());
+		$tasks = $this->database->getTasksByApp(static::getApplicationName());
 		foreach ($tasks as $task) {
 			static::processTask($task);
 		}
+	}
+	
+	public static function getApplicationName(): string {
+		return basename(str_replace('\\', '/', static::class));
 	}
 }

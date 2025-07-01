@@ -15,6 +15,7 @@ use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStrategy;
 use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Database\Database;
+use Izzy\System\QueueTask;
 use Izzy\Traits\HasMarketTypeTrait;
 
 class Market implements IMarket
@@ -161,12 +162,6 @@ class Market implements IMarket
 		}
 	}
 
-	public function drawChart(TimeFrameEnum $timeframe): Chart {
-		$chart = new Chart($this, $timeframe);
-		$chart->draw();
-		return $chart;
-	}
-
 	public function setCandles(array $candlesData): void {
 		$this->candles = $candlesData;
 
@@ -207,10 +202,13 @@ class Market implements IMarket
 	}
 
 	public function updateChart(): void {
+		/*
 		$filename = $this->pair->getChartFilename();
 		$chart = new Chart($this);
 		$chart->draw();
 		$chart->save($filename);
+		*/
+		QueueTask::updateChart($this);
 	}
 
 	public function getPair(): Pair {

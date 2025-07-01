@@ -190,7 +190,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Update charts for all markets.
 	 */
 	public function updateCharts(): void {
-		foreach ($this->markets as $ticker => $market) {
+		foreach ($this->markets as $market) {
 			$market->updateChart();
 		}
 	}

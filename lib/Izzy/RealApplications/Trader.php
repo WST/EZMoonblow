@@ -22,7 +22,7 @@ class Trader extends ConsoleApplication
 	 */
 	public function __construct() {
 		// Let’s build the parent.
-		parent::__construct('trader');
+		parent::__construct();
 		
 		// Finally, let’s load the currently active exchange drivers.
 		$this->exchanges = $this->configuration->connectExchanges($this);

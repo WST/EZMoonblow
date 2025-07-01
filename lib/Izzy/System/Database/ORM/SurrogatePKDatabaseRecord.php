@@ -79,7 +79,7 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 
 		// Deleting.
 		if(is_int($this->pkValue)) {
-			return $this->database->delete(static::getTableName(), [$this->pkField => $this->pkValues]);
+			return $this->database->delete(static::getTableName(), [$this->pkField => $this->pkValue]);
 		}
 	}
 }

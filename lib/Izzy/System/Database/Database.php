@@ -472,11 +472,10 @@ class Database
 		foreach($rows as $row) {
 			if (is_null($userdata)) {
 				$object = new $objectType($this, $row);
-				$results[] = $object;
 			} else {
 				$object = new $objectType($this, $row, $userdata);
-				$results[] = $object;
 			}
+			$results[] = $object;
 		}
 		return $results;
 	}

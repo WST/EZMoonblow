@@ -23,7 +23,7 @@ class Analyzer extends ConsoleApplication
 	 * Constructor for the Analyzer application.
 	 */
 	public function __construct() {
-		parent::__construct('analyzer');
+		parent::__construct();
 		$this->balanceRrdFile = IZZY_RRD . '/balance.rrd';
 		$this->chartsDir = IZZY_ROOT . '/charts';
 		
@@ -175,13 +175,24 @@ class Analyzer extends ConsoleApplication
 			// Process scheduled tasks.
 			$this->processTasks();
 
-			// Generate all charts every 10 minutes.
+			// Generate balance charts every 10 minutes.
 			if ($iteration % 10 == 0) {
+				$this->cleanup();
 				$this->generateAllCharts();
 			}
 
 			$iteration++;
 			sleep(60);
+		}
+	}
+	
+	private function cleanup(): void {
+		$files = glob($this->chartsDir . "/*.png");
+		foreach ($files as $file) {
+			$mtime = filemtime($file);
+			if ($mtime < time() - 3600) {
+				unlink($file);
+			}
 		}
 	}
 
@@ -192,7 +203,7 @@ class Analyzer extends ConsoleApplication
 		// Task is to draw a candlestick chart.
 		if ($taskType->isDrawCandlestickChart()) {
 			$this->logger->info("TASK: draw candlestick chart");
-			$task->delete();
+			$task->remove();
 			return;
 		}
 		

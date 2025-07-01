@@ -8,7 +8,7 @@ use Izzy\Configuration\Configuration;
 class Installer extends ConsoleApplication
 {
 	public function __construct() {
-		parent::__construct('analyzer');
+		parent::__construct();
 	}
 	
 	public function run(): void {
