@@ -2,9 +2,10 @@
 
 namespace Izzy\System\Database\ORM;
 
+use Izzy\Interfaces\IDatabaseEntityWithSurrogatePK;
 use Izzy\System\Database\Database;
 
-abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
+abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IDatabaseEntityWithSurrogatePK
 {
 	/**
 	 * Primary key column name.
@@ -36,7 +37,7 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord
 	 * Return the surrogate primary key value of this object (object ID).
 	 * @return int|null The primary key value.
 	 */
-	public function id(): ?int {
+	public function getId(): ?int {
 		return $this->pkValue;
 	}
 

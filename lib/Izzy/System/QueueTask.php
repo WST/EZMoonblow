@@ -137,7 +137,7 @@ class QueueTask extends SurrogatePKDatabaseRecord
 		return json_decode($this->row[self::FAttributes], true);
 	}
 
-	public function setAttribute(string $key, $value): void {
+	public function setAttribute(string $key, string $value): void {
 		$currentAttributes = $this->getAttributes();
 		$currentAttributes[$key] = $value;
 		$this->row[self::FAttributes] = json_encode($currentAttributes);

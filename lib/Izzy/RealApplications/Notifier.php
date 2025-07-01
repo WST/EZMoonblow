@@ -356,17 +356,12 @@ class Notifier extends ConsoleApplication
 	
 	private function sendHelpMessage(): void {
 		$message = "📚 Command Reference\n\n";
-		$message .= "/menu - Interactive menu with buttons (recommended)\n\n";
-		$message .= "/exchanges - Show list of available exchanges\n\n";
-		$message .= "/pairs <exchange> <type>\n";
-		$message .= "Show available trading pairs\n";
-		$message .= "Types: spot, futures\n";
-		$message .= "Example: /pairs Bybit spot\n\n";
+		$message .= "/menu — Interactive menu with buttons (recommended)\n\n";
 		$message .= "/chart <exchange> <type> <pair> <timeframe>\n";
 		$message .= "Build candlestick chart\n";
 		$message .= "Timeframes: 1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d, 1w, 1M\n";
 		$message .= "Example: /chart Bybit spot BTC/USDT 15m\n\n";
-		$message .= "/balance - Show balance chart\n\n";
+		$message .= "/balance — Show balance chart\n\n";
 		$message .= "💡 Tip: Use /menu for convenient selection via buttons!";
 		
 		$this->sendMessage($message);
@@ -487,33 +482,14 @@ class Notifier extends ConsoleApplication
 			return null;
 		}
 	}
-	
-	// Getters for testing purposes
-	public function getExchanges(): array {
-		return $this->exchanges;
-	}
-	
-	public function getTelegramToken(): string {
-		return $this->telegramToken;
-	}
-	
-	public function getTelegramChatId(): int {
-		return $this->telegramChatId;
-	}
-	
-	public function testLoadAvailablePairs(string $exchangeName, string $marketType): array {
-		return $this->loadAvailablePairs($exchangeName, $marketType);
-	}
-	
+
 	// Interactive menu methods
 	private function sendMainMenu(): void {
 		$message = "🎛️ Main Menu\n\nSelect an action:";
 		
 		$keyboard = [
-			[['text' => '📊 Build Chart', 'callback_data' => 'exchanges']],
+			[['text' => '📊 Candlesticks Chart', 'callback_data' => 'exchanges']],
 			[['text' => '💰 Balance Chart', 'callback_data' => 'balance']],
-			[['text' => '🏢 Exchange List', 'callback_data' => 'exchanges']],
-			[['text' => '📋 Pairs List', 'callback_data' => 'exchanges']],
 			[['text' => '❓ Help', 'callback_data' => 'help']]
 		];
 		
@@ -751,7 +727,8 @@ class Notifier extends ConsoleApplication
 		}
 		
 		// Send the balance chart
-		$message = "💰 Balance Chart ($period)";
+		$totalBalance = $this->database->getTotalBalance()->format();
+		$message = "💰 Balance Chart ($period)\nTotal balance now: $totalBalance";
 		$this->sendTelegramNotification($message, $filename);
 		
 		// Update the message to show success

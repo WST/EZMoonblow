@@ -2,6 +2,7 @@
 
 namespace Izzy\Strategies;
 
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
@@ -22,24 +23,41 @@ abstract class AbstractDCAStrategy extends Strategy
 	 * Initialize DCA settings from strategy parameters.
 	 */
 	private function initializeDCASettings(): void {
-		$numberOfLevels = $this->params['numberOfLevels'] ?? 6;
+		/** Long */
+		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;
 		$entryVolume = $this->params['entryVolume'] ?? 40;
 		$volumeMultiplier = $this->params['volumeMultiplier'] ?? 2;
 		$priceDeviation = $this->params['priceDeviation'] ?? 5;
 		$priceDeviationMultiplier = $this->params['priceDeviationMultiplier'] ?? 2;
 		$expectedProfit = $this->params['expectedProfit'] ?? 2;
 
+		/** Short */
+		$numberOfLevelsShort = $this->params['numberOfLevelsShort'] ?? 5;
+		$entryVolumeShort = $this->params['entryVolumeShort'] ?? 40;
+		$volumeMultiplierShort = $this->params['volumeMultiplierShort'] ?? 2;
+		$priceDeviationShort = $this->params['priceDeviationShort'] ?? 5;
+		$priceDeviationMultiplierShort = $this->params['priceDeviationMultiplierShort'] ?? 2;
+		$expectedProfitShort = $this->params['expectedProfitShort'] ?? 2;
+
 		// Remove % sign if present and convert to float
 		$priceDeviation = (float) str_replace('%', '', $priceDeviation);
 		$expectedProfit = (float) str_replace('%', '', $expectedProfit);
+		$priceDeviationShort = (float) str_replace('%', '', $priceDeviationShort);
+		$expectedProfitShort = (float) str_replace('%', '', $expectedProfitShort);
 
 		$this->dcaSettings = new DCASettings(
 			$numberOfLevels,
-			Money::from($entryVolume, 'USDT'),
+			Money::from($entryVolume),
 			$volumeMultiplier,
 			$priceDeviation,
 			$priceDeviationMultiplier,
-			$expectedProfit
+			$expectedProfit,
+			$numberOfLevelsShort,
+			Money::from($entryVolumeShort),
+			$volumeMultiplierShort,
+			$priceDeviationShort,
+			$priceDeviationMultiplierShort,
+			$expectedProfitShort
 		);
 	}
 	
@@ -74,19 +92,47 @@ abstract class AbstractDCAStrategy extends Strategy
 	 * @return void
 	 */
 	public function updatePosition(IPosition $position): void {
+		// Complete DCA map.
 		$dcaLevels = $this->getDCALevels();
+		
+		// Separate maps for Long and Short positions.
+		$dcaLevelsLong = $dcaLevels[PositionDirectionEnum::LONG->value]; krsort($dcaLevelsLong);
+		$dcaLevelsShort = $dcaLevels[PositionDirectionEnum::SHORT->value]; krsort($dcaLevelsShort);
+
+		/**
+		 * 0 — first averaging, i.e: 0 => ['volume' => 100, 'offset' => -5]
+		 * 1 — second averaging, i.e: 1 => ['volume' => 200, 'offset' => -10]
+		 * ...
+		 * offset should be negative for Long, positive for Short trades.
+		 */
+		
 		$entryPrice = $position->getEntryPrice()->getAmount();
 		$currentPrice = $position->getCurrentPrice()->getAmount();
 		
-		// Calculate current price drop percentage
-		$priceDropPercent = (($currentPrice - $entryPrice) / $entryPrice) * 100;
+		// Calculate current price drop percentage.
+		$priceChangePercent = (($currentPrice - $entryPrice) / $entryPrice) * 100;
+		echo "PRICE CHANGE IN %: $priceChangePercent\n";
 		
-		// Check if we should execute DCA
-		foreach ($dcaLevels as $level) {
-			if ($priceDropPercent <= $level) {
+		// Check if we should execute DCA. Long first.
+		foreach ($dcaLevelsLong as $level) {
+			$volume = $level['volume'];
+			$offset = $level['offset'];
+			if ($priceChangePercent <= $offset) {
 				// Execute DCA buy order
-				$dcaAmount = new Money(5.0, 'USDT'); // $5 DCA amount
+				$dcaAmount = new Money($volume, 'USDT');
 				$position->buyAdditional($dcaAmount);
+				break;
+			}
+		}
+
+		// Check if we should execute DCA. Now for Short.
+		foreach ($dcaLevelsShort as $level) {
+			$volume = $level['volume'];
+			$offset = $level['offset'];
+			if ($priceChangePercent >= $offset) {
+				// Execute DCA buy order
+				$dcaAmount = new Money($volume, 'USDT');
+				$position->sellAdditional($dcaAmount);
 				break;
 			}
 		}

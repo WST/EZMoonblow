@@ -24,7 +24,7 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 		$entryVolume = $this->getParam('entryVolume');
 		if (!$entryVolume) {
 			Logger::getLogger()->debug("Entry volume is not set, defaulting to 50.00 USDT");
-			$entryVolume = 50.0;
+			$entryVolume = self::DEFAULT_ENTRY_VOLUME;
 		}
 		return Money::from($entryVolume);
 	}

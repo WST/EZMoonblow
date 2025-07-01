@@ -2,6 +2,7 @@
 
 namespace Izzy\System\Database;
 
+use Exception;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IDatabaseEntity;
 use Izzy\System\QueueTask;
@@ -55,7 +56,7 @@ class Database
 		try {
 			// Create PDO instance with MySQL driver
 			$this->pdo = new PDO(
-				"mysql:host={$this->host};dbname={$this->dbname}",
+				"mysql:host=$this->host;dbname=$this->dbname",
 				$this->username, $this->password
 			);
 			return true;
@@ -412,7 +413,7 @@ class Database
 		return Money::from(0.0);
 	}
 
-	private function setError(PDOException|\Exception $e): void {
+	private function setError(PDOException|Exception $e): void {
 		$this->errorMessage = $e->getMessage();
 	}
 	

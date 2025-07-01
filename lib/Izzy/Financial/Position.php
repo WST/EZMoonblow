@@ -324,4 +324,8 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	private function updateInfoFrom(IPosition $positionOnExchange): void {
 		// TODO
 	}
+
+	public function sellAdditional(Money $dcaAmount) {
+		// TODO: Implement sellAdditional() method.
+	}
 }

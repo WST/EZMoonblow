@@ -75,4 +75,6 @@ interface IPosition
 	public function getMarketType(): MarketTypeEnum;
 
 	public function buyAdditional(Money $dcaAmount);
+
+	public function sellAdditional(Money $dcaAmount);
 }

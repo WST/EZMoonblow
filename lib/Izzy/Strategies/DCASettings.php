@@ -1,6 +1,7 @@
 <?php
 
 namespace Izzy\Strategies;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 
 /**
@@ -32,10 +33,31 @@ class DCASettings
 	 */
 	private float $volumeMultiplier;
 	
-	
 	private float $priceDeviation;
 	private float $priceDeviationMultiplier;
 	private float $expectedProfit;
+
+	/**
+	 * Number of DCA levels, including position entry.
+	 * @var int
+	 */
+	private int $numberOfLevelsShort;
+
+	/**
+	 * Initial position volume.
+	 * @var Money
+	 */
+	private Money $entryVolumeShort;
+
+	/**
+	 * Martingale coefficient.
+	 * @var float
+	 */
+	private float $volumeMultiplierShort;
+
+	private float $priceDeviationShort;
+	private float $priceDeviationMultiplierShort;
+	private float $expectedProfitShort;
 
 	/**
 	 * Builds a DCASettings instance.
@@ -53,21 +75,58 @@ class DCASettings
 		float $priceDeviation,
 		float $priceDeviationMultiplier,
 		float $expectedProfit,
+		int $numberOfLevelsShort = 0,
+		?Money $entryVolumeShort = null,
+		float $volumeMultiplierShort = 0.0,
+		float $priceDeviationShort = 0.0,
+		float $priceDeviationMultiplierShort = 0.0,
+		float $expectedProfitShort = 0.0
 	) {
+		// Initialize the order map.
+		$this->orderMap[PositionDirectionEnum::LONG->value] = [];
+		$this->orderMap[PositionDirectionEnum::SHORT->value] = [];
+		
+		// First, build the order map for Long trades.
 		$volume = $entryVolume->getAmount();
 		$offset = 0;
-		for ($level = 0; $level <= $numberOfLevels; $level++) {
-			$this->orderMap[$level] = ['volume' =>  $volume, 'offset' => $offset];
+		$prevDeviation = $priceDeviation;
+		for ($level = 0; $level < $numberOfLevels; $level++) {
+			$this->orderMap[PositionDirectionEnum::LONG->value][$level] = ['volume' =>  $volume, 'offset' => - $offset];
 			$volume *= $volumeMultiplier;
-			$offset += $priceDeviation * ($level *  $priceDeviationMultiplier);
+			$offset = $priceDeviation;
+			$priceDeviation = $priceDeviationMultiplier * $prevDeviation;
+			$prevDeviation = $priceDeviation;
 		}
-		//var_dump($this->orderMap);
+
+		// Then, build the order map for Short trades.
+		if ($entryVolumeShort) {
+			$volume = $entryVolumeShort->getAmount();
+			$offset = 0;
+			$prevDeviationShort = $priceDeviationShort;
+			for ($level = 0; $level < $numberOfLevels; $level++) {
+				$this->orderMap[PositionDirectionEnum::SHORT->value][$level] = ['volume' => $volume, 'offset' => $offset];
+				$volume *= $volumeMultiplierShort;
+				$offset = $priceDeviationShort;
+				$priceDeviationShort = $priceDeviationMultiplierShort * $prevDeviationShort;
+				$prevDeviationShort = $priceDeviationShort;
+			}
+		}
+		
+		/** Settings of the Long trades */
 		$this->numberOfLevels = $numberOfLevels;
 		$this->entryVolume = $entryVolume;
 		$this->volumeMultiplier = $volumeMultiplier;
 		$this->priceDeviation = $priceDeviation;
 		$this->priceDeviationMultiplier = $priceDeviationMultiplier;
 		$this->expectedProfit = $expectedProfit;
+
+		/** Settings of the Short trades */
+		$this->numberOfLevelsShort = $numberOfLevelsShort;
+		$this->entryVolumeShort = $entryVolumeShort;
+		$this->volumeMultiplierShort = $volumeMultiplierShort;
+		$this->priceDeviationShort = $priceDeviationShort;
+		$this->priceDeviationMultiplierShort = $priceDeviationMultiplierShort;
+		$this->expectedProfitShort = $expectedProfitShort;
 	}
 	
 	public function getOrderMap(): array {
