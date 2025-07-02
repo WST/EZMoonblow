@@ -314,7 +314,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 					$priceDifference = abs($this->getEntryPrice()->getPercentDifference($currentPrice));
 					if ($priceDifference > 0.5) {
 						if($market->removeLimitOrders()) {
-							$this->setStatus(PositionStatusEnum::FINISHED);
+							$this->setStatus(PositionStatusEnum::CANCELED);
 						} else {
 							Logger::getLogger()->error("Failed to cancel limit orders for $market");
 						}
@@ -328,6 +328,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 				if (!$positionOnExchange) {
 					if($market->removeLimitOrders()) {
 						$this->setStatus(PositionStatusEnum::FINISHED);
+						$this->setFinishedAt(time());
 					} else {
 						Logger::getLogger()->error("Failed to cancel limit orders for $market");
 					}
