@@ -50,4 +50,11 @@ class Money
 	public function isZero(): bool {
 		return $this->amount < 0.0001;
 	}
+
+	public function modifyByPercent(mixed $percent): Money {
+		$newAmount = $this->amount;
+		$change = ($percent / 100.0) * $this->amount;
+		$newAmount += $change;
+		return new Money($newAmount, $this->currency);
+	}
 }

@@ -17,13 +17,4 @@ class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 		// Buy when RSI shows oversold condition
 		return $rsiSignal === 'overbought';
 	}
-
-	/**
-	 * Here, we enter the long position.
-	 * @param IMarket $market
-	 * @return IPosition|false
-	 */
-	public function handleShort(IMarket $market): IPosition|false {
-		return $market->openShortPosition($this->getEntryVolume());
-	}
 }

@@ -328,4 +328,8 @@ class Gate extends AbstractExchangeDriver
 	public function getCurrentFuturesPosition(IMarket $market): IPosition|false {
 		return false;
 	}
+
+	public function placeLimitOrder(IMarket $param, Money $amount, Money $price) {
+		// TODO: Implement placeLimitOrder() method.
+	}
 }

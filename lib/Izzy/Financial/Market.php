@@ -6,6 +6,7 @@ use Exception;
 use Izzy\Chart\Chart;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Indicators\IndicatorFactory;
 use Izzy\Interfaces\ICandle;
@@ -544,7 +545,7 @@ class Market implements IMarket
 		}
 	}
 
-	private function getCurrentPrice(): Money {
+	public function getCurrentPrice(): Money {
 		return $this->getExchange()->getCurrentPrice($this);
 	}
 
@@ -614,5 +615,37 @@ class Market implements IMarket
 			if ($taskAttributes[$attribute] !== $value) return false;
 		}
 		return true;
+	}
+
+	/**
+	 *
+	 * @param Money $volume Volume in USDT (quote currency).
+	 * @param Money $price
+	 * @return string|false
+	 */
+	public function placeLimitOrder(Money $volume, Money $price): string|false {
+		return $this->exchange->placeLimitOrder($this, $volume, $price);
+	}
+
+	public function openLongByLimitOrderMap(Money $entryVolume, Money $entryPrice, array $orderMap): IPosition {
+		unset($orderMap[0]); // 0 is entry level. 
+		$startingOrderId = $this->placeLimitOrder($entryVolume, $entryPrice);
+		foreach ($orderMap as $level) {
+			$orderVolume = Money::from($level['volume']);
+			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
+			$this->placeLimitOrder($orderVolume, $orderPrice);
+		}
+		
+		$position = Position::create(
+			$this,
+			$entryVolume,
+			PositionDirectionEnum::LONG,
+			$entryPrice,
+			$entryPrice,
+			PositionStatusEnum::PENDING,
+			$startingOrderId
+		);
+		$position->save();
+		return $position;
 	}
 }

@@ -107,4 +107,6 @@ interface IExchangeDriver
 	public function getSpotBalanceByCurrency(string $coin): Money;
 
 	public function getCurrentFuturesPosition(IMarket $market): IPosition|false;
+
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price);
 }

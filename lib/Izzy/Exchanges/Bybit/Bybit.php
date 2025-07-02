@@ -304,7 +304,7 @@ class Bybit extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => 'spot',
+				'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
 				'symbol' => $ticker,
 				'side' => 'Buy',
 				'orderType' => 'Market',
@@ -463,5 +463,34 @@ class Bybit extends AbstractExchangeDriver
 		}
 		
 		return false;
+	}
+
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price): string|false {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$params = [
+				'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
+				'symbol' => $pair->getExchangeTicker($this),
+				'side' => 'Buy',
+				'orderType' => 'Limit',
+				'qty' => $amount->formatForOrder(), // qty is provided in USDT
+				'price' => $price->formatForOrder(),
+				'positionIdx' => 1, // Two-way Buy
+			];
+
+			// Make an API call.
+			$response = $this->api->tradeApi()->placeOrder($params);
+
+			if (isset($response['orderId'])) {
+				return $response['orderId'];
+			} else {
+				$this->logger->error("Failed to place a limit order on $market: " . json_encode($response));
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to place a limit order on $market: " . $e->getMessage());
+			return false;
+		}
 	}
 }

@@ -35,4 +35,8 @@ interface IMarket
 	public function hasOrder(string $orderIdOnExchange);
 
 	public function drawChart();
+
+	public function placeLimitOrder(Money $volume, Money $price);
+
+	public function openLongByLimitOrderMap(Money $entryVolume, Money $entryPrice, array $orderMap);
 }

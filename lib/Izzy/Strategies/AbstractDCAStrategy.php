@@ -23,6 +23,9 @@ abstract class AbstractDCAStrategy extends Strategy
 	 * Initialize DCA settings from strategy parameters.
 	 */
 	private function initializeDCASettings(): void {
+		/** Use limit orders */
+		$useLimitOrders = ($this->params['UseLimitOrders'] == 'yes'); 
+		
 		/** Long */
 		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;
 		$entryVolume = $this->params['entryVolume'] ?? 40;
@@ -46,6 +49,7 @@ abstract class AbstractDCAStrategy extends Strategy
 		$expectedProfitShort = (float) str_replace('%', '', $expectedProfitShort);
 
 		$this->dcaSettings = new DCASettings(
+			$useLimitOrders,
 			$numberOfLevels,
 			Money::from($entryVolume),
 			$volumeMultiplier,
@@ -74,13 +78,30 @@ abstract class AbstractDCAStrategy extends Strategy
 	public function shouldShort(): bool {
 		return false;
 	}
-	
+
+	/**
+	 * Here, we enter the Long position.
+	 * @param IMarket $market
+	 * @return IPosition|false
+	 */
 	public function handleLong(IMarket $market): IPosition|false {
-		return $market->openLongPosition(Money::from(10.0));
+		if ($this->dcaSettings->isUseLimitOrders()) {
+			$entryPrice = $market->getCurrentPrice();
+			$entryVolume = $this->getEntryVolume();
+			return $market->openLongByLimitOrderMap($entryVolume, $entryPrice, $this->dcaSettings->getOrderMap()[PositionDirectionEnum::LONG->value]);
+		} else {
+			// Market open the long position.
+			return $market->openLongPosition($this->getEntryVolume());
+		}
 	}
 
+	/**
+	 * Here, we enter the Short position.
+	 * @param IMarket $market
+	 * @return IPosition|false
+	 */
 	public function handleShort(IMarket $market): IPosition|false {
-		return false;
+		return $market->openShortPosition($this->getEntryVolume());
 	}
 
 	/**
@@ -92,6 +113,9 @@ abstract class AbstractDCAStrategy extends Strategy
 	 * @return void
 	 */
 	public function updatePosition(IPosition $position): void {
+		// We don’t want to update position if it uses limit orders. There is nothing to update, orders are set up.
+		if ($this->dcaSettings->isUseLimitOrders()) return;
+		
 		// Complete DCA map.
 		$dcaLevels = $this->getDCALevels();
 		
@@ -100,8 +124,8 @@ abstract class AbstractDCAStrategy extends Strategy
 		$dcaLevelsShort = $dcaLevels[PositionDirectionEnum::SHORT->value]; krsort($dcaLevelsShort);
 
 		/**
-		 * 0 — first averaging, i.e: 0 => ['volume' => 100, 'offset' => -5]
-		 * 1 — second averaging, i.e: 1 => ['volume' => 200, 'offset' => -10]
+		 * 0 — initial entry, i.e: 0 => ['volume' => 100, 'offset' => 0]
+		 * 1 — first averaging, i.e: 1 => ['volume' => 200, 'offset' => -5]
 		 * ...
 		 * offset should be negative for Long, positive for Short trades.
 		 */
@@ -117,6 +141,7 @@ abstract class AbstractDCAStrategy extends Strategy
 		foreach ($dcaLevelsLong as $level) {
 			$volume = $level['volume'];
 			$offset = $level['offset'];
+			if (abs($offset) < 0.1) continue;
 			if ($priceChangePercent <= $offset) {
 				// Execute DCA buy order
 				$dcaAmount = new Money($volume, 'USDT');
@@ -129,6 +154,7 @@ abstract class AbstractDCAStrategy extends Strategy
 		foreach ($dcaLevelsShort as $level) {
 			$volume = $level['volume'];
 			$offset = $level['offset'];
+			if (abs($offset) < 0.1) continue;
 			if ($priceChangePercent >= $offset) {
 				// Execute DCA buy order
 				$dcaAmount = new Money($volume, 'USDT');

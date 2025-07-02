@@ -58,9 +58,11 @@ class DCASettings
 	private float $priceDeviationShort;
 	private float $priceDeviationMultiplierShort;
 	private float $expectedProfitShort;
+	private bool $useLimitOrders;
 
 	/**
 	 * Builds a DCASettings instance.
+	 * @param bool $useLimitOrders Use limit orders instead of market.
 	 * @param int $numberOfLevels Number of DCA levels, including position entry.
 	 * @param Money $entryVolume Initial position volume.
 	 * @param float $volumeMultiplier How much should be the next order greater than the previous one.
@@ -69,6 +71,7 @@ class DCASettings
 	 * @param float $expectedProfit Expected profit in percents of the position size.
 	 */
 	public function __construct(
+		bool $useLimitOrders,
 		int $numberOfLevels,
 		Money $entryVolume,
 		float $volumeMultiplier,
@@ -127,6 +130,7 @@ class DCASettings
 		$this->priceDeviationShort = $priceDeviationShort;
 		$this->priceDeviationMultiplierShort = $priceDeviationMultiplierShort;
 		$this->expectedProfitShort = $expectedProfitShort;
+		$this->useLimitOrders = $useLimitOrders;
 	}
 	
 	public function getOrderMap(): array {
@@ -165,5 +169,9 @@ class DCASettings
 
 	public function getExpectedProfit(): float {
 		return $this->expectedProfit;
+	}
+
+	public function isUseLimitOrders(): bool {
+		return $this->useLimitOrders;
 	}
 }

@@ -2,6 +2,7 @@
 
 namespace Izzy\Strategies;
 
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Indicators\RSI;
 use Izzy\Interfaces\IPosition;
@@ -34,19 +35,11 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
+		return true; // DEBUG
 		// Get RSI signal
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
 		
 		// Buy when RSI shows oversold condition
 		return $rsiSignal === 'oversold';
-	}
-
-	/**
-	 * Here, we enter the long position.
-	 * @param IMarket $market
-	 * @return IPosition|false
-	 */
-	public function handleLong(IMarket $market): IPosition|false {
-		return $market->openLongPosition($this->getEntryVolume());
 	}
 }
