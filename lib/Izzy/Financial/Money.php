@@ -61,4 +61,8 @@ class Money
 		$newAmount += $change;
 		return new Money($newAmount, $this->currency);
 	}
+
+	public function getPercentDifference(?Money $otherPrice): float {
+		return (($otherPrice->getAmount() - $this->amount) / $this->amount) * 100;
+	}
 }

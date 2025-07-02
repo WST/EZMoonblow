@@ -266,6 +266,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		
 		// Get current position status.
 		$currentStatus = $this->getStatus();
+		$currentPrice = $exchange->getCurrentPrice($market);
 
 		Logger::getLogger()->debug("Updating stored position info for $market");
 
@@ -273,7 +274,6 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		 * Spot market. Positions are emulated.
 		 */
 		if ($market->getMarketType()->isSpot()) {
-			$currentPrice = $exchange->getCurrentPrice($market);
 			$baseCurrency = $market->getPair()->getBaseCurrency();
 			$currentAmountOfBaseCurrency = $exchange->getSpotBalanceByCurrency($baseCurrency);
 
@@ -281,12 +281,6 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 			if ($currentStatus->isPending()) {
 				$orderIdOnExchange = $this->getEntryOrderIdOnExchange();
 				$orderExists = $this->getMarket()->hasOrder($orderIdOnExchange);
-
-				/*
-				 * If the order does not exist, we need to check the balance of the base currency on the exchange
-				 * to ensure successful execution of the order.
-				 * ^ TODO, for now we just turn the position into open status.
-				 */
 				if (!$orderExists) {
 					$this->setStatus(PositionStatusEnum::OPEN);
 				}
@@ -311,6 +305,16 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 				if (!$market->getExchange()->hasActiveOrder($market, $this->getEntryOrderIdOnExchange())) {
 					Logger::getLogger()->debug("Entry order not found for $market, turning the position OPEN");
 					$this->setStatus(PositionStatusEnum::OPEN);
+				} else {
+					// If the price went away too far, cancel the position entry.
+					$priceDifference = abs($this->getEntryPrice()->getPercentDifference($currentPrice));
+					if ($priceDifference > 0.5) {
+						if($market->removeLimitOrders()) {
+							$this->setStatus(PositionStatusEnum::FINISHED);
+						} else {
+							Logger::getLogger()->error("Failed to cancel limit orders for $market");
+						}
+					}
 				}
 			}
 			
@@ -324,7 +328,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 						Logger::getLogger()->error("Failed to cancel limit orders for $market");
 					}
 				} else {
-					$this->updateInfoFrom($positionOnExchange);
+					$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
 				}
 			}
 		}
@@ -334,11 +338,6 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		
 		// Save the changes.
 		return self::save();
-	}
-
-	private function updateInfoFrom(IPosition $positionOnExchange): void {
-		$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
-		// TODO: calculate average entry price.
 	}
 
 	public function sellAdditional(Money $dcaAmount) {
