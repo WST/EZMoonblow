@@ -10,7 +10,9 @@
     "slim/slim": "4.*",
     "ext-http": "*",
     "ext-raphf": "*",
-    "irazasyed/telegram-bot-sdk": "^3.15"
+    "irazasyed/telegram-bot-sdk": "^3.15",
+    "twig/twig": "^3.0",
+    "slim/psr7": "^1.7"
   },
   "autoload": {
     "psr-4": {"Izzy\\": "lib/Izzy/", "GateApi\\": "SDK/GateApi/"}

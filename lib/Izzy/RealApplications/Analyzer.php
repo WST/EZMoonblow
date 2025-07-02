@@ -219,6 +219,10 @@ class Analyzer extends ConsoleApplication
 		$exchange = $this->configuration->connectExchange($this, $exchangeName);
 		if (!$exchange) return;
 		$market = $exchange->createMarket($pair);
+		
+		// Initialize and calculate indicators before drawing chart
+		$market->initializeConfiguredIndicators();
+		$market->calculateIndicators();
 		$market->drawChart();
 	}
 }

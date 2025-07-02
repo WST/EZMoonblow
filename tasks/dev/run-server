@@ -7,4 +7,4 @@ IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$IZZY_ROOT/web"
 
 # Start PHP’s build-in debug web server.
-php -S 127.0.0.1:9090
+php -S 127.0.0.1:9090 router.php

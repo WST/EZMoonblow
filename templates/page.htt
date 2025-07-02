@@ -1,0 +1,49 @@
+{% extends 'base-page.htt' %}
+
+{% block content %}
+<p>Welcome to your trading bot interface.</p>
+
+<table>
+    <caption>Current Balances</caption>
+    <tr>
+        <th>Exchange</th>
+        <th>Asset</th>
+        <th>Available</th>
+        <th>Locked</th>
+    </tr>
+    <tr>
+        <td>Bybit</td>
+        <td>USDT</td>
+        <td>1500.00</td>
+        <td>200.00</td>
+    </tr>
+    <tr>
+        <td>Binance</td>
+        <td>BTC</td>
+        <td>0.25</td>
+        <td>0.00</td>
+    </tr>
+</table>
+
+<table>
+    <caption>Running Bots</caption>
+    <tr>
+        <th>ID</th>
+        <th>Pair</th>
+        <th>Strategy</th>
+        <th>Status</th>
+    </tr>
+    <tr>
+        <td>#101</td>
+        <td>ETH/USDT</td>
+        <td>Moonblow</td>
+        <td>Running</td>
+    </tr>
+    <tr>
+        <td>#102</td>
+        <td>BTC/USDT</td>
+        <td>DCA-Hedge</td>
+        <td>Paused</td>
+    </tr>
+</table>
+{% endblock %}

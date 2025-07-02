@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>{{ title|default("Trading Bot Control Panel") }}</title>
+    <link rel="stylesheet" href="/static/css/ezmoonblow.css" type="text/css" />
+    {% block extracss %}{% endblock %}
+</head>
+<body>
+{% block body %}
+    <header>
+        <h2>EZMoonblow</h2>
+    </header>
+    <nav>
+        {% for item in menu %}
+            <a href="{{ item.url }}">{{ item.title }}</a>
+        {% endfor %}
+    </nav>
+    <main>
+        {% block content %}
+           
+        {% endblock %}
+    </main>
+    <footer>
+        EZMoonblow © {{ "now"|date("Y") }} Ilya Averkov<br/>
+        <a href="https://github.com/WST/EZMoonblow">Github</a>
+    </footer>
+{% endblock %}
+</body>
+</html>

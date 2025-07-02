@@ -30,3 +30,7 @@ const IZZY_MIGRATIONS =  IZZY_ROOT . '/migrations';
 
 // Charts directory.
 const IZZY_CHARTS = IZZY_ROOT . '/charts';
+
+// Web app templates.
+const IZZY_TEMPLATES = IZZY_ROOT . '/templates';
+const IZZY_CACHE = IZZY_ROOT . '/cache';

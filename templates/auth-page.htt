@@ -1,0 +1,32 @@
+{% extends 'base-page.htt' %}
+
+{% block extracss %}
+    <style>
+        body {
+            margin: 0;
+            font-family: "Verdana", sans-serif;
+            background-color: #f4f4f4;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+    </style>
+{% endblock %}
+
+{% block body %}
+    <div class="login-box">
+        <h1>Access Control</h1>
+
+        {% if error %}
+            <div class="error-message">{{ error }}</div>
+        {% endif %}
+
+        <form method="post" action="/login.jsp">
+            <label for="password">Password:</label>
+            <input type="password" id="password" name="password" required>
+
+            <input type="submit" value="Authorize">
+        </form>
+    </div>
+{% endblock %}
