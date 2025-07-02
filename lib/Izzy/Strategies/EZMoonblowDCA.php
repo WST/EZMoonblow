@@ -2,11 +2,8 @@
 
 namespace Izzy\Strategies;
 
-use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Indicators\RSI;
-use Izzy\Interfaces\IPosition;
-use Izzy\Interfaces\IMarket;
 use Izzy\System\Logger;
 
 class EZMoonblowDCA extends AbstractDCAStrategy
@@ -35,7 +32,6 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
-		return true; // DEBUG
 		// Get RSI signal
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
 		

@@ -115,6 +115,72 @@ class Notifier extends ConsoleApplication
 		}
 	}
 
+	/**
+	 * Load all pairs with indicators from configuration.
+	 * @return array Array of pairs with indicators, each containing exchange, marketType, pair, timeframe
+	 */
+	private function loadPairsWithIndicators(): array {
+		$pairsWithIndicators = [];
+		
+		try {
+			$configPath = IZZY_CONFIG . '/config.xml';
+			if (!file_exists($configPath)) {
+				return [];
+			}
+			
+			$dom = new \DOMDocument();
+			$dom->load($configPath);
+			$xpath = new \DOMXPath($dom);
+			
+			// Find all exchanges
+			$exchangeNodes = $xpath->query('//exchanges/exchange');
+			
+			foreach ($exchangeNodes as $exchangeNode) {
+				$exchangeName = $exchangeNode->getAttribute('name');
+				$enabled = $exchangeNode->getAttribute('enabled');
+				
+				// Skip disabled exchanges
+				if ($enabled !== 'yes') {
+					continue;
+				}
+				
+				// Check spot pairs
+				$spotPairs = $xpath->query('.//spot/pair', $exchangeNode);
+				foreach ($spotPairs as $pairNode) {
+					$indicators = $xpath->query('.//indicators', $pairNode);
+					if ($indicators->length > 0) {
+						$pairsWithIndicators[] = [
+							'exchange' => $exchangeName,
+							'marketType' => 'spot',
+							'pair' => $pairNode->getAttribute('ticker'),
+							'timeframe' => $pairNode->getAttribute('timeframe')
+						];
+					}
+				}
+				
+				// Check futures pairs
+				$futuresPairs = $xpath->query('.//futures/pair', $exchangeNode);
+				foreach ($futuresPairs as $pairNode) {
+					$indicators = $xpath->query('.//indicators', $pairNode);
+					if ($indicators->length > 0) {
+						$pairsWithIndicators[] = [
+							'exchange' => $exchangeName,
+							'marketType' => 'futures',
+							'pair' => $pairNode->getAttribute('ticker'),
+							'timeframe' => $pairNode->getAttribute('timeframe')
+						];
+					}
+				}
+			}
+			
+			return $pairsWithIndicators;
+			
+		} catch (Exception $e) {
+			$this->logger->error('Error loading pairs with indicators: ' . $e->getMessage());
+			return [];
+		}
+	}
+
 	private function loadAvailablePairs(string $exchangeName, string $marketType): array {
 		try {
 			$pairs = [];
@@ -489,6 +555,7 @@ class Notifier extends ConsoleApplication
 		
 		$keyboard = [
 			[['text' => '📊 Candlesticks Chart', 'callback_data' => 'exchanges']],
+			[['text' => '📈 Charts with Indicators', 'callback_data' => 'charts_with_indicators']],
 			[['text' => '💰 Balance Chart', 'callback_data' => 'balance']],
 			[['text' => '❓ Help', 'callback_data' => 'help']]
 		];
@@ -524,6 +591,95 @@ class Notifier extends ConsoleApplication
 		]);
 	}
 	
+	private function handleChartsWithIndicatorsCallback(array $args, int $messageId): void {
+		$pairsWithIndicators = $this->loadPairsWithIndicators();
+		
+		if (empty($pairsWithIndicators)) {
+			$message = "❌ No pairs with indicators found in configuration.";
+			$keyboard = [[['text' => '🔙 Back', 'callback_data' => 'back:main']]];
+		} else {
+			$message = "📈 Select chart with indicators:";
+			
+			$keyboard = [];
+			foreach ($pairsWithIndicators as $pairInfo) {
+				$displayText = sprintf(
+					"%s %s %s %s",
+					$pairInfo['exchange'],
+					$pairInfo['marketType'],
+					$pairInfo['timeframe'],
+					$pairInfo['pair']
+				);
+				
+				$callbackData = sprintf(
+					"quick_chart:%s:%s:%s:%s",
+					$pairInfo['exchange'],
+					$pairInfo['marketType'],
+					$pairInfo['pair'],
+					$pairInfo['timeframe']
+				);
+				
+				$keyboard[] = [['text' => $displayText, 'callback_data' => $callbackData]];
+			}
+			$keyboard[] = [['text' => '🔙 Back', 'callback_data' => 'back:main']];
+		}
+		
+		$this->editMessageWithKeyboard($message, $keyboard, $messageId);
+	}
+
+	private function handleQuickChartCallback(array $args, int $messageId): void {
+		if (count($args) < 4) return;
+		
+		[$exchangeName, $marketType, $pair, $timeframe] = $args;
+		
+		// Update message to show progress.
+		$this->editMessageWithKeyboard(
+			"🔄 Building chart with indicators $pair ($marketType, $timeframe) on $exchangeName...",
+			[],
+			$messageId
+		);
+		
+		try {
+			// Validate parameters.
+			if (!$this->validateChartRequest($exchangeName, $marketType, $pair, $timeframe)) {
+				$this->editMessageWithKeyboard(
+					"❌ Invalid parameters. Try again.",
+					[[['text' => '🔙 Back', 'callback_data' => 'charts_with_indicators']]],
+					$messageId
+				);
+				return;
+			}
+			
+			// Build chart.
+			$chartFilename = $this->buildChart($exchangeName, $marketType, $pair, $timeframe);
+			
+			if ($chartFilename) {
+				$message = "📈 Chart with indicators $pair ($marketType, $timeframe) on $exchangeName";
+				$this->sendTelegramNotification($message, $chartFilename);
+				
+				// Update the message to show success.
+				$this->editMessageWithKeyboard(
+					"✅ Chart with indicators successfully built and sent!",
+					[[['text' => '🔄 New Chart', 'callback_data' => 'charts_with_indicators']]],
+					$messageId
+				);
+			} else {
+				$this->editMessageWithKeyboard(
+					"❌ Error building chart.",
+					[[['text' => '🔙 Back', 'callback_data' => 'charts_with_indicators']]],
+					$messageId
+				);
+			}
+			
+		} catch (Exception $e) {
+			$this->logger->error('Quick chart callback error: ' . $e->getMessage());
+			$this->editMessageWithKeyboard(
+				"❌ An error occurred while building the chart.",
+				[[['text' => '🔙 Back', 'callback_data' => 'charts_with_indicators']]],
+				$messageId
+			);
+		}
+	}
+
 	private function handleExchangesCallback(array $args, int $messageId): void {
 		$message = "🏢 Select Exchange:";
 		
@@ -660,6 +816,12 @@ class Notifier extends ConsoleApplication
 		switch ($action) {
 			case 'exchanges':
 				$this->handleExchangesCallback($args, $messageId);
+				break;
+			case 'charts_with_indicators':
+				$this->handleChartsWithIndicatorsCallback($args, $messageId);
+				break;
+			case 'quick_chart':
+				$this->handleQuickChartCallback($args, $messageId);
 				break;
 			case 'balance':
 				$this->handleBalanceCallback($args, $messageId);

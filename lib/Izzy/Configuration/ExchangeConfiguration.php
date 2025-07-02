@@ -36,6 +36,11 @@ class ExchangeConfiguration
 	}
 	
 	public function connectToExchange(ConsoleApplication $application): IExchangeDriver|false {
+		// Check if exchange is enabled
+		if (!$this->isEnabled()) {
+			return false;
+		}
+		
 		$exchangeName = $this->getName();
 		$className = "\\Izzy\\Exchanges\\$exchangeName\\$exchangeName";
 		if (!class_exists($className)) return false;
@@ -174,10 +179,12 @@ class ExchangeConfiguration
 			return [];
 		}
 		
-		// Find the pair element with matching ticker
+		// Find the pair element with matching ticker and timeframe
 		$pairElement = null;
 		foreach ($marketElement->getElementsByTagName('pair') as $element) {
-			if ($element instanceof DOMElement && $element->getAttribute('ticker') === $market->getTicker()) {
+			if ($element instanceof DOMElement && 
+				$element->getAttribute('ticker') === $market->getTicker() &&
+				$element->getAttribute('timeframe') === $market->getTimeframe()->value) {
 				$pairElement = $element;
 				break;
 			}

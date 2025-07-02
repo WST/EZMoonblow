@@ -70,9 +70,11 @@ class Chart extends Image
 	 */
 	public function draw(): void {
 		$this->drawChartBackground();
+		$this->prepareChartAreaForIndicators(); // NEW: Prepare chart area first
 		$this->drawChartGrid();
 		$this->drawPriceScale();
 		$this->drawCandles();
+		$this->drawIndicators();
 		$this->drawTimeScale();
 		$this->drawTitle();
 		$this->drawWatermark();
@@ -245,5 +247,102 @@ class Chart extends Image
 	public function drawDCAGrid(DCASettings $dcaSettings): void {
 		$chartArea = $this->getChartArea();
 		// TODO
+	}
+	
+	/**
+	 * Prepare chart area for indicators (reduce main chart area if oscillators are present).
+	 * 
+	 * @return void
+	 */
+	private function prepareChartAreaForIndicators(): void {
+		$indicators = $this->market->getIndicators();
+		
+		// Check if we have oscillator indicators
+		$hasOscillators = false;
+		foreach ($indicators as $indicatorName => $indicator) {
+			$visualizer = $this->getVisualizerForIndicator($indicator);
+			if ($visualizer && $visualizer->getVisualizationType() === 'oscillator') {
+				$hasOscillators = true;
+				break;
+			}
+		}
+		
+		// If we have oscillators, reduce main chart area
+		if ($hasOscillators) {
+			$this->adjustChartAreaForOscillators();
+		}
+	}
+	
+	/**
+	 * Draw all indicators for this market.
+	 * 
+	 * @return void
+	 */
+	public function drawIndicators(): void {
+		$indicators = $this->market->getIndicators();
+		
+		// Draw indicators
+		foreach ($indicators as $indicatorName => $indicator) {
+			$result = $this->market->getIndicatorResult($indicatorName);
+			if (!$result) {
+				continue;
+			}
+			
+			$visualizer = $this->getVisualizerForIndicator($indicator);
+			if ($visualizer) {
+				$visualizer->visualize($this, $indicator, $result);
+			}
+		}
+	}
+	
+	/**
+	 * Adjust chart area to make room for oscillators.
+	 * 
+	 * @return void
+	 */
+	private function adjustChartAreaForOscillators(): void {
+		$oscillatorHeightRatio = 0.20; // 20% for oscillators
+		$gapRatio = 0.05; // 5% for gap
+		$mainChartHeightRatio = 1 - $oscillatorHeightRatio - $gapRatio; // 75% for main chart
+		
+		// Reduce main chart height
+		$this->chartArea['height'] = $this->chartArea['height'] * $mainChartHeightRatio;
+	}
+	
+	/**
+	 * Get visualizer for the given indicator.
+	 * 
+	 * @param \Izzy\Interfaces\IIndicator $indicator The indicator.
+	 * @return \Izzy\Chart\IIndicatorVisualizer|null Visualizer instance or null.
+	 */
+	private function getVisualizerForIndicator(\Izzy\Interfaces\IIndicator $indicator): ?\Izzy\Chart\IIndicatorVisualizer {
+		return \Izzy\Chart\IndicatorVisualizerFactory::createVisualizer($indicator);
+	}
+	
+	/**
+	 * Get the market instance.
+	 * 
+	 * @return \Izzy\Financial\Market The market.
+	 */
+	public function getMarket(): \Izzy\Financial\Market {
+		return $this->market;
+	}
+	
+	/**
+	 * Get candle width.
+	 * 
+	 * @return int Candle width in pixels.
+	 */
+	public function getCandleWidth(): int {
+		return $this->candleWidth;
+	}
+	
+	/**
+	 * Get candle spacing.
+	 * 
+	 * @return int Candle spacing in pixels.
+	 */
+	public function getCandleSpacing(): int {
+		return $this->candleSpacing;
 	}
 }

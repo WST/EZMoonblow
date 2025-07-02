@@ -208,6 +208,12 @@ class Market implements IMarket
 	 * @return string filename
 	 */
 	public function drawChart(): string {
+		// Initialize indicators from configuration
+		$this->initializeConfiguredIndicators();
+		
+		// Calculate indicator values
+		$this->calculateIndicators();
+		
 		$filename = $this->pair->getChartFilename();
 		$chart = new Chart($this);
 		$chart->draw();
