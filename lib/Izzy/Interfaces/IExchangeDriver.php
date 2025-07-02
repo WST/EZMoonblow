@@ -108,5 +108,5 @@ interface IExchangeDriver
 
 	public function getCurrentFuturesPosition(IMarket $market): IPosition|false;
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price);
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side);
 }

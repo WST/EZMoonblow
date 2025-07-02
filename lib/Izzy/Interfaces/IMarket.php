@@ -36,7 +36,11 @@ interface IMarket
 
 	public function drawChart();
 
-	public function placeLimitOrder(Money $volume, Money $price);
+	public function placeLimitOrder(Money $volume, Money $price, string $side);
 
-	public function openLongByLimitOrderMap(Money $entryVolume, Money $entryPrice, array $orderMap);
+	public function openLongByLimitOrderMap(array $orderMap);
+
+	public function removeLimitOrders();
+
+	public function getQtyStep();
 }

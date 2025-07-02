@@ -500,21 +500,12 @@ class Market implements IMarket
 
 	/**
 	 * Calculate quantity based on amount and price.
-	 * @param Money $amount Amount.
-	 * @param float|null $price Price per unit.
-	 * @return Money Quantity as string.
+	 * @param Money $amount Amount of the quote currency.
+	 * @param Money $price Price per unit.
+	 * @return Money Quantity of the base currency.
 	 */
-	public function calculateQuantity(Money $amount, ?float $price): Money {
-		$pair = $this->getPair();
-		if ($price) {
-			// Limit orders.
-			$quantity = $amount->getAmount() / $price;
-		} else {
-			// For market orders, use a rough estimate.
-			$currentPrice = $this->getCurrentPrice()->getAmount();
-			$quantity = $currentPrice ? ($amount->getAmount() / $currentPrice) : 0.001;
-		}
-		return Money::from($quantity, $pair->getBaseCurrency());
+	public function calculateQuantity(Money $amount, Money $price): Money {
+		return Money::from($amount->getAmount() / $price->getAmount());
 	}
 
 	/**
@@ -623,17 +614,20 @@ class Market implements IMarket
 	 * @param Money $price
 	 * @return string|false
 	 */
-	public function placeLimitOrder(Money $volume, Money $price): string|false {
-		return $this->exchange->placeLimitOrder($this, $volume, $price);
+	public function placeLimitOrder(Money $volume, Money $price, string $side): string|false {
+		return $this->exchange->placeLimitOrder($this, $volume, $price, $side);
 	}
 
-	public function openLongByLimitOrderMap(Money $entryVolume, Money $entryPrice, array $orderMap): IPosition {
-		unset($orderMap[0]); // 0 is entry level. 
-		$startingOrderId = $this->placeLimitOrder($entryVolume, $entryPrice);
+	public function openLongByLimitOrderMap(array $orderMap): IPosition {
+		$entryLevel = array_shift($orderMap);
+		$entryPrice = $this->getCurrentPrice();
+		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Buy');
+		 
 		foreach ($orderMap as $level) {
-			$orderVolume = Money::from($level['volume']);
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
-			$this->placeLimitOrder($orderVolume, $orderPrice);
+			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
+			$this->placeLimitOrder($orderVolume, $orderPrice, 'Buy');
 		}
 		
 		$position = Position::create(
@@ -643,9 +637,42 @@ class Market implements IMarket
 			$entryPrice,
 			$entryPrice,
 			PositionStatusEnum::PENDING,
-			$startingOrderId
+			$orderIdOnExchange
 		);
 		$position->save();
 		return $position;
+	}
+
+	public function openShortByLimitOrderMap(array $orderMap): IPosition { 
+		$entryLevel = array_shift($orderMap);
+		$entryPrice = $this->getCurrentPrice();
+		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Sell');
+		
+		foreach ($orderMap as $level) {
+			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
+			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
+			$this->placeLimitOrder($orderVolume, $orderPrice, 'Sell');
+		}
+
+		$position = Position::create(
+			$this,
+			$entryVolume,
+			PositionDirectionEnum::SHORT,
+			$entryPrice,
+			$entryPrice,
+			PositionStatusEnum::PENDING,
+			$orderIdOnExchange
+		);
+		$position->save();
+		return $position;
+	}
+
+	public function removeLimitOrders() {
+		// TODO: Implement removeLimitOrders() method.
+	}
+
+	public function getQtyStep() {
+		// TODO: Implement getQtyStep() method.
 	}
 }

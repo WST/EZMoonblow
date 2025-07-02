@@ -38,8 +38,12 @@ class Money
 		$this->amount = $amount;
 	}
 
-	public function formatForOrder(): string {
-		return $this->format('%.4f', false);
+	public function formatForOrder(string $qtyStep = '0.01'): string {
+		$precision = str_contains($qtyStep, '.')
+			? strlen(rtrim(substr($qtyStep, strpos($qtyStep, '.') + 1), '0')) : 0;
+		$multiplier = pow(10, $precision);
+		$value = floor($this->amount * $multiplier) / $multiplier;
+		return number_format($value, $precision, '.', '');
 	}
 
 	public function isLessThan(Money $otherAmount): bool {

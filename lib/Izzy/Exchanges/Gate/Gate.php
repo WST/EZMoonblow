@@ -329,7 +329,7 @@ class Gate extends AbstractExchangeDriver
 		return false;
 	}
 
-	public function placeLimitOrder(IMarket $param, Money $amount, Money $price) {
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side): string {
 		// TODO: Implement placeLimitOrder() method.
 	}
 }

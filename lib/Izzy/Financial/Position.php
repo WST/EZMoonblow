@@ -309,6 +309,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 			$positionOnExchange = $market->getExchange()->getCurrentFuturesPosition($market);
 			if (!$positionOnExchange) {
 				$this->setStatus(PositionStatusEnum::FINISHED);
+				$market->removeLimitOrders();
 			} else {
 				$this->updateInfoFrom($positionOnExchange);
 			}
@@ -322,7 +323,9 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	}
 
 	private function updateInfoFrom(IPosition $positionOnExchange): void {
-		// TODO
+		$this->setStatus($positionOnExchange->getStatus());
+		$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
+		// TODO: calculate average entry price.
 	}
 
 	public function sellAdditional(Money $dcaAmount) {

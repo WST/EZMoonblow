@@ -39,6 +39,8 @@ class Bybit extends AbstractExchangeDriver
 	 * @var IMarket[] 
 	 */
 	protected array $markets = [];
+	
+	protected array $qtySteps = [];
 
 	/**
 	 * Connect to the Bybit exchange using API credentials.
@@ -465,18 +467,18 @@ class Bybit extends AbstractExchangeDriver
 		return false;
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price): string|false {
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side): string|false {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
 				'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
 				'symbol' => $pair->getExchangeTicker($this),
-				'side' => 'Buy',
+				'side' => $side,
 				'orderType' => 'Limit',
-				'qty' => $amount->formatForOrder(), // qty is provided in USDT
-				'price' => $price->formatForOrder(),
-				'positionIdx' => 1, // Two-way Buy
+				'qty' => $amount->formatForOrder($this->getQtyStep($market)),
+				'price' => $price->formatForOrder('0.0001'),
+				'positionIdx' => ($side == 'Buy') ? 1 : 2,
 			];
 
 			// Make an API call.
@@ -492,5 +494,23 @@ class Bybit extends AbstractExchangeDriver
 			$this->logger->error("Failed to place a limit order on $market: " . $e->getMessage());
 			return false;
 		}
+	}
+	
+	public function getQtyStep(IMarket $market): string {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		
+		// We already have it cached.
+		if (isset($this->qtySteps[$ticker])) return $this->qtySteps[$ticker];
+		
+		$params = [
+			'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
+			'symbol' => $pair->getExchangeTicker($this),
+			
+		];
+		$response = $this->api->marketApi()->getInstrumentsInfo($params);
+		$qtyStep = $response['list'][0]['lotSizeFilter']['qtyStep'] ?? '0.01';
+		$this->qtySteps[$ticker] = $qtyStep;
+		return $qtyStep;
 	}
 }
