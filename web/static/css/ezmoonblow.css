@@ -9,11 +9,13 @@ header {
     background-color: #003366;
     color: white;
     padding: 10px 20px;
+    text-align: center;
 }
 
 nav {
     background-color: #005599;
     padding: 8px 20px;
+    text-align: center;
 }
 
 nav a {
@@ -29,6 +31,7 @@ nav a:hover {
 
 main {
     padding: 20px;
+    text-align: center;
 }
 
 h1 {
@@ -134,3 +137,200 @@ footer {
     margin-bottom: 15px;
     text-align: center;
 }
+
+/* Traded Pairs Page Styles */
+.traded-pairs {
+    text-align: left;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.traded-pairs h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.no-pairs {
+    text-align: center;
+    padding: 40px;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pair-card {
+    background-color: white;
+    border: 1px solid #ddd;
+    margin-bottom: 30px;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.pair-header {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #eee;
+}
+
+.pair-header h2 {
+    margin: 0;
+    color: #003366;
+    font-size: 20px;
+}
+
+.timeframe, .market-type {
+    background-color: #e8f4fd;
+    color: #005599;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.chart-and-strategy {
+    display: flex;
+    gap: 30px;
+    margin-bottom: 20px;
+    align-items: flex-start;
+}
+
+.pair-chart {
+    flex: 0 0 auto;
+    margin-right: 30px;
+}
+
+.pair-chart img {
+    width: auto;
+    height: auto;
+    border: 1px solid #ddd;
+}
+
+.strategy-info {
+    flex: 1;
+    margin-bottom: 0;
+}
+
+.strategy-info h3 {
+    margin: 0 0 15px 0;
+    color: #333;
+    font-size: 16px;
+}
+
+.strategy-params-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    background-color: white;
+}
+
+.strategy-params-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+    font-size: 13px;
+}
+
+.strategy-params-table .param-name {
+    background-color: #e8f4fd;
+    color: #003366;
+    font-weight: bold;
+    width: 40%;
+}
+
+.strategy-params-table .param-value {
+    background-color: #f9f9f9;
+    color: #333;
+    width: 60%;
+}
+
+.strategy-params-table tr:nth-child(even) .param-value {
+    background-color: #f9f9f9;
+}
+
+.strategy-params-table tr:hover .param-value {
+    background-color: #eef6ff;
+}
+
+.dca-info {
+    margin-bottom: 20px;
+    padding: 15px;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+}
+
+.dca-tables-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 15px;
+}
+
+.dca-tables-container .dca-section {
+    flex: 1;
+    min-width: 0; /* Позволяет flex-элементам сжиматься */
+}
+
+.dca-info h3 {
+    margin: 0 0 15px 0;
+    color: #003366;
+    font-size: 16px;
+}
+
+.dca-section {
+    margin-bottom: 20px;
+}
+
+.dca-section h4 {
+    margin: 0 0 10px 0;
+    color: #555;
+    font-size: 14px;
+}
+
+.dca-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    background-color: white;
+}
+
+.dca-table th,
+.dca-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.dca-table th {
+    background-color: #e8f4fd;
+    color: #003366;
+    font-weight: bold;
+}
+
+.dca-table tr:nth-child(even) td {
+    background-color: #f9f9f9;
+}
+
+.total-volume {
+    margin: 10px 0 0 0;
+    font-weight: bold;
+    color: #003366;
+    font-size: 14px;
+}
+
+.dca-settings {
+    margin-top: 15px;
+    padding-top: 15px;
+    border-top: 1px solid #ddd;
+}
+
+.dca-settings p {
+    margin: 0;
+    color: #666;
+    font-size: 13px;
+}
+
+

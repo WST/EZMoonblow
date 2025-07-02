@@ -31,7 +31,7 @@ class StrategyFactory
 	 * @return IStrategy Strategy instance.
 	 * @throws InvalidArgumentException If strategy name is unknown.
 	 */
-	public static function create(string $strategyName, IMarket $market, array $params = []): IStrategy {
+	public static function create(IMarket $market, string $strategyName, array $params = []): IStrategy {
 		if (!isset(self::$strategies[$strategyName])) {
 			throw new InvalidArgumentException("Unknown strategy: $strategyName");
 		}

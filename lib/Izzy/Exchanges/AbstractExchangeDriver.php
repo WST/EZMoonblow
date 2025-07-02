@@ -2,7 +2,7 @@
 
 namespace Izzy\Exchanges;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
@@ -49,9 +49,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Constructor for the exchange driver.
 	 * 
 	 * @param ExchangeConfiguration $config Exchange configuration settings.
-	 * @param ConsoleApplication $application Console application instance.
+	 * @param IzzyApplication $application Application instance.
 	 */
-	public function __construct(ExchangeConfiguration $config, ConsoleApplication $application) {
+	public function __construct(ExchangeConfiguration $config, IzzyApplication $application) {
 		$this->config = $config;
 		$this->logger = Logger::getLogger();
 		$this->database = $application->getDatabase();

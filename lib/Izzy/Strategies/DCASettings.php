@@ -91,27 +91,25 @@ class DCASettings
 		
 		// First, build the order map for Long trades.
 		$volume = $entryVolume->getAmount();
-		$offset = 0;
-		$prevDeviation = $priceDeviation;
+		$totalOffset = 0;
+		$currentDeviation = $priceDeviation;
 		for ($level = 0; $level < $numberOfLevels; $level++) {
-			$this->orderMap[PositionDirectionEnum::LONG->value][$level] = ['volume' =>  $volume, 'offset' => - $offset];
+			$this->orderMap[PositionDirectionEnum::LONG->value][$level] = ['volume' =>  $volume, 'offset' => - $totalOffset];
 			$volume *= $volumeMultiplier;
-			$offset = $priceDeviation;
-			$priceDeviation = $priceDeviationMultiplier * $prevDeviation;
-			$prevDeviation = $priceDeviation;
+			$totalOffset += $currentDeviation;
+			$currentDeviation = $priceDeviationMultiplier * $currentDeviation;
 		}
 
 		// Then, build the order map for Short trades.
 		if ($entryVolumeShort) {
 			$volume = $entryVolumeShort->getAmount();
-			$offset = 0;
-			$prevDeviationShort = $priceDeviationShort;
-			for ($level = 0; $level < $numberOfLevels; $level++) {
-				$this->orderMap[PositionDirectionEnum::SHORT->value][$level] = ['volume' => $volume, 'offset' => $offset];
+			$totalOffset = 0;
+			$currentDeviation = $priceDeviationShort;
+			for ($level = 0; $level < $numberOfLevelsShort; $level++) {
+				$this->orderMap[PositionDirectionEnum::SHORT->value][$level] = ['volume' => $volume, 'offset' => $totalOffset];
 				$volume *= $volumeMultiplierShort;
-				$offset = $priceDeviationShort;
-				$priceDeviationShort = $priceDeviationMultiplierShort * $prevDeviationShort;
-				$prevDeviationShort = $priceDeviationShort;
+				$totalOffset += $currentDeviation;
+				$currentDeviation = $priceDeviationMultiplierShort * $currentDeviation;
 			}
 		}
 		
@@ -138,13 +136,35 @@ class DCASettings
 	}
 	
 	public function getMaxTotalPositionVolume(): Money {
-		return Money::from(
-			array_reduce(
-				$this->orderMap,
-				function ($carry, $item) { return $carry + $item['volume']; },
-				0.0
-			)
-		);
+		$totalVolume = 0.0;
+		
+		// Суммируем объемы для long позиций
+		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
+			$totalVolume += $level['volume'];
+		}
+		
+		// Суммируем объемы для short позиций
+		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {
+			$totalVolume += $level['volume'];
+		}
+		
+		return Money::from($totalVolume);
+	}
+	
+	public function getMaxLongPositionVolume(): Money {
+		$totalVolume = 0.0;
+		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
+			$totalVolume += $level['volume'];
+		}
+		return Money::from($totalVolume);
+	}
+	
+	public function getMaxShortPositionVolume(): Money {
+		$totalVolume = 0.0;
+		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {
+			$totalVolume += $level['volume'];
+		}
+		return Money::from($totalVolume);
 	}
 
 	public function getNumberOfLevels(): int {

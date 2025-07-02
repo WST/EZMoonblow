@@ -1,0 +1,113 @@
+{% extends 'base-page.htt' %}
+
+{% block content %}
+<div class="traded-pairs">
+    <h1>Торговые пары</h1>
+    
+    {% if tradedPairs is empty %}
+    <div class="no-pairs">
+        <p>Нет активных торговых пар. Проверьте конфигурацию.</p>
+    </div>
+    {% else %}
+        {% for pair in tradedPairs %}
+        <div class="pair-card">
+            <div class="pair-header">
+                <h2>{{ pair.exchange }} - {{ pair.ticker }}</h2>
+                <span class="timeframe">{{ pair.timeframe }}</span>
+                <span class="market-type">{{ pair.marketType }}</span>
+            </div>
+            
+            <!-- График и параметры стратегии -->
+            <div class="chart-and-strategy">
+                <!-- График пары -->
+                <div class="pair-chart">
+                    <img src="/chart/{{ pair.exchange }}/{{ pair.ticker }}/{{ pair.timeframe }}" 
+                         alt="График {{ pair.ticker }}" />
+                </div>
+                
+                <div class="strategy-info">
+                    <table class="strategy-params-table">
+                        <caption>Стратегия: {{ pair.strategyName }}</caption>
+                        <tbody>
+                            {% for key, value in pair.strategyParams %}
+                            <tr>
+                                <td class="param-name">{{ key }}</td>
+                                <td class="param-value">{{ value }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            {% if pair.dcaInfo %}
+            <div class="dca-info">
+                <h3>DCA-сетка</h3>
+                
+                <div class="dca-tables-container">
+                    <!-- Long позиции -->
+                    {% if pair.dcaInfo.orderMap.LONG is defined and pair.dcaInfo.orderMap.LONG %}
+                    <div class="dca-section">
+                        <h4>Long позиции</h4>
+                        <table class="dca-table">
+                            <thead>
+                                <tr>
+                                    <th>Уровень</th>
+                                    <th>Объём (USDT)</th>
+                                    <th>Отклонение цены (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for level, order in pair.dcaInfo.orderMap.LONG %}
+                                <tr>
+                                    <td>{{ level }}</td>
+                                    <td>{{ order.volume }}</td>
+                                    <td>{{ order.offset }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-volume">
+                            Максимальный объём: {{ pair.dcaInfo.maxLongVolume.amount }} USDT
+                        </p>
+                    </div>
+                    {% endif %}
+                    
+                    {% if pair.dcaInfo.orderMap.SHORT is defined and pair.dcaInfo.orderMap.SHORT %}
+                    <div class="dca-section">
+                        <h4>Short позиции</h4>
+                        <table class="dca-table">
+                            <thead>
+                                <tr>
+                                    <th>Уровень</th>
+                                    <th>Объём (USDT)</th>
+                                    <th>Отклонение цены (%)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for level, order in pair.dcaInfo.orderMap.SHORT %}
+                                <tr>
+                                    <td>{{ level }}</td>
+                                    <td>{{ order.volume }}</td>
+                                    <td>{{ order.offset }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        <p class="total-volume">
+                            Максимальный объём: {{ pair.dcaInfo.maxShortVolume.amount }} USDT
+                        </p>
+                    </div>
+                    {% endif %}
+                </div>
+                
+                <div class="dca-settings">
+                    <p>Тип ордеров: {{ pair.dcaInfo.useLimitOrders ? 'Лимитные' : 'Рыночные' }}</p>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% endfor %}
+    {% endif %}
+</div>
+{% endblock %} 

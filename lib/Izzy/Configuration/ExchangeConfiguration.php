@@ -4,7 +4,7 @@ namespace Izzy\Configuration;
 
 use DOMElement;
 use InvalidArgumentException;
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Pair;
@@ -35,7 +35,7 @@ class ExchangeConfiguration
 		return $this->exchangeElement->getAttribute('name');
 	}
 	
-	public function connectToExchange(ConsoleApplication $application): IExchangeDriver|false {
+	public function connectToExchange(IzzyApplication $application): IExchangeDriver|false {
 		// Check if exchange is enabled
 		if (!$this->isEnabled()) {
 			return false;

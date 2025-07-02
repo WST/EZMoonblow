@@ -4,7 +4,7 @@ namespace Izzy\Configuration;
 
 use DOMDocument;
 use DOMXPath;
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\System\Database\Database;
 
@@ -27,7 +27,7 @@ class Configuration
 	 * Создать драйверы бирж.
 	 * @return IExchangeDriver[]
 	 */
-	public function connectExchanges(ConsoleApplication $application): array {
+	public function connectExchanges(IzzyApplication $application): array {
 		$exchanges = $this->xpath->query('//exchanges/exchange');
 		$result = [];
 		foreach ($exchanges as $exchangeConfigurationNode) {
@@ -81,7 +81,7 @@ class Configuration
 		return new Database($host, $dbname, $username, $password);
 	}
 
-	public function connectExchange(ConsoleApplication $application, string $exchangeName): IExchangeDriver|false {
+	public function connectExchange(IzzyApplication $application, string $exchangeName): IExchangeDriver|false {
 		$exchanges = $this->xpath->query('//exchanges/exchange');
 		foreach ($exchanges as $exchangeConfigurationNode) {
 			$configExchangeName = $exchangeConfigurationNode->getAttribute('name');

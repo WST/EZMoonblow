@@ -411,7 +411,7 @@ class Market implements IMarket
 
 		try {
 			$strategyParams = $pair->getStrategyParams();
-			$strategy = StrategyFactory::create($strategyName, $this, $strategyParams);
+			$strategy = StrategyFactory::create($this, $strategyName, $strategyParams);
 			$this->strategy = $strategy;
 			$this->exchange->getLogger()->info("Set strategy $strategyName for market $this");
 		} catch (Exception $e) {
