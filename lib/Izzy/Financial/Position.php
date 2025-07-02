@@ -306,7 +306,11 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 					Logger::getLogger()->debug("Entry order not found for $market, turning the position OPEN");
 					$this->setStatus(PositionStatusEnum::OPEN);
 				} else {
-					// If the price went away too far, cancel the position entry.
+					/**
+					 * If the price went away too far, cancel the position entry.
+					 * NOTE: there is a possibility of the price changing so quick that the DCA order gets executed
+					 * instead of the entry order. We don’t handle such case, but it should be fixed some day.
+					 */
 					$priceDifference = abs($this->getEntryPrice()->getPercentDifference($currentPrice));
 					if ($priceDifference > 0.5) {
 						if($market->removeLimitOrders()) {
