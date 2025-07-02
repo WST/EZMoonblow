@@ -348,4 +348,8 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	public function sellAdditional(Money $dcaAmount) {
 		// TODO: Implement sellAdditional() method.
 	}
+
+	private function setFinishedAt(int $time): void {
+		$this->row[self::FFinishedAt] = $time;
+	}
 }
