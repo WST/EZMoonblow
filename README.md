@@ -106,50 +106,13 @@ Use `/menu` for the most convenient experience:
    - Select timeframe
    - Get instant chart
 
-2. **🏢 Exchange List** - View available exchanges
-3. **📋 Pairs List** - Browse trading pairs
-4. **❓ Help** - Get assistance
+2. **❓ Help** - Get assistance
 
 #### Basic Commands
 
-- `/start` - Welcome message
-- `/help` - Detailed command reference
-- `/menu` - Interactive menu with buttons
-- `/exchanges` - List available exchanges
-- `/pairs <exchange> <type>` - Show trading pairs
-  - Example: `/pairs Bybit spot`
-- `/chart <exchange> <type> <pair> <timeframe>` - Build chart
-  - Example: `/chart Bybit spot BTC/USDT 15m`
-
-#### Usage Example
-
-```
-User: /menu
-Bot: 🎛️ Main Menu
-     [📊 Build Chart] [🏢 Exchange List]
-     [📋 Pairs List] [❓ Help]
-
-User: [clicks "📊 Build Chart"]
-Bot: 🏢 Select Exchange:
-     [Bybit] [Gate] [KuCoin] [🔙 Back]
-
-User: [clicks "Bybit"]
-Bot: 📈 Select Market Type for Bybit:
-     [💱 Spot] [📈 Futures] [🔙 Back]
-
-User: [clicks "💱 Spot"]
-Bot: 📊 Select Trading Pair (Bybit, spot):
-     [BTC/USDT] [ETH/USDT] [SOL/USDT] [🔙 Back]
-
-User: [clicks "BTC/USDT"]
-Bot: ⏰ Select Timeframe for BTC/USDT:
-     [1 minute] [5 minutes] [15 minutes] [30 minutes]
-     [1 hour] [4 hours] [1 day] [🔙 Back]
-
-User: [clicks "15 minutes"]
-Bot: ✅ Chart successfully built and sent!
-     [🔄 New Chart]
-```
+- `/start` — Welcome message
+- `/help` — Detailed command reference
+- `/menu` — Interactive menu with buttons
 
 ### Test system
 * `./tasks/dev/run-tests` performs quick system check-up.
