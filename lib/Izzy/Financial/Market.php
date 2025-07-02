@@ -381,6 +381,7 @@ class Market implements IMarket
 			Position::FExchangeName =>  $this->getExchangeName(),
 			Position::FTicker => $this->getTicker(),
 			Position::FMarketType => $this->getMarketType()->value,
+			Position::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 		];
 		return $this->database->selectOneObject(Position::class, $where, $this);
 	}

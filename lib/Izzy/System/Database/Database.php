@@ -101,8 +101,9 @@ class Database
 	 * Build WHERE clause and parameters from string or array condition.
 	 * This method handles both simple string conditions and array-based conditions
 	 * where array keys represent field names and values represent field values.
+	 * Supports both single values (using =) and arrays (using IN).
 	 * 
-	 * @param string|array $where Condition as string (e.g., "id = :id") or array (e.g., ["id" => 1, "status" => "active"])
+	 * @param string|array $where Condition as string (e.g., "id = :id") or array (e.g., ["id" => 1, "status" => "active", "type" => ["A", "B"]])
 	 * @return array{0: string, 1: array} Returns tuple of [whereClause, parameters]
 	 */
 	private function buildWhereClause(string|array $where): array {
@@ -121,8 +122,26 @@ class Database
 		
 		// Build conditions for each field-value pair in the array
 		foreach ($where as $field => $value) {
-			$conditions[] = "`$field` = :$field";
-			$parameters[$field] = $value;
+			if (is_array($value)) {
+				// Handle array values using IN operator
+				if (empty($value)) {
+					// Empty array means no matches
+					$conditions[] = "1 = 0";
+				} else {
+					// Create placeholders for each array element
+					$placeholders = [];
+					foreach ($value as $index => $item) {
+						$paramName = $field . '_' . $index;
+						$placeholders[] = ":$paramName";
+						$parameters[$paramName] = $item;
+					}
+					$conditions[] = "`$field` IN (" . implode(', ', $placeholders) . ")";
+				}
+			} else {
+				// Handle single values using = operator
+				$conditions[] = "`$field` = :$field";
+				$parameters[$field] = $value;
+			}
 		}
 		
 		// Join all conditions with AND operator
