@@ -384,7 +384,11 @@ class KuCoin extends AbstractExchangeDriver
 		return false;
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side): string {
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string {
 		// TODO: Implement placeLimitOrder() method.
+	}
+
+	public function removeLimitOrders(IMarket $market): bool {
+		// TODO: Implement removeLimitOrders() method.
 	}
 }

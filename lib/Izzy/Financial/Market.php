@@ -354,24 +354,14 @@ class Market implements IMarket
 		return $this->getDescription();
 	}
 
-	public function openLongPosition(Money $volume): IPosition|false {
-		$success = $this->exchange->openLong($this, $volume);
+	public function openLongPosition(Money $volume, float $takeProfitPercent): IPosition|false {
+		$success = $this->exchange->openLong($this, $volume, $takeProfitPercent);
 		return $this->getCurrentPosition();
 	}
 
-	public function openShortPosition(Money $volume): IPosition|false {
-		$success = $this->exchange->openShort($this, $volume);
+	public function openShortPosition(Money $volume, float $takeProfitPercent): IPosition|false {
+		$success = $this->exchange->openShort($this, $volume, $takeProfitPercent);
 		return $this->getCurrentPosition();
-	}
-
-	/**
-	 * Check if this Market has an active position.
-	 * By “active” we mean open or pending.
-	 * @return bool
-	 */
-	public function hasActivePosition(): bool {
-		$currentPosition = $this->getCurrentPosition();
-		return $currentPosition && $currentPosition->isActive();
 	}
 	
 	public function getExchangeName(): string {
@@ -435,7 +425,7 @@ class Market implements IMarket
 
 		// Do we already have an open position?
 		$currentPosition = $this->getCurrentPosition();
-		if ($currentPosition && $currentPosition->isActive()) {
+		if ($currentPosition) {
 			// If position is open, update it (check for DCA, etc.)
 			$this->updatePosition($currentPosition);
 		} else {
@@ -612,17 +602,19 @@ class Market implements IMarket
 	 *
 	 * @param Money $volume Volume in USDT (quote currency).
 	 * @param Money $price
+	 * @param string $side
+	 * @param float|null $takeProfitPercent
 	 * @return string|false
 	 */
-	public function placeLimitOrder(Money $volume, Money $price, string $side): string|false {
-		return $this->exchange->placeLimitOrder($this, $volume, $price, $side);
+	public function placeLimitOrder(Money $volume, Money $price, string $side, ?float $takeProfitPercent = null): string|false {
+		return $this->exchange->placeLimitOrder($this, $volume, $price, $side, $takeProfitPercent);
 	}
 
-	public function openLongByLimitOrderMap(array $orderMap): IPosition {
+	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent): IPosition {
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Buy');
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Buy', $takeProfitPercent);
 		 
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
@@ -643,11 +635,11 @@ class Market implements IMarket
 		return $position;
 	}
 
-	public function openShortByLimitOrderMap(array $orderMap): IPosition { 
+	public function openShortByLimitOrderMap(array $orderMap, float $takeProfitPercent): IPosition { 
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Sell');
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Sell', $takeProfitPercent);
 		
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
@@ -668,11 +660,7 @@ class Market implements IMarket
 		return $position;
 	}
 
-	public function removeLimitOrders() {
-		// TODO: Implement removeLimitOrders() method.
-	}
-
-	public function getQtyStep() {
-		// TODO: Implement getQtyStep() method.
+	public function removeLimitOrders(): bool {
+		return $this->exchange->removeLimitOrders($this);
 	}
 }

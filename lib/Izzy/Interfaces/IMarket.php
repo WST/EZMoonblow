@@ -26,9 +26,9 @@ interface IMarket
 
 	public function updateChart();
 
-	public function openLongPosition(Money $volume): IPosition|false;
+	public function openLongPosition(Money $volume, float $takeProfitPercent): IPosition|false;
 
-	public function openShortPosition(Money $volume): IPosition|false;
+	public function openShortPosition(Money $volume, float $takeProfitPercent): IPosition|false;
 
 	public function getDatabase(): Database;
 
@@ -38,9 +38,9 @@ interface IMarket
 
 	public function placeLimitOrder(Money $volume, Money $price, string $side);
 
-	public function openLongByLimitOrderMap(array $orderMap);
+	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent);
+
+	public function openShortByLimitOrderMap(array $orderMap, float $takeProfitPercent);
 
 	public function removeLimitOrders();
-
-	public function getQtyStep();
 }

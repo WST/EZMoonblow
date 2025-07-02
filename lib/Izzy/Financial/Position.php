@@ -263,6 +263,9 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	public function updateInfo(): bool {
 		$market = $this->getMarket();
 		$exchange = $market->getExchange();
+		
+		// Get current position status.
+		$currentStatus = $this->getStatus();
 
 		Logger::getLogger()->debug("Updating stored position info for $market");
 
@@ -273,9 +276,6 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 			$currentPrice = $exchange->getCurrentPrice($market);
 			$baseCurrency = $market->getPair()->getBaseCurrency();
 			$currentAmountOfBaseCurrency = $exchange->getSpotBalanceByCurrency($baseCurrency);
-
-			// Get current position status.
-			$currentStatus = $this->getStatus();
 
 			// If the status is pending, check the presence of a “buy” limit order on the exchange.
 			if ($currentStatus->isPending()) {
@@ -306,12 +306,26 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		 * Futures. Positions are real.
 		 */
 		if ($market->getMarketType()->isFutures()) {
-			$positionOnExchange = $market->getExchange()->getCurrentFuturesPosition($market);
-			if (!$positionOnExchange) {
-				$this->setStatus(PositionStatusEnum::FINISHED);
-				$market->removeLimitOrders();
-			} else {
-				$this->updateInfoFrom($positionOnExchange);
+			if ($currentStatus->isPending()) {
+				// To turn Pending into Open, we need to ensure that the entry order was executed.
+				if (!$market->getExchange()->hasActiveOrder($market, $this->getEntryOrderIdOnExchange())) {
+					Logger::getLogger()->debug("Entry order not found for $market, turning the position OPEN");
+					$this->setStatus(PositionStatusEnum::OPEN);
+				}
+			}
+			
+			if ($currentStatus->isOpen()) {
+				// To turn Open into Finished, we need to ensure that the position on the Exchange is finished.
+				$positionOnExchange = $market->getExchange()->getCurrentFuturesPosition($market);
+				if (!$positionOnExchange) {
+					if($market->removeLimitOrders()) {
+						$this->setStatus(PositionStatusEnum::FINISHED);
+					} else {
+						Logger::getLogger()->error("Failed to cancel limit orders for $market");
+					}
+				} else {
+					$this->updateInfoFrom($positionOnExchange);
+				}
 			}
 		}
 
@@ -323,7 +337,6 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	}
 
 	private function updateInfoFrom(IPosition $positionOnExchange): void {
-		$this->setStatus($positionOnExchange->getStatus());
 		$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
 		// TODO: calculate average entry price.
 	}

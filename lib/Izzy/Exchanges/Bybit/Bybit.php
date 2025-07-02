@@ -4,7 +4,6 @@ namespace Izzy\Exchanges\Bybit;
 
 use ByBit\SDK\ByBitApi;
 use ByBit\SDK\Enums\AccountType;
-use ByBit\SDK\Enums\OrderStatus;
 use ByBit\SDK\Exceptions\HttpException;
 use Exception;
 use InvalidArgumentException;
@@ -41,6 +40,8 @@ class Bybit extends AbstractExchangeDriver
 	protected array $markets = [];
 	
 	protected array $qtySteps = [];
+
+	protected array $tickSizes = [];
 
 	/**
 	 * Connect to the Bybit exchange using API credentials.
@@ -236,21 +237,20 @@ class Bybit extends AbstractExchangeDriver
 	 *
 	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
+	 * @param float $takeProfitPercent
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IMarket $market, Money $amount): bool {
+	public function openLong(IMarket $market, Money $amount, float $takeProfitPercent): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => 'spot',
+				'category' => $this->getBybitCategory($pair),
 				'symbol' => $pair->getExchangeTicker($this),
 				'side' => 'Buy',
 				'orderType' => 'Market',
 				'qty' => $amount->formatForOrder(), // qty is provided in USDT
 			];
-			
-			var_dump($params); return false;
 
 			// Make an API call.
 			$response = $this->api->tradeApi()->placeOrder($params);
@@ -293,7 +293,7 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
+	public function openShort(IMarket $market, Money $amount, float $takeProfitPercent): bool {
 		// TODO
 		return false;
 	}
@@ -306,7 +306,7 @@ class Bybit extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
+				'category' => $this->getBybitCategory($pair),
 				'symbol' => $ticker,
 				'side' => 'Buy',
 				'orderType' => 'Market',
@@ -346,8 +346,9 @@ class Bybit extends AbstractExchangeDriver
 	}
 	
 	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false {
+		$pair = $market->getPair();
 		$params = [
-			'category' => 'spot',
+			'category' => $this->getBybitCategory($pair),
 			'symbol' => $market->getPair()->getExchangeTicker($this),
 			'orderId' => $orderIdOnExchange,
 		];
@@ -417,7 +418,7 @@ class Bybit extends AbstractExchangeDriver
 		}
 		
 		$params = [
-			'category' => 'linear',
+			'category' => $this->getBybitCategory($pair),
 			'symbol' => $pair->getExchangeTicker($this),
 		];
 		
@@ -467,19 +468,31 @@ class Bybit extends AbstractExchangeDriver
 		return false;
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side): string|false {
+	public function placeLimitOrder(
+		IMarket $market,
+		Money $amount,
+		Money $price,
+		string $side,
+		?float $takeProfitPercent = null
+	): string|false {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
+				'category' => $this->getBybitCategory($pair),
 				'symbol' => $pair->getExchangeTicker($this),
 				'side' => $side,
 				'orderType' => 'Limit',
 				'qty' => $amount->formatForOrder($this->getQtyStep($market)),
-				'price' => $price->formatForOrder('0.0001'),
+				'price' => $price->formatForOrder($this->getTickSize($market)),
 				'positionIdx' => ($side == 'Buy') ? 1 : 2,
 			];
+
+			// If we have a TP defined.
+			if ($takeProfitPercent) {
+				$takeProfitPrice = $price->modifyByPercent($takeProfitPercent);
+				$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+			}
 
 			// Make an API call.
 			$response = $this->api->tradeApi()->placeOrder($params);
@@ -495,7 +508,12 @@ class Bybit extends AbstractExchangeDriver
 			return false;
 		}
 	}
-	
+
+	/**
+	 * TODO: fetch instrument info when initializing Market.
+	 * @param IMarket $market
+	 * @return string
+	 */
 	public function getQtyStep(IMarket $market): string {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
@@ -504,7 +522,7 @@ class Bybit extends AbstractExchangeDriver
 		if (isset($this->qtySteps[$ticker])) return $this->qtySteps[$ticker];
 		
 		$params = [
-			'category' => $market->getMarketType()->isSpot() ? 'spot' : 'linear',
+			'category' => $this->getBybitCategory($pair),
 			'symbol' => $pair->getExchangeTicker($this),
 			
 		];
@@ -512,5 +530,41 @@ class Bybit extends AbstractExchangeDriver
 		$qtyStep = $response['list'][0]['lotSizeFilter']['qtyStep'] ?? '0.01';
 		$this->qtySteps[$ticker] = $qtyStep;
 		return $qtyStep;
+	}
+
+	/**
+	 * TODO: fetch instrument info when initializing Market.
+	 * @param IMarket $market
+	 * @return string
+	 */
+	public function getTickSize(IMarket $market): string {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+
+		// We already have it cached.
+		if (isset($this->tickSizes[$ticker])) return $this->tickSizes[$ticker];
+
+		$params = [
+			'category' => $this->getBybitCategory($pair),
+			'symbol' => $pair->getExchangeTicker($this),
+		];
+		$response = $this->api->marketApi()->getInstrumentsInfo($params);
+		$tickSize = $response['list'][0]['priceFilter']['tickSize'] ?? '0.0001';
+		$this->tickSizes[$ticker] = $tickSize;
+		return $tickSize;
+	}
+
+	public function removeLimitOrders(IMarket $market): bool {
+		$pair = $market->getPair();
+		try {
+			$this->api->tradeApi()->cancelAllOrders([
+				'category' => $this->getBybitCategory($pair),
+				'symbol' => $pair->getExchangeTicker($this),
+			]);
+
+			return true;
+		} catch (\Throwable $e) {
+			return false;
+		}
 	}
 }
