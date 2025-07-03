@@ -98,8 +98,7 @@ final class IzzyWeb extends WebApplication
 		$timeframeEnum = \Izzy\Enums\TimeFrameEnum::from($timeframe);
 		
 		// Search for pair in spot and futures
-		$config = \Izzy\Configuration\Configuration::getInstance();
-		$exchange = $config->connectExchange($this, $exchangeName);
+		$exchange = $this->configuration->connectExchange($this, $exchangeName);
 		
 		if (!$exchange) {
 			throw new \Exception("Exchange $exchangeName not found or disabled");
@@ -134,8 +133,7 @@ final class IzzyWeb extends WebApplication
 	
 	private function requestChartGeneration(\Izzy\Financial\Pair $pair): void {
 		// Create a task for Analyzer to generate the chart
-		$config = \Izzy\Configuration\Configuration::getInstance();
-		$exchange = $config->connectExchange($this, $pair->getExchangeName());
+		$exchange = $this->configuration->connectExchange($this, $pair->getExchangeName());
 		
 		if (!$exchange) {
 			return;
@@ -167,7 +165,10 @@ final class IzzyWeb extends WebApplication
 		$parsed = $request->getParsedBody();
 		$password = $parsed['password'] ?? '';
 
-		if ($password === '123456') {
+		// Get password from configuration
+		$configPassword = $this->configuration->getWebPassword();
+
+		if ($password === $configPassword) {
 			$_SESSION['authorized'] = true;
 			return $response->withHeader('Location', '/')->withStatus(302);
 		}

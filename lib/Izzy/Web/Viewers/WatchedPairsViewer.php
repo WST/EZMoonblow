@@ -38,6 +38,13 @@ class WatchedPairsViewer extends PageViewer
 		$exchanges = $config->connectExchanges($this->webApp);
 		$watchedPairs = [];
 		
+		// Get traded pairs to exclude them
+		$tradedPairs = $this->getTradedPairs();
+		$tradedPairsKeys = [];
+		foreach ($tradedPairs as $tradedPair) {
+			$tradedPairsKeys[] = $this->getPairKey($tradedPair['exchange'], $tradedPair['ticker'], $tradedPair['timeframe'], $tradedPair['marketType']);
+		}
+		
 		foreach ($exchanges as $exchange) {
 			$exchangeConfig = $this->getExchangeConfig($exchange->getName());
 			if (!$exchangeConfig) continue;
@@ -46,7 +53,12 @@ class WatchedPairsViewer extends PageViewer
 			$spotPairs = $exchangeConfig->getSpotPairs($exchange);
 			foreach ($spotPairs as $pair) {
 				if ($pair->isMonitoringEnabled()) {
-					$watchedPairs[] = $this->buildPairData($pair, $exchange);
+					$pairKey = $this->getPairKey($exchange->getName(), $pair->getTicker(), $pair->getTimeframe()->value, $pair->getMarketType()->value);
+					
+					// Skip if this pair is already in trading
+					if (!in_array($pairKey, $tradedPairsKeys)) {
+						$watchedPairs[] = $this->buildPairData($pair, $exchange);
+					}
 				}
 			}
 			
@@ -54,7 +66,12 @@ class WatchedPairsViewer extends PageViewer
 			$futuresPairs = $exchangeConfig->getFuturesPairs($exchange);
 			foreach ($futuresPairs as $pair) {
 				if ($pair->isMonitoringEnabled()) {
-					$watchedPairs[] = $this->buildPairData($pair, $exchange);
+					$pairKey = $this->getPairKey($exchange->getName(), $pair->getTicker(), $pair->getTimeframe()->value, $pair->getMarketType()->value);
+					
+					// Skip if this pair is already in trading
+					if (!in_array($pairKey, $tradedPairsKeys)) {
+						$watchedPairs[] = $this->buildPairData($pair, $exchange);
+					}
 				}
 			}
 		}
@@ -102,4 +119,53 @@ class WatchedPairsViewer extends PageViewer
 		             ->setDataFromArray($strategyParams)
 		             ->render();
 	}
-} 
+	
+	/**
+	 * Get traded pairs to exclude them from watched pairs.
+	 */
+	private function getTradedPairs(): array {
+		$config = Configuration::getInstance();
+		$exchanges = $config->connectExchanges($this->webApp);
+		$tradedPairs = [];
+		
+		foreach ($exchanges as $exchange) {
+			$exchangeConfig = $this->getExchangeConfig($exchange->getName());
+			if (!$exchangeConfig) continue;
+			
+			// Spot pairs
+			$spotPairs = $exchangeConfig->getSpotPairs($exchange);
+			foreach ($spotPairs as $pair) {
+				if ($pair->isTradingEnabled() && $pair->getStrategyName()) {
+					$tradedPairs[] = [
+						'exchange' => $exchange->getName(),
+						'ticker' => $pair->getTicker(),
+						'timeframe' => $pair->getTimeframe()->value,
+						'marketType' => $pair->getMarketType()->value,
+					];
+				}
+			}
+			
+			// Futures pairs
+			$futuresPairs = $exchangeConfig->getFuturesPairs($exchange);
+			foreach ($futuresPairs as $pair) {
+				if ($pair->isTradingEnabled() && $pair->getStrategyName()) {
+					$tradedPairs[] = [
+						'exchange' => $exchange->getName(),
+						'ticker' => $pair->getTicker(),
+						'timeframe' => $pair->getTimeframe()->value,
+						'marketType' => $pair->getMarketType()->value,
+					];
+				}
+			}
+		}
+		
+		return $tradedPairs;
+	}
+	
+	/**
+	 * Create a unique key for a trading pair.
+	 */
+	private function getPairKey(string $exchange, string $ticker, string $timeframe, string $marketType): string {
+		return $exchange . ':' . $ticker . ':' . $timeframe . ':' . $marketType;
+	}
+}

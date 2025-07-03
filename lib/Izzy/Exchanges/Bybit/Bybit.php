@@ -53,20 +53,6 @@ class Bybit extends AbstractExchangeDriver
 			$key = $this->config->getKey();
 			$secret = $this->config->getSecret();
 			$this->api = new ByBitApi($key, $secret, ByBitApi::PROD_API_URL);
-			
-			// Test connection by requesting candles for BTCUSDT.
-			$testResponse = $this->api->marketApi()->getKline([
-				'category' => 'spot',
-				'symbol' => 'BTCUSDT',
-				'interval' => '1',
-				'limit' => 1
-			]);
-			
-			if (!isset($testResponse['list'])) {
-				$this->logger->error("Failed to get test data from Bybit, connection not established.");
-				return false;
-			}
-			
 			return true;
 		} catch (Exception $e) {
 			$this->logger->error("Failed to connect to exchange $this->exchangeName: " . $e->getMessage());

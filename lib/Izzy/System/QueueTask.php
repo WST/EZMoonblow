@@ -63,6 +63,7 @@ class QueueTask extends SurrogatePKDatabaseRecord
 	}
 
 	public static function updateChart(Market $sender): void {
+		Logger::getLogger()->debug("Scheduling chart update for $sender");
 		$database = $sender->getDatabase();
 		$appName = Analyzer::getApplicationName();
 		

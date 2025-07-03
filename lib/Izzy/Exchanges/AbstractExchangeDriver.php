@@ -11,6 +11,7 @@ use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
+use Izzy\System\QueueTask;
 
 /**
  * Abstract cryptocurrency exchange driver class.

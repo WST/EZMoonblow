@@ -116,7 +116,7 @@ class Analyzer extends ConsoleApplication
 	public function generateDailyChart(): void {
 		$this->generateBalanceChart(
 			'day',
-			'Balance - Last 24 Hours',
+			'Balance — Last 24 Hours',
 			'-1d'
 		);
 	}
@@ -127,7 +127,7 @@ class Analyzer extends ConsoleApplication
 	public function generateMonthlyChart(): void {
 		$this->generateBalanceChart(
 			'month',
-			'Balance - Last 30 Days',
+			'Balance — Last 30 Days',
 			'-30d'
 		);
 	}
@@ -138,7 +138,7 @@ class Analyzer extends ConsoleApplication
 	public function generateYearlyChart(): void {
 		$this->generateBalanceChart(
 			'year',
-			'Balance - Last 12 Months',
+			'Balance — Last 12 Months',
 			'-1y'
 		);
 	}

@@ -600,7 +600,7 @@ class Market implements IMarket
 		$currentAttributes = $this->getTaskMarketAttributes();
 		foreach ($currentAttributes as $attribute => $value) {
 			// We don’t check the extra attributes, we only compare Market attributes instead.
-			if (!in_array($attribute, $taskAttributes)) continue;
+			if (!isset($taskAttributes[$attribute])) continue;
 			if ($taskAttributes[$attribute] !== $value) return false;
 		}
 		return true;

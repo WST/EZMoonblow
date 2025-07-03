@@ -11,6 +11,10 @@
 		<token>******</token>
 		<chat_id>******</chat_id>
 	</telegram>
+
+	<web>
+		<password>******</password>
+	</web>
 	
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">

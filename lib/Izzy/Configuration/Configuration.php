@@ -65,6 +65,10 @@ class Configuration
 		return intval($this->xpath->evaluate('string(//telegram/chat_id)'));
 	}
 	
+	public function getWebPassword(): string {
+		return $this->xpath->evaluate('string(//web/password)');
+	}
+	
 	public function openDatabase(): Database {
 		// Пока что поддерживаем только MySQL.
 		$engine = $this->xpath->evaluate('string(//database/@engine)');
