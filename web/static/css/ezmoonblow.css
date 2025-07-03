@@ -220,38 +220,48 @@ footer {
     font-size: 16px;
 }
 
-.strategy-params-table {
+/* Styles for DetailViewer - key-value tables */
+.detail-viewer-table {
     width: 100%;
     border-collapse: collapse;
     margin: 10px 0;
     background-color: white;
 }
 
-.strategy-params-table td {
+.detail-viewer-table td {
     border: 1px solid #ddd;
     padding: 8px;
     text-align: left;
     font-size: 13px;
 }
 
-.strategy-params-table .param-name {
+.detail-viewer-table .param-name {
     background-color: #e8f4fd;
     color: #003366;
     font-weight: bold;
     width: 40%;
 }
 
-.strategy-params-table .param-value {
+.detail-viewer-table .param-value {
     background-color: #f9f9f9;
     color: #333;
     width: 60%;
 }
 
-.strategy-params-table tr:nth-child(even) .param-value {
+/* Disable row striping for all DetailViewer tables */
+.detail-viewer-table tr:nth-child(even) td {
+    background-color: inherit;
+}
+
+.detail-viewer-table tr:nth-child(even) .param-name {
+    background-color: #e8f4fd;
+}
+
+.detail-viewer-table tr:nth-child(even) .param-value {
     background-color: #f9f9f9;
 }
 
-.strategy-params-table tr:hover .param-value {
+.detail-viewer-table tr:hover .param-value {
     background-color: #eef6ff;
 }
 

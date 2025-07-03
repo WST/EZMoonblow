@@ -138,12 +138,12 @@ class DCASettings
 	public function getMaxTotalPositionVolume(): Money {
 		$totalVolume = 0.0;
 		
-		// Суммируем объемы для long позиций
+		// Volumes for Long trades.
 		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
 			$totalVolume += $level['volume'];
 		}
 		
-		// Суммируем объемы для short позиций
+		// Volumes for Short trades.
 		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {
 			$totalVolume += $level['volume'];
 		}

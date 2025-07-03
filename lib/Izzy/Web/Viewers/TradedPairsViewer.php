@@ -19,6 +19,25 @@ class TradedPairsViewer extends PageViewer
 	public function render(Response $response): Response {
 		$tradedPairs = $this->getTradedPairs();
 		
+		// Prepare data for display using viewers
+		foreach ($tradedPairs as &$pair) {
+			// Render strategy parameters table
+			$pair['strategyParamsHtml'] = $this->renderStrategyParamsTable($pair['strategyParams'], $pair['strategyName']);
+			
+			// Render DCA tables if available
+			if (isset($pair['dcaInfo'])) {
+				$pair['dcaTables'] = [];
+				
+				if (!empty($pair['dcaInfo']['orderMap']['LONG'])) {
+					$pair['dcaTables']['long'] = $this->renderDCATable($pair['dcaInfo']['orderMap']['LONG'], 'Long');
+				}
+				
+				if (!empty($pair['dcaInfo']['orderMap']['SHORT'])) {
+					$pair['dcaTables']['short'] = $this->renderDCATable($pair['dcaInfo']['orderMap']['SHORT'], 'Short');
+				}
+			}
+		}
+		
 		$body = $this->webApp->getTwig()->render('traded-pairs.htt', [
 			'menu' => $this->menu,
 			'tradedPairs' => $tradedPairs
@@ -36,7 +55,7 @@ class TradedPairsViewer extends PageViewer
 			$exchangeConfig = $this->getExchangeConfig($exchange->getName());
 			if (!$exchangeConfig) continue;
 			
-			// Spot пары
+			// Spot pairs
 			$spotPairs = $exchangeConfig->getSpotPairs($exchange);
 			foreach ($spotPairs as $pair) {
 				if ($pair->isTradingEnabled() && $pair->getStrategyName()) {
@@ -44,7 +63,7 @@ class TradedPairsViewer extends PageViewer
 				}
 			}
 			
-			// Futures пары
+			// Futures pairs
 			$futuresPairs = $exchangeConfig->getFuturesPairs($exchange);
 			foreach ($futuresPairs as $pair) {
 				if ($pair->isTradingEnabled() && $pair->getStrategyName()) {
@@ -62,7 +81,7 @@ class TradedPairsViewer extends PageViewer
 		
 		foreach ($exchanges as $exchange) {
 			if ($exchange->getName() === $exchangeName) {
-				// Получить конфигурацию биржи из XML
+				// Get exchange configuration from XML
 				$document = new \DOMDocument();
 				$document->load(IZZY_CONFIG . "/config.xml");
 				$xpath = new \DOMXPath($document);
@@ -78,10 +97,10 @@ class TradedPairsViewer extends PageViewer
 	}
 	
 	private function buildPairData(Pair $pair, IExchangeDriver $exchange): array {
-		// Создать Market из Pair для создания стратегии
+		// Create Market from Pair for strategy creation
 		$market = $exchange->createMarket($pair);
 		if (!$market) {
-			// Если не удалось создать market, возвращаем базовую информацию без DCA
+			// If failed to create market, return basic information without DCA
 			return [
 				'exchange' => $exchange->getName(),
 				'ticker' => $pair->getTicker(),
@@ -92,7 +111,7 @@ class TradedPairsViewer extends PageViewer
 			];
 		}
 		
-		// Создать стратегию для анализа
+		// Create strategy for analysis
 		$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
 		
 		$data = [
@@ -104,12 +123,12 @@ class TradedPairsViewer extends PageViewer
 			'strategyParams' => $pair->getStrategyParams(),
 		];
 		
-		// Если это DCA-стратегия, добавить информацию об ордерах
+		// If this is a DCA strategy, add order information
 		if ($strategy instanceof AbstractDCAStrategy) {
 			$dcaSettings = $strategy->getDCASettings();
 			$orderMap = $dcaSettings->getOrderMap();
 			
-			// Форматируем объемы и отступы
+			// Format volumes and offsets
 			foreach ($orderMap as $direction => &$levels) {
 				foreach ($levels as &$level) {
 					$level['volume'] = number_format($level['volume'], 2);
@@ -130,5 +149,32 @@ class TradedPairsViewer extends PageViewer
 		}
 		
 		return $data;
+	}
+	
+	private function renderStrategyParamsTable(array $strategyParams, string $strategyName): string {
+		$viewer = new DetailViewer();
+		return $viewer->setCaption('Strategy: ' . $strategyName)
+		             ->setDataFromArray($strategyParams)
+		             ->render();
+	}
+	
+	private function renderDCATable(array $orders, string $direction): string {
+		// Transform data to required format
+		$tableData = [];
+		foreach ($orders as $level => $order) {
+			$tableData[] = [
+				'level' => $level,
+				'volume' => $order['volume'],
+				'offset' => $order['offset']
+			];
+		}
+		
+		$viewer = new TableViewer();
+		return $viewer->setCaption($direction . ' positions')
+		             ->addColumn('level', 'Level', ['align' => 'center'])
+		             ->addColumn('volume', 'Volume (USDT)', ['align' => 'right', 'format' => 'currency'])
+		             ->addColumn('offset', 'Price deviation (%)', ['align' => 'right', 'format' => 'percent'])
+		             ->setData($tableData)
+		             ->render();
 	}
 } 
