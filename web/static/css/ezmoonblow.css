@@ -139,15 +139,143 @@ footer {
 }
 
 /* Traded Pairs Page Styles */
-.traded-pairs {
+.traded-pairs, .watched-pairs {
     text-align: left;
     max-width: 1200px;
     margin: 0 auto;
 }
 
-.traded-pairs h1 {
+.traded-pairs h1, .watched-pairs h1 {
     text-align: center;
     margin-bottom: 30px;
+}
+
+/* Watched Pairs Layout */
+.pairs-layout {
+    display: flex;
+    gap: 20px;
+    min-height: 500px;
+}
+
+.pairs-sidebar {
+    flex: 0 0 300px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.pairs-sidebar h3 {
+    margin: 0;
+    padding: 15px;
+    background-color: #003366;
+    color: white;
+    font-size: 16px;
+    border-bottom: 1px solid #ddd;
+}
+
+.pairs-list {
+    max-height: calc(100% - 50px);
+    overflow-y: auto;
+}
+
+.pair-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.pair-item:hover {
+    background-color: #f0f8ff;
+}
+
+.pair-item.active {
+    background-color: #e8f4fd;
+    border-left: 4px solid #003366;
+}
+
+.pair-item-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 5px;
+}
+
+.pair-ticker {
+    font-weight: bold;
+    color: #003366;
+    font-size: 14px;
+}
+
+.pair-exchange {
+    font-size: 12px;
+    color: #666;
+    background-color: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.pair-item-details {
+    display: flex;
+    gap: 10px;
+    font-size: 12px;
+    color: #666;
+}
+
+.pair-timeframe, .pair-market-type {
+    background-color: #e8f4fd;
+    color: #005599;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
+.pairs-content {
+    flex: 1;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.pair-panel {
+    display: none;
+}
+
+.pair-panel:first-child {
+    display: block;
+}
+
+/* Mobile responsiveness */
+@media (max-width: 768px) {
+    .pairs-layout {
+        flex-direction: column;
+    }
+    
+    .pairs-sidebar {
+        flex: none;
+        max-height: 200px;
+    }
+    
+    .pairs-content {
+        padding: 15px;
+    }
+    
+    .pair-item-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 5px;
+    }
+    
+    .pair-item-details {
+        flex-wrap: wrap;
+    }
+    
+    .chart-and-strategy {
+        gap: 15px;
+    }
 }
 
 .no-pairs {
@@ -193,24 +321,23 @@ footer {
 
 .chart-and-strategy {
     display: flex;
-    gap: 30px;
+    flex-direction: column;
+    gap: 20px;
     margin-bottom: 20px;
-    align-items: flex-start;
 }
 
 .pair-chart {
-    flex: 0 0 auto;
-    margin-right: 30px;
+    text-align: center;
 }
 
 .pair-chart img {
     width: auto;
     height: auto;
     border: 1px solid #ddd;
+    max-width: 100%;
 }
 
 .strategy-info {
-    flex: 1;
     margin-bottom: 0;
 }
 

@@ -13,6 +13,7 @@ class PageViewer
 		['title' => 'Dashboard', 'url' => '/'],
 		['title' => 'Exchanges', 'url' => '/exchanges.jsp'],
 		['title' => 'Traded Pairs', 'url' => '/pairs.jsp'],
+		['title' => 'Watched Pairs', 'url' => '/watched.jsp'],
 		['title' => 'Open Positions', 'url' => '/positions.jsp'],
 		['title' => 'System Status', 'url' => '/status.jsp'],
 		['title' => 'Log Out', 'url' => '/logout.jsp'],

@@ -8,6 +8,7 @@ use Izzy\Web\Middleware\AuthMiddleware;
 use Izzy\Web\Viewers\AuthPage;
 use Izzy\Web\Viewers\PageViewer;
 use Izzy\Web\Viewers\TradedPairsViewer;
+use Izzy\Web\Viewers\WatchedPairsViewer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -19,6 +20,7 @@ final class IzzyWeb extends WebApplication
 		parent::__construct();
 		$this->slimApp->get('/', [$this, 'indexPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/pairs.jsp', [$this, 'pairsPage'])->add(AuthMiddleware::class);
+		$this->slimApp->get('/watched.jsp', [$this, 'watchedPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/chart/{exchange}/{ticker:.+}/{timeframe}', [$this, 'generateChart'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/login.jsp', [$this, 'authPage']);
 		$this->slimApp->post('/login.jsp', [$this, 'authHandler']);
@@ -43,6 +45,11 @@ final class IzzyWeb extends WebApplication
 
 	public function pairsPage(Request $request, Response $response): Response {
 		$pageViewer = new TradedPairsViewer($this);
+		return $pageViewer->render($response);
+	}
+
+	public function watchedPage(Request $request, Response $response): Response {
+		$pageViewer = new WatchedPairsViewer($this);
 		return $pageViewer->render($response);
 	}
 

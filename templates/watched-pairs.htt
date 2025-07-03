@@ -1,12 +1,12 @@
 {% extends 'base-page.htt' %}
 
 {% block content %}
-<div class="traded-pairs">
-    <h1>Trading Pairs</h1>
+<div class="watched-pairs">
+    <h1>Watched Pairs</h1>
     
-    {% if tradedPairs is empty %}
+    {% if watchedPairs is empty %}
     <div class="no-pairs">
-        <p>No active trading pairs. Check configuration.</p>
+        <p>No pairs with monitoring enabled. Check configuration.</p>
     </div>
     {% else %}
         <div class="pairs-layout">
@@ -14,7 +14,7 @@
             <div class="pairs-sidebar">
                 <h3>Pairs</h3>
                 <div class="pairs-list">
-                    {% for pair in tradedPairs %}
+                    {% for pair in watchedPairs %}
                     <div class="pair-item" data-pair-id="{{ loop.index0 }}">
                         <div class="pair-item-header">
                             <span class="pair-ticker">{{ pair.ticker }}</span>
@@ -31,7 +31,7 @@
             
             <!-- Main content area -->
             <div class="pairs-content">
-                {% for pair in tradedPairs %}
+                {% for pair in watchedPairs %}
                 <div class="pair-panel" data-pair-id="{{ loop.index0 }}" {% if loop.first %}style="display: block;"{% endif %}>
                     <div class="pair-header">
                         <h2>{{ pair.exchange }} - {{ pair.ticker }}</h2>
@@ -47,40 +47,12 @@
                                  alt="Chart {{ pair.ticker }}" />
                         </div>
                         
+                        {% if pair.strategyParamsHtml is defined %}
                         <div class="strategy-info">
                             {{ pair.strategyParamsHtml | raw }}
                         </div>
+                        {% endif %}
                     </div>
-                    
-                    {% if pair.dcaTables is defined %}
-                    <div class="dca-info">
-                        <h3>DCA Grid</h3>
-                        
-                        <div class="dca-tables-container">
-                            {% if pair.dcaTables.long is defined %}
-                            <div class="dca-section">
-                                {{ pair.dcaTables.long | raw }}
-                                <p class="total-volume">
-                                    Maximum volume: {{ pair.dcaInfo.maxLongVolume.amount }} USDT
-                                </p>
-                            </div>
-                            {% endif %}
-                            
-                            {% if pair.dcaTables.short is defined %}
-                            <div class="dca-section">
-                                {{ pair.dcaTables.short | raw }}
-                                <p class="total-volume">
-                                    Maximum volume: {{ pair.dcaInfo.maxShortVolume.amount }} USDT
-                                </p>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="dca-settings">
-                            <p>Order type: {{ pair.dcaInfo.useLimitOrders ? 'Limit' : 'Market' }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
                 </div>
                 {% endfor %}
             </div>
