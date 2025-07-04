@@ -65,8 +65,7 @@ interface IExchangeDriver
 	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
 
 	/**
-	 * Place a market order to buy additional volume (DCA).
-	 *
+	 * Buy additional volume (market).
 	 * @param IMarket $market
 	 * @param Money $amount Amount to buy.
 	 * @return bool True if order placed successfully, false otherwise.
@@ -74,8 +73,7 @@ interface IExchangeDriver
 	public function buyAdditional(IMarket $market, Money $amount): bool;
 
 	/**
-	 * Place a market order to sell additional volume.
-	 *
+	 * Sell additional volume (market).
 	 * @param IMarket $market
 	 * @param Money $amount Amount to sell.
 	 * @return bool True if order placed successfully, false otherwise.
@@ -112,8 +110,28 @@ interface IExchangeDriver
 
 	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false;
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null);
+	/**
+	 * Place a limit order.
+	 * @param IMarket $market Active Market to place the order into.
+	 * @param Money $amount Amount in the base currency.
+	 * @param Money $price Price in the quote currency.
+	 * @param string $side Buy or Sell.
+	 * @param float|null $takeProfitPercent Take Profit distance from the entry in %.
+	 * @return string|false Order Id on the Exchange on success, false on failure.
+	 */
+	public function placeLimitOrder(
+		IMarket $market,
+		Money $amount,
+		Money $price,
+		string $side,
+		?float $takeProfitPercent = null
+	): string|false;
 
+	/**
+	 * Remove all limit orders from current Market (i.e. remove DCAs after a successful trade).
+	 * @param IMarket $market
+	 * @return bool
+	 */
 	public function removeLimitOrders(IMarket $market): bool;
 
 	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool;
