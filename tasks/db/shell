@@ -4,7 +4,7 @@
 use Izzy\Configuration\Configuration;
 
 // EZMoonblow core file.
-require dirname(dirname(__DIR__)) . '/lib/common.php';
+require dirname(__DIR__, 2). '/lib/common.php';
 
 if (!function_exists('pcntl_exec')) {
     echo "This script requires the PHP extension 'Pcntl'";

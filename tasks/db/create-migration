@@ -3,7 +3,8 @@
 
 use Izzy\System\Database\DatabaseMigrationManager;
 
-require dirname(dirname(__DIR__)) . '/lib/common.php';
+// EZMoonblow core file.
+require dirname(__DIR__, 2). '/lib/common.php';
 
 try {
     $migrationName = DatabaseMigrationManager::promptMigrationName();

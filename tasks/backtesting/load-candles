@@ -1,10 +1,10 @@
 #!/usr/bin/env php
 <?php
 
-use Izzy\RealApplications\Installer;
+use Izzy\RealApplications\Backtester;
 
 // EZMoonblow core file.
 require dirname(__DIR__, 2). '/lib/common.php';
 
-$installer = Installer::getInstance();
-$installer->run();
+$backtester = Backtester::getInstance();
+$backtester->run();

@@ -35,7 +35,11 @@ abstract class IzzyApplication
 
 		// Connect to the database.
 		$this->database = $this->configuration->openDatabase();
-		$this->database->connect();
+		$status = $this->database->connect();
+		if (!$status) {
+			$errorMessage = $this->database->getErrorMessage();
+			die("Failed to connect to the database" . PHP_EOL . $errorMessage . PHP_EOL);
+		}
 		
 		// Set up logger.
 		$this->logger = Logger::getLogger();
