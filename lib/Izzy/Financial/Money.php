@@ -66,7 +66,7 @@ class Money
 	}
 	
 	public function modifyByPercentWithDirection(float $percent, PositionDirectionEnum $direction): Money {
-		return Money::from($direction->getMultiplier() * $this->modifyByPercent($percent)->getAmount(), $this->currency);
+		return $this->modifyByPercent($direction->getMultiplier() * $percent);
 	}
 
 	public function getPercentDifference(?Money $otherPrice): float {
