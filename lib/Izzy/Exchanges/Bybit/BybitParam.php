@@ -43,9 +43,18 @@ class BybitParam
 	const string LotSizeFilter = 'lotSizeFilter';
 	
 	const string TickSize = 'tickSize';
+	
 	const string PriceFilter = 'priceFilter';
 	
 	const string Balance = 'balance';
 	
 	const string WalletBalance = 'walletBalance';
+	
+	const string TotalEquity = 'totalEquity';
+	
+	const string Start = 'start';
+	
+	const string End = 'end';
+	
+	const string LastPrice = 'lastPrice';
 }

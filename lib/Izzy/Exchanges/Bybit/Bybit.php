@@ -77,12 +77,11 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			$params = [BybitParam::AccountType => AccountType::UNIFIED];
 			$info = $this->api->accountApi()->getWalletBalance($params);
-			if (!isset($info[BybitParam::List][0]['totalEquity'])) {
+			if (!isset($info[BybitParam::List][0][BybitParam::TotalEquity])) {
 				$this->logger->error("Failed to get balance: invalid response format from Bybit");
 				return;
 			}
-			$value = (float)$info[BybitParam::List][0]['totalEquity'];
-			$totalBalance = Money::from($value);
+			$totalBalance = Money::from($info[BybitParam::List][0][BybitParam::TotalEquity]);
 			$this->saveBalance($totalBalance);
 		} catch (Exception $e) {
 			$this->logger->error("Unexpected error while updating balance on $this->exchangeName: " . $e->getMessage());
@@ -132,8 +131,8 @@ class Bybit extends AbstractExchangeDriver
 				BybitParam::Limit => $limit
 			];
 			
-			if ($startTime !== null) $params['start'] = $startTime;
-			if ($endTime !== null) $params['end'] = $endTime;
+			if ($startTime !== null) $params[BybitParam::Start] = $startTime;
+			if ($endTime !== null) $params[BybitParam::End] = $endTime;
 
 			$response = $this->api->marketApi()->getKline($params);
 			
@@ -207,7 +206,7 @@ class Bybit extends AbstractExchangeDriver
 			// Find the ticker in the response
 			foreach ($response[BybitParam::List] as $tickerData) {
 				if ($tickerData[BybitParam::Symbol] === $ticker) {
-					return Money::from($tickerData['lastPrice']);
+					return Money::from($tickerData[BybitParam::LastPrice]);
 				}
 			}
 
@@ -597,7 +596,7 @@ class Bybit extends AbstractExchangeDriver
 			$this->api->positionApi()->setTradingStop([
 				BybitParam::Category => $this->getBybitCategory($pair),
 				BybitParam::Symbol => $pair->getExchangeTicker($this),
-				BybitParam::TPTriggerBy => 'LastPrice',
+				BybitParam::TPTriggerBy => BybitTPTriggerByEnum::LastPrice->value,
 				BybitParam::TakeProfit => $expectedPrice->formatForOrder($this->getTickSize($market)),
 			]);
 			return true;
