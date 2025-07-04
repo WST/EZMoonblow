@@ -10,7 +10,7 @@ class PageViewer
 	protected WebApplication $webApp;
 	
 	protected array $menu = [
-		['title' => 'Dashboard', 'url' => '/'],
+		['title' => 'Balance', 'url' => '/'],
 		['title' => 'Exchanges', 'url' => '/exchanges.jsp'],
 		['title' => 'Traded Pairs', 'url' => '/pairs.jsp'],
 		['title' => 'Watched Pairs', 'url' => '/watched.jsp'],

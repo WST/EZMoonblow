@@ -248,35 +248,7 @@ footer {
     display: block;
 }
 
-/* Mobile responsiveness */
-@media (max-width: 768px) {
-    .pairs-layout {
-        flex-direction: column;
-    }
-    
-    .pairs-sidebar {
-        flex: none;
-        max-height: 200px;
-    }
-    
-    .pairs-content {
-        padding: 15px;
-    }
-    
-    .pair-item-header {
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 5px;
-    }
-    
-    .pair-item-details {
-        flex-wrap: wrap;
-    }
-    
-    .chart-and-strategy {
-        gap: 15px;
-    }
-}
+
 
 .no-pairs {
     text-align: center;
@@ -390,6 +362,95 @@ footer {
 
 .detail-viewer-table tr:hover .param-value {
     background-color: #eef6ff;
+}
+
+/* Dashboard styles */
+.dashboard {
+    text-align: left;
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.dashboard h1 {
+    text-align: center;
+    margin-bottom: 30px;
+}
+
+.dashboard-layout {
+    display: flex;
+    gap: 20px;
+    min-height: 500px;
+}
+
+.dashboard-sidebar {
+    flex: 0 0 300px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+}
+
+.dashboard-sidebar h3 {
+    margin: 0;
+    padding: 15px;
+    background-color: #003366;
+    color: white;
+    font-size: 16px;
+    border-bottom: 1px solid #ddd;
+}
+
+.time-range-list {
+    max-height: calc(100% - 50px);
+    overflow-y: auto;
+}
+
+.time-range-item {
+    padding: 12px 15px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+.time-range-item:hover {
+    background-color: #f0f8ff;
+}
+
+.time-range-item.active {
+    background-color: #e8f4fd;
+    border-left: 4px solid #003366;
+}
+
+.range-name {
+    font-weight: bold;
+    color: #003366;
+    font-size: 14px;
+}
+
+.dashboard-content {
+    flex: 1;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+}
+
+.balance-chart-container h2 {
+    margin: 0 0 20px 0;
+    color: #003366;
+    font-size: 20px;
+}
+
+.balance-chart {
+    text-align: center;
+}
+
+.balance-chart img {
+    max-width: 100%;
+    height: auto;
+    border: 1px solid #ddd;
+    border-radius: 4px;
 }
 
 .dca-info {

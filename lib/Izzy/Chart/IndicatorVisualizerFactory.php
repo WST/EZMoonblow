@@ -4,6 +4,7 @@ namespace Izzy\Chart;
 
 use Izzy\Indicators\RSI;
 use Izzy\Interfaces\IIndicator;
+use Izzy\Interfaces\IIndicatorVisualizer;
 
 /**
  * Factory for creating indicator visualizers.

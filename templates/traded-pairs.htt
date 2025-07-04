@@ -34,7 +34,7 @@
                 {% for pair in tradedPairs %}
                 <div class="pair-panel" data-pair-id="{{ loop.index0 }}" {% if loop.first %}style="display: block;"{% endif %}>
                     <div class="pair-header">
-                        <h2>{{ pair.exchange }} - {{ pair.ticker }}</h2>
+                        <h2>{{ pair.exchange }} — {{ pair.ticker }}</h2>
                         <span class="timeframe">{{ pair.timeframe }}</span>
                         <span class="market-type">{{ pair.marketType }}</span>
                     </div>
@@ -43,7 +43,7 @@
                     <div class="chart-and-strategy">
                         <!-- Pair chart -->
                         <div class="pair-chart">
-                            <img src="/chart/{{ pair.exchange }}/{{ pair.ticker }}/{{ pair.timeframe }}" 
+                            <img src="/charts/{{ pair.chartKey }}.png" 
                                  alt="Chart {{ pair.ticker }}" />
                         </div>
                         

@@ -212,6 +212,16 @@ class Pair implements IPair
 	}
 	
 	/**
+	 * Get the chart key for URL generation.
+	 * This key corresponds to the filename without extension and path.
+	 * 
+	 * @return string Chart key for URL.
+	 */
+	public function getChartKey(): string {
+		return "{$this->getFilenameTicker()}_{$this->timeframe->value}_{$this->marketType->value}_{$this->exchangeName}";
+	}
+	
+	/**
 	 * Get the title for the chart of this trading pair.
 	 * Includes ticker, timeframe, market type, exchange, and current timestamp.
 	 * 

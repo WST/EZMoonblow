@@ -121,6 +121,7 @@ class TradedPairsViewer extends PageViewer
 			'marketType' => $pair->getMarketType()->value,
 			'strategyName' => $pair->getStrategyName(),
 			'strategyParams' => $pair->getStrategyParams(),
+			'chartKey' => $pair->getChartKey(),
 		];
 		
 		// If this is a DCA strategy, add order information
@@ -128,13 +129,13 @@ class TradedPairsViewer extends PageViewer
 			$dcaSettings = $strategy->getDCASettings();
 			$orderMap = $dcaSettings->getOrderMap();
 			
-			// Format volumes and offsets
-			foreach ($orderMap as $direction => &$levels) {
-				foreach ($levels as &$level) {
-					$level['volume'] = number_format($level['volume'], 2);
-					$level['offset'] = number_format($level['offset'], 2);
-				}
-			}
+			// Don't format volumes and offsets here - let TableViewer handle formatting
+			// foreach ($orderMap as $direction => &$levels) {
+			// 	foreach ($levels as &$level) {
+			// 		$level['volume'] = number_format($level['volume'], 2);
+			// 		$level['offset'] = number_format($level['offset'], 2);
+			// 	}
+			// }
 			
 			$data['dcaInfo'] = [
 				'orderMap' => $orderMap,
@@ -152,7 +153,7 @@ class TradedPairsViewer extends PageViewer
 	}
 	
 	private function renderStrategyParamsTable(array $strategyParams, string $strategyName): string {
-		$viewer = new DetailViewer();
+		$viewer = new DetailViewer(['showHeader' => false]);
 		return $viewer->setCaption('Strategy: ' . $strategyName)
 		             ->setDataFromArray($strategyParams)
 		             ->render();
@@ -163,7 +164,7 @@ class TradedPairsViewer extends PageViewer
 		$tableData = [];
 		foreach ($orders as $level => $order) {
 			$tableData[] = [
-				'level' => $level,
+				'level' => ($level == 0) ? 'Entry' : $level,
 				'volume' => $order['volume'],
 				'offset' => $order['offset']
 			];
@@ -177,4 +178,4 @@ class TradedPairsViewer extends PageViewer
 		             ->setData($tableData)
 		             ->render();
 	}
-} 
+}

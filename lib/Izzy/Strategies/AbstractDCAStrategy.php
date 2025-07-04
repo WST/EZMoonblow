@@ -128,8 +128,11 @@ abstract class AbstractDCAStrategy extends Strategy
 	 * @return void
 	 */
 	public function updatePosition(IPosition $position): void {
-		// We don’t want to update position if it uses limit orders. There is nothing to update, orders are set up.
-		if ($this->dcaSettings->isUseLimitOrders()) return;
+		// If the position uses limit orders, we only need to move TP order.
+		if ($this->dcaSettings->isUseLimitOrders()) {
+			$position->updateTakeProfit();
+			return;
+		}
 		
 		// Complete DCA map.
 		$dcaLevels = $this->getDCALevels();

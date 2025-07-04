@@ -1,9 +1,9 @@
 <?php
 
-namespace Izzy\Chart;
+namespace Izzy\Interfaces;
 
+use Izzy\Chart\Chart;
 use Izzy\Financial\IndicatorResult;
-use Izzy\Interfaces\IIndicator;
 
 /**
  * Interface for indicator visualizers.

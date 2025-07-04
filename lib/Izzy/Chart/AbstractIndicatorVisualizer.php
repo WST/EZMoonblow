@@ -2,8 +2,7 @@
 
 namespace Izzy\Chart;
 
-use Izzy\Financial\IndicatorResult;
-use Izzy\Interfaces\IIndicator;
+use Izzy\Interfaces\IIndicatorVisualizer;
 
 /**
  * Abstract base class for indicator visualizers.

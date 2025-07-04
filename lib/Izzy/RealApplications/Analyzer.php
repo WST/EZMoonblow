@@ -216,12 +216,15 @@ class Analyzer extends ConsoleApplication
 		$marketType = MarketTypeEnum::from($attributes['marketType']);
 		$pair = new Pair($ticker, $timeframe, $exchangeName, $marketType);
 		$this->logger->info("Got a task for drawing a candlestick chart for $pair ($marketType->value, $timeframe->value) on $exchangeName");
+		
 		$exchange = $this->configuration->connectExchange($this, $exchangeName);
 		if (!$exchange) return;
+		
 		$market = $exchange->createMarket($pair);
+		if (!$market) return;
 		
 		// Initialize and calculate indicators before drawing chart
-		$market->initializeConfiguredIndicators();
+		$market->initializeIndicators();
 		$market->calculateIndicators();
 		$market->drawChart();
 	}

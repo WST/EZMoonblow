@@ -78,8 +78,8 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 		$market = new Market($this, $pair);
 		$market->setCandles($candlesData);
-		$market->initializeConfiguredIndicators();
-		$market->initializeStrategy(); // sets up strategy indicators as well
+		$market->initializeStrategy();
+		$market->initializeIndicators();
 		return $market;
 	}
 	

@@ -274,7 +274,7 @@ class Database
 		// Combine fields and keys
 		$allLines = array_merge($fieldLines, $keyLines);
 
-		// Build the resulting SQL query with proper formatting
+		// Build the resulting SQL query with proper formatting.
 		$sql = sprintf(
 			"CREATE TABLE IF NOT EXISTS `%s` (\n  %s\n) ENGINE=%s DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci",
 			$table,
@@ -282,7 +282,20 @@ class Database
 			$engine
 		);
 
-		// Execute the query and return success status
+		// Execute the query and return success status.
+		try {
+			$result = $this->exec($sql);
+			return is_int($result);
+		} catch (PDOException $e) {
+			$this->setError($e);
+			return false;
+		}
+	}
+	
+	public function dropTable(string $table): bool {
+		$sql = "DROP TABLE $table";
+		
+		// Execute the query and return success status.
 		try {
 			$result = $this->exec($sql);
 			return is_int($result);
@@ -294,7 +307,7 @@ class Database
 	
 	/**
 	 * Get a database migration manager instance for handling schema migrations.
-	 * @return DatabaseMigrationManager Migration manager instance
+	 * @return DatabaseMigrationManager Migration manager instance.
 	 */
 	public function migrationManager(): DatabaseMigrationManager {
 		return new DatabaseMigrationManager($this);

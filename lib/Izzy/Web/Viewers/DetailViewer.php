@@ -9,9 +9,14 @@ class DetailViewer extends TableViewer
 {
     private string $keyColumn = 'key';
     private string $valueColumn = 'value';
+    private bool $showHeader = true;
     
     public function __construct(array $options = [])
     {
+        // Extract showHeader option before passing to parent
+        $this->showHeader = $options['showHeader'] ?? true;
+        unset($options['showHeader']);
+        
         // Disable row striping for DetailViewer by default
         $options = array_merge(['striped' => false], $options);
         parent::__construct($options);
@@ -42,6 +47,12 @@ class DetailViewer extends TableViewer
         return $this;
     }
     
+    public function setShowHeader(bool $showHeader): self
+    {
+        $this->showHeader = $showHeader;
+        return $this;
+    }
+    
     public function setDataFromArray(array $data): self
     {
         $tableData = [];
@@ -56,10 +67,43 @@ class DetailViewer extends TableViewer
         return $this;
     }
     
-    public function render(): string
-    {
+    public function render(): string {
         // Set special CSS class for DetailViewer
         $this->setOptions(['class' => 'detail-viewer-table']);
+        
+        if (!$this->showHeader) {
+            // Render without header
+            return $this->renderWithoutHeader();
+        }
+        
         return parent::render();
     }
-} 
+    
+    private function renderWithoutHeader(): string
+    {
+        $html = '<table class="' . $this->getTableClass() . '">';
+        
+        if (!empty($this->caption)) {
+            $html .= '<caption>' . htmlspecialchars($this->caption) . '</caption>';
+        }
+        
+        $html .= '<tbody>';
+        foreach ($this->data as $index => $row) {
+            $rowClass = $this->getRowClass($index);
+            $html .= '<tr class="' . $rowClass . '">';
+            
+            foreach ($this->columns as $key => $column) {
+                $value = $row[$key] ?? '';
+                $formattedValue = $this->formatValue($value, $column['format']);
+                
+                $html .= '<td class="' . $column['class'] . '" style="text-align: ' . $column['align'] . ';">';
+                $html .= htmlspecialchars($formattedValue);
+                $html .= '</td>';
+            }
+            $html .= '</tr>';
+        }
+        $html .= '</tbody></table>';
+        
+        return $html;
+    }
+}

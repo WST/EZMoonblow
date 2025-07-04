@@ -108,13 +108,14 @@ class WatchedPairsViewer extends PageViewer
 			'marketType' => $pair->getMarketType()->value,
 			'strategyName' => $pair->getStrategyName(),
 			'strategyParams' => $pair->getStrategyParams(),
+			'chartKey' => $pair->getChartKey(),
 		];
 		
 		return $data;
 	}
 	
 	private function renderStrategyParamsTable(array $strategyParams, string $strategyName): string {
-		$viewer = new DetailViewer();
+		$viewer = new DetailViewer(['showHeader' => false]);
 		return $viewer->setCaption('Strategy: ' . $strategyName)
 		             ->setDataFromArray($strategyParams)
 		             ->render();

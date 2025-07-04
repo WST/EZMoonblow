@@ -7,13 +7,12 @@ namespace Izzy\Web\Viewers;
  */
 class TableViewer
 {
-    private array $columns = [];
-    private array $data = [];
-    private string $caption = '';
-    private array $options = [];
+    protected array $columns = [];
+    protected array $data = [];
+    protected string $caption = '';
+    protected array $options = [];
     
-    public function __construct(array $options = [])
-    {
+    public function __construct(array $options = []) {
         $this->options = array_merge([
             'class' => '',
             'striped' => true,
@@ -89,7 +88,7 @@ class TableViewer
         return $html;
     }
     
-    private function getTableClass(): string
+    protected function getTableClass(): string
     {
         $classes = ['dca-table'];
         
@@ -100,7 +99,7 @@ class TableViewer
         return implode(' ', $classes);
     }
     
-    private function getRowClass(int $index): string
+    protected function getRowClass(int $index): string
     {
         $classes = [];
         
@@ -111,7 +110,7 @@ class TableViewer
         return implode(' ', $classes);
     }
     
-    private function formatValue($value, string $format): string
+    protected function formatValue($value, string $format): string
     {
         // If value is already formatted (contains currency symbols or %), return as is
         if (is_string($value) && (strpos($value, 'USDT') !== false || strpos($value, '%') !== false)) {

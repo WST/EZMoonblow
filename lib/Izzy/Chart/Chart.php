@@ -5,6 +5,8 @@ namespace Izzy\Chart;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
+use Izzy\Interfaces\IIndicator;
+use Izzy\Interfaces\IIndicatorVisualizer;
 use Izzy\Strategies\DCASettings;
 
 class Chart extends Image
@@ -60,7 +62,7 @@ class Chart extends Image
 		$this->timeframe = $market->getTimeFrame();
 
 		// Устанавливаем цвета
-		$this->backgroundColor = $this->color(240, 240, 240);      // Серый фон для всего изображения
+		$this->backgroundColor = $this->color(255, 255, 255);      // Серый фон для всего изображения
 		$this->chartBackgroundColor = $this->color(255, 255, 255); // Белый фон для области графика
 	}
 
@@ -205,7 +207,7 @@ class Chart extends Image
 
 	protected function drawChartBackground(): void {
 		// Фон для всего изображения
-		$this->setForegroundColor(240, 240, 240);
+		$this->setForegroundColor(255, 255, 255);
 		$this->fillRectangle(0, 0, $this->getWidth(), $this->getHeight());
 		
 		// Фон для области графика
@@ -312,19 +314,19 @@ class Chart extends Image
 	/**
 	 * Get visualizer for the given indicator.
 	 * 
-	 * @param \Izzy\Interfaces\IIndicator $indicator The indicator.
-	 * @return \Izzy\Chart\IIndicatorVisualizer|null Visualizer instance or null.
+	 * @param IIndicator $indicator The indicator.
+	 * @return IIndicatorVisualizer|null Visualizer instance or null.
 	 */
-	private function getVisualizerForIndicator(\Izzy\Interfaces\IIndicator $indicator): ?\Izzy\Chart\IIndicatorVisualizer {
-		return \Izzy\Chart\IndicatorVisualizerFactory::createVisualizer($indicator);
+	private function getVisualizerForIndicator(IIndicator $indicator): ?IIndicatorVisualizer {
+		return IndicatorVisualizerFactory::createVisualizer($indicator);
 	}
 	
 	/**
 	 * Get the market instance.
 	 * 
-	 * @return \Izzy\Financial\Market The market.
+	 * @return Market The market.
 	 */
-	public function getMarket(): \Izzy\Financial\Market {
+	public function getMarket(): Market {
 		return $this->market;
 	}
 	

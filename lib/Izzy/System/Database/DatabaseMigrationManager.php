@@ -111,6 +111,13 @@ class DatabaseMigrationManager
 		$this->logDatabaseOperationWithStatus("Creating table “{$table}”...", $success);
 		$this->migrationHasPerformedActions = true;
 	}
+	
+	public function dropTable(string $table): void {
+		$success = $this->db->dropTable($table);
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Dropping table “{$table}”...", $success);
+		$this->migrationHasPerformedActions = true;
+	}
 
 	/**
 	 * @param string $table
@@ -188,6 +195,9 @@ class DatabaseMigrationManager
 		// Report the migration status.
 		$statusText = $currentMigrationOverallStatus ? 'finished' : 'failed';
 		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $currentMigrationOverallStatus);
+		if (!$currentMigrationOverallStatus) {
+			$this->logger->error($this->db->getErrorMessage());
+		}
 		$this->resetPadding();
 		
 		// If a migration has failed, we shouldn’t be applying the further migrations.

@@ -151,9 +151,8 @@ class Market implements IMarket
 		}
 
 		// Get indicator classes from strategy
-		$indicatorClasses = $this->strategy->useIndicators();
-		
-		foreach ($indicatorClasses as $indicatorClass) {
+		$strategyIndicatorClasses = $this->strategy->useIndicators();
+		foreach ($strategyIndicatorClasses as $indicatorClass) {
 			try {
 				$indicator = IndicatorFactory::create($this, $indicatorClass);
 				$this->addIndicator($indicator);
@@ -203,6 +202,14 @@ class Market implements IMarket
 		
 		return false;
 	}
+	
+	public function initializeIndicators(): void {
+		// Initialize indicators from configuration first, so they handle their settings.
+		$this->initializeConfiguredIndicators();
+		
+		// Initialize the indicators required by the strategy using the default settings.
+		$this->initializeStrategyIndicators();
+	}
 
 	/**
 	 * Draw the candlestick chart for this Market.
@@ -210,7 +217,7 @@ class Market implements IMarket
 	 */
 	public function drawChart(): string {
 		// Initialize indicators from configuration
-		$this->initializeConfiguredIndicators();
+		$this->initializeIndicators();
 		
 		// Calculate indicator values
 		$this->calculateIndicators();
@@ -417,7 +424,6 @@ class Market implements IMarket
 		} catch (Exception $e) {
 			$this->exchange->getLogger()->error("Failed to set strategy $strategyName for market $this: " . $e->getMessage());
 		}
-		$this->initializeStrategyIndicators();
 	}
 
 	/**

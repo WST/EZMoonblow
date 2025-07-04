@@ -43,6 +43,9 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	const string FCreatedAt = 'position_created_at';
 	const string FUpdatedAt = 'position_updated_at';
 	const string FFinishedAt = 'position_finished_at';
+	
+	/** TP and SL */
+	const string FExpectedProfitPercent = 'position_expected_profit_percent';
 
 	/**
 	 * Market.
@@ -351,5 +354,9 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 
 	private function setFinishedAt(int $time): void {
 		$this->row[self::FFinishedAt] = $time;
+	}
+	
+	public function setExpectedProfitPercent(float $percent): void {
+		$this->row[self::FExpectedProfitPercent] = $percent;
 	}
 }
