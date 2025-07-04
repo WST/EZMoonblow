@@ -13,6 +13,9 @@ if (!file_exists(IZZY_ROOT . '/vendor/autoload.php')) {
 	die("Please run “composer install” first" . PHP_EOL);
 }
 
+// Vanadzor.
+date_default_timezone_set('Asia/Yerevan');
+
 // The class autoloader.
 require IZZY_ROOT . '/vendor/autoload.php';
 

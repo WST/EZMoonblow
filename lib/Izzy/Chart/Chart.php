@@ -198,11 +198,11 @@ class Chart extends Image
 
 	protected function drawTitle(): void {
 		$title = $this->market->getPair()->getChartTitle();
-		$this->drawHorizontalText($this->getPadding('left'), 25, $title, 11);
+		$this->drawHorizontalText($this->getPadding('left'), 25, $title, 9);
 	}
 
 	protected function drawWatermark(): void {
-		$this->drawVerticalText(24, $this->getHeight() / 2, "EZMoonblow v2", 10);
+		$this->drawVerticalText(24, $this->getHeight() / 2, "EZMoonblow v2", 9);
 	}
 
 	protected function drawChartBackground(): void {

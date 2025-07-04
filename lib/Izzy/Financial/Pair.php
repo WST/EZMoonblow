@@ -228,12 +228,13 @@ class Pair implements IPair
 	 * @return string Chart title string.
 	 */
 	public function getChartTitle(): string {
-		return sprintf("%s %s %s %s %s",
+		return sprintf("%s %s %s %s %s (%s)",
 			$this->getTicker(),
 			$this->timeframe->value,
 			$this->marketType->value,
 			$this->exchangeName,
-			date('Y-m-d H:i:s')
+			date('Y-m-d H:i:s'),
+			date_default_timezone_get()
 		);
 	}
 
