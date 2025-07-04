@@ -34,6 +34,11 @@ class Gate extends AbstractExchangeDriver
 	
 	/** @var FuturesApi Futures API instance for futures trading operations. */
 	private FuturesApi $futuresApi;
+	
+
+	
+	/** @var \GuzzleHttp\Client HTTP client for direct API calls. */
+	private \GuzzleHttp\Client $httpClient;
 
 	/**
 	 * Refresh account balance information from Gate exchange.
@@ -58,7 +63,12 @@ class Gate extends AbstractExchangeDriver
 	public function connect(): bool {
 		$key = $this->config->getKey();
 		$secret = $this->config->getSecret();
-		$config = Configuration::getDefaultConfiguration()->setKey($key)->setSecret($secret);
+		
+		// Create configuration with proper authentication
+		$config = Configuration::getDefaultConfiguration()
+			->setKey($key)
+			->setSecret($secret)
+			->setHost('https://api.gateio.ws/api/v4'); // Set the correct host
 
 		// Create Wallet API instance.
 		$this->walletApi = new WalletApi(null, $config);
@@ -66,8 +76,16 @@ class Gate extends AbstractExchangeDriver
 		// Create Spot API instance.
 		$this->spotApi = new SpotApi(null, $config);
 		
-		// Create Futures API instance.
+		// Create Futures API instance for private operations.
 		$this->futuresApi = new FuturesApi(null, $config);
+		
+
+		
+		// Create HTTP client for direct API calls
+		$this->httpClient = new \GuzzleHttp\Client([
+			'base_uri' => 'https://api.gateio.ws/api/v4/',
+			'timeout' => 30,
+		]);
 
 		return true;
 	}
@@ -115,16 +133,45 @@ class Gate extends AbstractExchangeDriver
 				return [];
 			}
 			
-			$params = [
-				'currency_pair' => $ticker,
-				'interval' => $gateInterval,
-				'limit' => $limit,
-			];
-			
 			if ($pair->isSpot()) {
+				$params = [
+					'currency_pair' => $ticker,
+					'interval' => $gateInterval,
+					'limit' => $limit,
+				];
 				$response = $this->spotApi->listCandlesticks($params);
 			} else {
-				$response = $this->futuresApi->listFuturesCandlesticks($params);
+				// For futures, use direct HTTP call to avoid authentication issues
+				try {
+					$response = $this->httpClient->get('futures/usdt/candlesticks', [
+						'query' => [
+							'contract' => $ticker,
+							'interval' => $gateInterval,
+							'limit' => $limit,
+						]
+					]);
+					
+					$responseData = json_decode($response->getBody()->getContents(), true);
+					if (!is_array($responseData)) {
+						$this->logger->error("Invalid response format for futures candles: " . json_last_error_msg());
+						return [];
+					}
+					
+					// Convert Gate API format to our expected format
+					$response = array_map(function($candle) {
+						return [
+							$candle['t'], // timestamp
+							$candle['v'], // volume
+							$candle['c'], // close
+							$candle['h'], // high
+							$candle['l'], // low
+							$candle['o'], // open
+						];
+					}, $responseData);
+				} catch (\Exception $e) {
+					$this->logger->error("Failed to get futures candles via HTTP: " . $e->getMessage());
+					return [];
+				}
 			}
 			
 			if (empty($response)) {
@@ -229,14 +276,34 @@ class Gate extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
-			$params = ['currency_pair' => $ticker];
-
-			$response = $this->spotApi->listTickers($params);
-			if (!empty($response)) {
-				// listTickers returns an array, we need the first item
-				$tickerData = $response[0] ?? null;
-				if ($tickerData && method_exists($tickerData, 'getLast')) {
-					return new Money($tickerData->getLast());
+			if ($pair->isSpot()) {
+				$params = ['currency_pair' => $ticker];
+				$response = $this->spotApi->listTickers($params);
+				if (!empty($response)) {
+					// listTickers returns an array, we need the first item
+					$tickerData = $response[0] ?? null;
+					if ($tickerData && method_exists($tickerData, 'getLast')) {
+						return new Money($tickerData->getLast());
+					}
+				}
+			} else {
+				// For futures, use direct HTTP call to avoid authentication issues
+				try {
+					$response = $this->httpClient->get('futures/usdt/tickers', [
+						'query' => [
+							'contract' => $ticker
+						]
+					]);
+					
+					$responseData = json_decode($response->getBody()->getContents(), true);
+					if (is_array($responseData) && !empty($responseData)) {
+						$tickerData = $responseData[0] ?? null;
+						if ($tickerData && isset($tickerData['last'])) {
+							return new Money($tickerData['last']);
+						}
+					}
+				} catch (\Exception $e) {
+					$this->logger->error("Failed to get futures ticker via HTTP: " . $e->getMessage());
 				}
 			}
 
