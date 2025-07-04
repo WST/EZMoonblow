@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "5cebb7edd54789c2a593dba8bf3a8fa6",
+    "content-hash": "dd07bb7a5a57d5241c93aa308e923fd3",
     "packages": [
         {
             "name": "carbonphp/carbon-doctrine-types",
@@ -998,6 +998,61 @@
                 "source": "https://github.com/irazasyed/telegram-bot-sdk/tree/v3.15.0"
             },
             "time": "2025-02-18T19:03:24+00:00"
+        },
+        {
+            "name": "kucoin/kucoin-futures-php-sdk",
+            "version": "v1.0.28",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/Kucoin/kucoin-futures-php-sdk.git",
+                "reference": "8570bf22dea0fd35f15c7829260516d539330fe6"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/Kucoin/kucoin-futures-php-sdk/zipball/8570bf22dea0fd35f15c7829260516d539330fe6",
+                "reference": "8570bf22dea0fd35f15c7829260516d539330fe6",
+                "shasum": ""
+            },
+            "require": {
+                "ext-json": "*",
+                "guzzlehttp/guzzle": "^6.0|^7.0",
+                "monolog/monolog": "~1.0|~2.0|~3.0",
+                "php": ">=5.5.0",
+                "ratchet/pawl": "^0.4.1"
+            },
+            "require-dev": {
+                "phpunit/phpunit": ">=5.7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "KuCoin\\Futures\\SDK\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "KuCoin API",
+                    "email": "api@kucoin.com"
+                }
+            ],
+            "description": "PHP SDK for KuCoin Futures API",
+            "homepage": "https://github.com/Kucoin/kucoin-futures-php-sdk",
+            "keywords": [
+                "api",
+                "futures",
+                "kucoin",
+                "kumex",
+                "sdk"
+            ],
+            "support": {
+                "issues": "https://github.com/Kucoin/kucoin-futures-php-sdk/issues",
+                "source": "https://github.com/Kucoin/kucoin-futures-php-sdk"
+            },
+            "time": "2025-03-10T09:25:25+00:00"
         },
         {
             "name": "kucoin/kucoin-php-sdk",

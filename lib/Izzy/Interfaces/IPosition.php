@@ -29,6 +29,18 @@ interface IPosition
 	public function getEntryPrice(): Money;
 
 	/**
+	 * Get the average entry price of the position.
+	 * @return Money
+	 */
+	public function getAverageEntryPrice(): Money;
+
+	/**
+	 * Get current price of the base currency in quote currency.
+	 * @return Money
+	 */
+	public function getCurrentPrice(): Money;
+
+	/**
 	 * Get unrealized profit/loss.
 	 * @return Money
 	 */
@@ -39,6 +51,4 @@ interface IPosition
 	 * @return float
 	 */
 	public function getUnrealizedPnLPercent(): float;
-	
-	
 }

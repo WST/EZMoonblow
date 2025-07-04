@@ -405,6 +405,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		// If the prices are different enough, we should move the TP order.
 		if ($diff > 0.1) {
 			$this->getMarket()->setTakeProfit($expectedTPPrice);
+			$this->setTakeProfitPrice($expectedTPPrice);
 		}
 	}
 

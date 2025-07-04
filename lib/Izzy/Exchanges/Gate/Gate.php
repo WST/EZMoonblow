@@ -15,6 +15,7 @@ use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IStoredPosition;
+use Izzy\Interfaces\IPositionOnExchange;
 
 /**
  * Driver for working with Gate exchange.
@@ -158,6 +159,67 @@ class Gate extends AbstractExchangeDriver
 	 */
 	public function updateBalance(): void {
 		$this->refreshAccountBalance();
+	}
+
+	/**
+	 * Update the exchange state.
+	 * @return int time to sleep before the next update in seconds.
+	 */
+	public function update(): int {
+		$this->logger->info("Updating total balance information for {$this->getName()}");
+		$this->updateBalance();
+		
+		// Updating the lists of pairs.
+		$this->logger->info("Updating the list of pairs for {$this->getName()}");
+		$this->updatePairs();
+		
+		// Update markets.
+		$this->logger->info("Updating market data for {$this->getName()}");
+		$this->updateMarkets();
+		
+		// Update charts for all markets.
+		$this->logger->info("Updating charts for all markets on {$this->getName()}");
+		$this->updateCharts();
+
+		// Default sleep time of 60 seconds.
+		return 60;
+	}
+
+	/**
+	 * Get market instance for a trading pair.
+	 *
+	 * @param IPair $pair Trading pair.
+	 * @return IMarket|null Market instance or null if not found.
+	 */
+	public function createMarket(IPair $pair): ?IMarket {
+		$candlesData = $this->getCandles($pair);
+		if (empty($candlesData)) {
+			return null;
+		}
+
+		$market = new \Izzy\Financial\Market($this, $pair);
+		$market->setCandles($candlesData);
+		$market->initializeStrategy();
+		$market->initializeIndicators();
+		return $market;
+	}
+
+	/**
+	 * Calculate quantity based on amount and price for Gate.io orders.
+	 * 
+	 * @param IMarket $market
+	 * @param Money $amount
+	 * @param Money|null $price
+	 * @return string
+	 */
+	private function calculateQuantity(IMarket $market, Money $amount, ?Money $price): string {
+		if ($price) {
+			// For limit orders, calculate quantity as amount / price
+			return (string)($amount->getAmount() / $price->getAmount());
+		} else {
+			// For market orders, use amount directly
+			return (string)$amount->getAmount();
+		}
 	}
 
 	/**
@@ -325,15 +387,93 @@ class Gate extends AbstractExchangeDriver
 		return Money::from(0.00, $coin);
 	}
 
-	public function getCurrentFuturesPosition(IMarket $market): IStoredPosition|false {
-		return false;
+	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false {
+		$pair = $market->getPair();
+		$marketType = $market->getMarketType();
+		if (!$marketType->isFutures()) {
+			$this->logger->error("Trying to get a futures position on a spot market: $market");
+			return false;
+		}
+		
+		try {
+			$contract = $pair->getExchangeTicker($this);
+			$settle = 'USDT'; // Gate.io uses USDT as settle currency for futures
+			
+			$response = $this->futuresApi->getPosition($settle, $contract);
+			
+			// Check if position has any size (not empty)
+			if ($response->getSize() != 0) {
+				// Convert Gate API Position object to array for our PositionOnGate class
+				$positionInfo = [
+					'size' => $response->getSize(),
+					'entry_price' => $response->getEntryPrice(),
+					'mark_price' => $response->getMarkPrice(),
+					'unrealised_pnl' => $response->getUnrealisedPnl(),
+				];
+				
+				return \Izzy\Exchanges\Gate\PositionOnGate::create($market, $positionInfo);
+			}
+			
+			return false;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get futures position for $contract on $this->exchangeName: " . $e->getMessage());
+			return false;
+		}
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string {
-		// TODO: Implement placeLimitOrder() method.
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string|false {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$params = [
+				'currency_pair' => $ticker,
+				'side' => $side,
+				'amount' => $this->calculateQuantity($market, $amount, $price),
+				'price' => (string)$price->getAmount(),
+				'type' => 'limit'
+			];
+
+			$response = $this->spotApi->createOrder($params);
+			
+			if ($response && $response->getId()) {
+				$this->logger->info("Successfully placed limit order for $ticker: $amount at $price");
+				return $response->getId();
+			} else {
+				$this->logger->error("Failed to place limit order for $ticker: invalid response");
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to place limit order for $ticker: " . $e->getMessage());
+			return false;
+		}
 	}
 
 	public function removeLimitOrders(IMarket $market): bool {
-		// TODO: Implement removeLimitOrders() method.
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$this->spotApi->cancelOrders([
+				'currency_pair' => $ticker
+			]);
+			$this->logger->info("Successfully removed limit orders for $ticker");
+			return true;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to remove limit orders for $ticker: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			// Gate.io doesn't support take profit orders in the basic API
+			// This is a placeholder implementation
+			$this->logger->warning("Take profit orders not supported on Gate.io for $ticker");
+			return false;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to set take profit for $ticker: " . $e->getMessage());
+			return false;
+		}
 	}
 }

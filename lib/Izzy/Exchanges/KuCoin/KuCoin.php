@@ -11,12 +11,16 @@ use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IStoredPosition;
+use Izzy\Interfaces\IPositionOnExchange;
 use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;
 use KuCoin\SDK\PrivateApi\Order;
 use KuCoin\SDK\PublicApi\Currency;
 use KuCoin\SDK\PublicApi\Symbol;
+use KuCoin\Futures\SDK\Auth as FuturesAuth;
+use KuCoin\Futures\SDK\KuCoinFuturesApi;
+use KuCoin\Futures\SDK\PrivateApi\Position as FuturesPosition;
 
 /**
  * Driver for working with KuCoin exchange.
@@ -39,6 +43,9 @@ class KuCoin extends AbstractExchangeDriver
 	/** @var Symbol|null Symbol API instance for market data. */
 	private ?Symbol $symbol = null;
 
+	/** @var FuturesPosition|null Futures Position API instance for futures positions. */
+	private ?FuturesPosition $futuresPosition = null;
+
 	/**
 	 * Connect to the KuCoin exchange using API credentials.
 	 *
@@ -54,8 +61,12 @@ class KuCoin extends AbstractExchangeDriver
 
 			$this->account = new Account($auth);
 			$this->currency = new Currency($auth);
-			$this->order = new Order($auth);
-			$this->symbol = new Symbol($auth);
+					$this->order = new Order($auth);
+		$this->symbol = new Symbol($auth);
+		
+		// Initialize Futures API
+		$futuresAuth = new FuturesAuth($key, $secret, $password, Auth::API_KEY_VERSION_V2);
+		$this->futuresPosition = new FuturesPosition($futuresAuth);
 
 			// Test connection by requesting account info.
 			$accountList = $this->account->getList();
@@ -106,6 +117,30 @@ class KuCoin extends AbstractExchangeDriver
 		} catch (Exception $e) {
 			$this->logger->error("Failed to update wallet balance on {$this->getName()}: " . $e->getMessage() . ".");
 		}
+	}
+
+	/**
+	 * Update the exchange state.
+	 * @return int time to sleep before the next update in seconds.
+	 */
+	public function update(): int {
+		$this->logger->info("Updating total balance information for {$this->getName()}");
+		$this->updateBalance();
+		
+		// Updating the lists of pairs.
+		$this->logger->info("Updating the list of pairs for {$this->getName()}");
+		$this->updatePairs();
+		
+		// Update markets.
+		$this->logger->info("Updating market data for {$this->getName()}");
+		$this->updateMarkets();
+		
+		// Update charts for all markets.
+		$this->logger->info("Updating charts for all markets on {$this->getName()}");
+		$this->updateCharts();
+
+		// Default sleep time of 60 seconds.
+		return 60;
 	}
 
 	/**
@@ -220,6 +255,25 @@ class KuCoin extends AbstractExchangeDriver
 			'1month' => 2592000,
 			default => 0,
 		};
+	}
+
+	/**
+	 * Get market instance for a trading pair.
+	 *
+	 * @param IPair $pair Trading pair.
+	 * @return IMarket|null Market instance or null if not found.
+	 */
+	public function createMarket(IPair $pair): ?IMarket {
+		$candlesData = $this->getCandles($pair);
+		if (empty($candlesData)) {
+			return null;
+		}
+
+		$market = new \Izzy\Financial\Market($this, $pair);
+		$market->setCandles($candlesData);
+		$market->initializeStrategy();
+		$market->initializeIndicators();
+		return $market;
 	}
 
 	/**
@@ -380,15 +434,86 @@ class KuCoin extends AbstractExchangeDriver
 		return Money::from(0.0, $coin);
 	}
 
-	public function getCurrentFuturesPosition(IMarket $market): IStoredPosition|false {
-		return false;
+	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false {
+		$pair = $market->getPair();
+		$marketType = $market->getMarketType();
+		if (!$marketType->isFutures()) {
+			$this->logger->error("Trying to get a futures position on a spot market: $market");
+			return false;
+		}
+		
+		try {
+			$ticker = $pair->getExchangeTicker($this);
+			
+			// Get position details from KuCoin Futures API
+			$positionData = $this->futuresPosition->getDetail($ticker);
+			
+			// Check if position has any size (not empty)
+			if (isset($positionData['data']) && $positionData['data']['size'] != 0) {
+				return PositionOnKuCoin::create($market, $positionData['data']);
+			}
+			
+			return false;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to get futures position for $ticker: " . $e->getMessage());
+			return false;
+		}
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string {
-		// TODO: Implement placeLimitOrder() method.
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string|false {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$params = [
+				'clientOid' => uniqid(),
+				'symbol' => $ticker,
+				'side' => $side,
+				'type' => 'limit',
+				'price' => (string)$price->getAmount(),
+				'size' => (string)($amount->getAmount() / $price->getAmount()),
+			];
+
+			$response = $this->order->createOrder($params);
+			
+			if ($response && isset($response['orderId'])) {
+				$this->logger->info("Successfully placed limit order for $ticker: $amount at $price");
+				return $response['orderId'];
+			} else {
+				$this->logger->error("Failed to place limit order for $ticker: invalid response");
+				return false;
+			}
+		} catch (Exception $e) {
+			$this->logger->error("Failed to place limit order for $ticker: " . $e->getMessage());
+			return false;
+		}
 	}
 
 	public function removeLimitOrders(IMarket $market): bool {
-		// TODO: Implement removeLimitOrders() method.
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			$this->order->cancelAllOrders([
+				'symbol' => $ticker
+			]);
+			$this->logger->info("Successfully removed limit orders for $ticker");
+			return true;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to remove limit orders for $ticker: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		try {
+			// KuCoin doesn't support take profit orders in the basic API
+			// This is a placeholder implementation
+			$this->logger->warning("Take profit orders not supported on KuCoin for $ticker");
+			return false;
+		} catch (Exception $e) {
+			$this->logger->error("Failed to set take profit for $ticker: " . $e->getMessage());
+			return false;
+		}
 	}
 }

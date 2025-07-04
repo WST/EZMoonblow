@@ -99,6 +99,7 @@ abstract class AbstractDCAStrategy extends Strategy
 		}
 		$newPosition->setExpectedProfitPercent($this->dcaSettings->getExpectedProfit());
 		$newPosition->save();
+		return $newPosition;
 	}
 
 	/**
