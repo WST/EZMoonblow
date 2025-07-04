@@ -220,59 +220,117 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Open a long position.
-	 *
-	 * @param IMarket $market
-	 * @param Money $amount Amount to invest.
-	 * @param float $takeProfitPercent
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function openLong(IMarket $market, Money $amount, float $takeProfitPercent): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$params = [
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $pair->getExchangeTicker($this),
-				'side' => 'Buy',
-				'orderType' => 'Market',
-				'qty' => $amount->formatForOrder(), // qty is provided in USDT
-			];
+	public function openLong(
+		IMarket $market,
+		Money $amount,
+		?Money $price = null,
+		?float $takeProfitPercent = null
+	): bool {
+		// Current price.
+		$currentPrice = $this->getCurrentPrice($market);
 
-			// Make an API call.
-			$response = $this->api->tradeApi()->placeOrder($params);
-			
-			if (isset($response['orderId'])) {
-				$this->logger->warning("Successfully opened long position on Bybit for $market: $amount");
-				
-				// Save position to database
-				$currentPrice = $this->getCurrentPrice($market);
-				$entryPrice = Money::from($currentPrice);
-				$positionStatus = PositionStatusEnum::OPEN;
-				
-				// Now get the order by it’s ID to see the exact amount.
-				$order = $this->getOrderById($market, $response['orderId']);
-				$orderAmountInBaseCurrency = $order->getVolume();
-				
-				// Create and save the position. For the spot market, positions are emulated.
+		// If we have a TP defined.
+		$takeProfitPrice = null;
+		if ($takeProfitPercent) {
+			$takeProfitPrice = $currentPrice->modifyByPercent($takeProfitPercent);
+		}
+		
+		// If the price is not null, we want a limit order.
+		if (!is_null($price)) {
+			$orderIdOnExchange = $this->placeLimitOrder($market, $amount, $price, 'Buy', $takeProfitPercent);
+			if ($orderIdOnExchange) {
+				/**
+				 * Create and save the position. For the spot market, positions are emulated.
+				 * So, we use a StoredPosition instead of PositionOnBybit here.
+				 */
 				$position = StoredPosition::create(
 					$market,
 					$amount,
 					PositionDirectionEnum::LONG,
-					$entryPrice,
 					$currentPrice,
-					$positionStatus,
-					$response['orderId']
+					$currentPrice,
+					PositionStatusEnum::OPEN,
+					$orderIdOnExchange
 				);
+				$position->setAverageEntryPrice($currentPrice);
+				$position->setExpectedProfitPercent($takeProfitPercent);
+				$position->setTakeProfitPrice($takeProfitPrice);
+				$this->setTakeProfit($market, $takeProfitPrice);
+
+				// Save the “position” to the database.
 				$position->save();
-				
+
+				// Success.
 				return true;
-			} else {
+			}
+		}
+		
+		// Pair and ticker for this Exchange.
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+
+		// Amount should be adjusted using QtyStep.
+		$properAmount = $amount->formatForOrder($this->getQtyStep($market));
+
+		// Params to be sent to Bybit.
+		$params = [
+			'category' => $this->getBybitCategory($pair),
+			'symbol' => $ticker,
+			'side' => 'Buy',
+			'orderType' => 'Market',
+			'qty' => $properAmount,
+		];
+
+		if ($takeProfitPrice) {
+			$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+		}
+		
+		try {
+			// Make an API call.
+			$response = $this->api->tradeApi()->placeOrder($params);
+			
+			if (!isset($response['orderId'])) {
 				$this->logger->error("Failed to open long position on $market: " . json_encode($response));
 				return false;
 			}
+
+			// Inform the user.
+			$this->logger->warning("Successfully opened long position on Bybit for $market: $properAmount");
+
+			/**
+			 * Create and save the position. For the spot market, positions are emulated.
+			 * So, we use a StoredPosition instead of PositionOnBybit here.
+			 */
+			$position = StoredPosition::create(
+				$market,
+				$amount,
+				PositionDirectionEnum::LONG,
+				$currentPrice,
+				$currentPrice,
+				PositionStatusEnum::OPEN,
+				$response['orderId']
+			);
+			$position->setAverageEntryPrice($currentPrice);
+			$position->setExpectedProfitPercent($takeProfitPercent);
+			
+			// If there is a TP, set it.
+			if ($takeProfitPrice) {
+				$position->setTakeProfitPrice($takeProfitPrice);
+				$this->setTakeProfit($market, $takeProfitPrice);
+			}
+			
+			// Save the “position” to the database.
+			$position->save();
+
+			// Success.
+			return true;
 		} catch (Exception $e) {
+			// Inform the user.
 			$this->logger->error("Failed to open long position on $market: " . $e->getMessage());
+			
+			// Failure.
 			return false;
 		}
 	}
@@ -280,7 +338,7 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function openShort(IMarket $market, Money $amount, float $takeProfitPercent): bool {
+	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		// TODO
 		return false;
 	}
@@ -291,28 +349,7 @@ class Bybit extends AbstractExchangeDriver
 	public function buyAdditional(IMarket $market, Money $amount): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
-		try {
-			$params = [
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $ticker,
-				'side' => 'Buy',
-				'orderType' => 'Market',
-				'qty' => $amount->formatForOrder(),
-			];
-
-			$response = $this->api->tradeApi()->placeOrder($params);
-			
-			if (isset($response['result']['orderId'])) {
-				$this->logger->info("Successfully executed DCA buy for $ticker: $amount");
-				return true;
-			} else {
-				$this->logger->error("Failed to execute DCA buy for $ticker: " . json_encode($response));
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to execute DCA buy for $ticker: " . $e->getMessage());
-			return false;
-		}
+		
 	}
 
 	/**

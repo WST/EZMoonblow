@@ -11,6 +11,7 @@ use GateApi\Configuration;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\AbstractExchangeDriver;
 use Izzy\Financial\Candle;
+use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
@@ -78,8 +79,6 @@ class Gate extends AbstractExchangeDriver
 		
 		// Create Futures API instance for private operations.
 		$this->futuresApi = new FuturesApi(null, $config);
-		
-
 		
 		// Create HTTP client for direct API calls
 		$this->httpClient = new \GuzzleHttp\Client([
@@ -244,7 +243,7 @@ class Gate extends AbstractExchangeDriver
 			return null;
 		}
 
-		$market = new \Izzy\Financial\Market($this, $pair);
+		$market = new Market($this, $pair);
 		$market->setCandles($candlesData);
 		$market->initializeStrategy();
 		$market->initializeIndicators();
@@ -316,80 +315,18 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Open a long position.
-	 *
-	 * @param IMarket $market
-	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
+	public function openLong(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
-		try {
-			// Safety check: limit position size to $100
-			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100");
-				$amount = new Money(100.0, $amount->getCurrency());
-			}
-			
-			$params = [
-				'currency_pair' => $ticker,
-				'side' => 'buy',
-				'amount' => $this->calculateQuantity($market, $amount, $price),
-				'type' => $price ? 'limit' : 'market'
-			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
-
-			$response = $this->spotApi->createOrder($params);
-			
-			if ($response && $response->getId()) {
-				$this->logger->info("Successfully opened long position for $ticker: $amount");
-				
-				// Save position to database
-				$currentPrice = $this->getCurrentPrice($market);
-				if ($currentPrice) {
-					$this->database->savePosition(
-						$this->exchangeName,
-						$ticker,
-						'spot',
-						'long',
-						$currentPrice,
-						$currentPrice,
-						$amount->getAmount(),
-						$amount->getCurrency(),
-						'open',
-						$response->getId(),
-						$response->getId()
-					);
-				}
-				
-				return true;
-			} else {
-				$this->logger->error("Failed to open long position for $ticker: invalid response");
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to open long position for $ticker: " . $e->getMessage());
-			return false;
-		}
+		
 	}
 
 	/**
-	 * Open a short position (futures only).
-	 *
-	 * @param IMarket $market
-	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
-		// Gate.io doesn’t support futures trading in the basic API
-		// This is a placeholder implementation
-		$ticker = $market->getPair()->getExchangeTicker($this);
+	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		$this->logger->warning("Short positions not supported on Gate.io for $ticker");
 		return false;
 	}

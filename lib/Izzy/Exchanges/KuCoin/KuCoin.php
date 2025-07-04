@@ -298,79 +298,18 @@ class KuCoin extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Open a long position.
-	 *
-	 * @param IMarket $market Market instance.
-	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool True if order placed successfully, false otherwise.
+	 * @inheritDoc
 	 */
-	public function openLong(IMarket $market, Money $amount, ?float $price = null): bool {
+	public function openLong(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
-		try {
-			// Safety check: limit position size to $100.
-			if ($amount->getAmount() > 100.0) {
-				$this->logger->warning("Position size $amount exceeds $100 limit, reducing to $100.");
-				$amount->setAmount(100.0);
-			}
-
-			$params = [
-				'clientOid' => uniqid(),
-				'symbol' => $ticker,
-				'side' => 'buy',
-				'type' => $price ? 'limit' : 'market',
-				'funds' => (string)$amount->getAmount(),
-			];
-
-			if ($price) {
-				$params['price'] = (string)$price;
-			}
-
-			$response = $this->order->createOrder($params);
-
-			if ($response && isset($response['orderId'])) {
-				$this->logger->info("Successfully opened long position for $ticker: $amount.");
-
-				$currentPrice = $this->getCurrentPrice($market);
-				if ($currentPrice) {
-					$this->database->savePosition(
-						$this->getName(),
-						$ticker,
-						'spot',
-						'long',
-						$currentPrice,
-						$currentPrice,
-						$amount->getAmount(),
-						$amount->getCurrency(),
-						'open',
-						$response['orderId'],
-						$response['orderId']
-					);
-				}
-
-				return true;
-			} else {
-				$this->logger->error("Failed to open long position for $ticker: invalid response.");
-				return false;
-			}
-		} catch (Exception $e) {
-			$this->logger->error("Failed to open long position for $ticker: " . $e->getMessage() . ".");
-			return false;
-		}
+		
 	}
 
 	/**
-	 * Open a short position (futures only).
-	 * KuCoin does not support futures trading in the basic API.
-	 *
-	 * @param IMarket $market Market instance.
-	 * @param Money $amount Amount to invest.
-	 * @param float|null $price Limit price (null for market order).
-	 * @return bool Always returns false.
+	 * @inheritDoc
 	 */
-	public function openShort(IMarket $market, Money $amount, ?float $price = null): bool {
-		$ticker = $market->getPair()->getExchangeTicker($this);
+	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		$this->logger->warning("Short positions are TODO");
 		return false;
 	}

@@ -374,8 +374,8 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		return floatval($this->row[self::FExpectedProfitPercent]);
 	}
 
-	public function setTakeProfitPrice(Money $entryPrice): void {
-		$this->row[self::FExpectedTakeProfitPrice] = $entryPrice->getAmount();
+	public function setTakeProfitPrice(?Money $entryPrice): void {
+		$this->row[self::FExpectedTakeProfitPrice] = $entryPrice?->getAmount();
 	}
 	
 	public function getTakeProfitPrice(): ?Money {

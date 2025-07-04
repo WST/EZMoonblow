@@ -47,20 +47,22 @@ interface IExchangeDriver
 	 *
 	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
-	 * @param float $takeProfitPercent
+	 * @param Money|null $price
+	 * @param float|null $takeProfitPercent
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IMarket $market, Money $amount, float $takeProfitPercent): bool;
+	public function openLong(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
 
 	/**
 	 * Open a short position (futures only).
 	 *
 	 * @param IMarket $market
 	 * @param Money $amount Amount to invest.
-	 * @param float $takeProfitPercent
+	 * @param Money|null $price
+	 * @param float|null $takeProfitPercent
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openShort(IMarket $market, Money $amount, float $takeProfitPercent): bool;
+	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
 
 	/**
 	 * Place a market order to buy additional volume (DCA).
