@@ -369,15 +369,11 @@ class Market implements IMarket
 	}
 
 	public function openLongPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
-		$currentPrice = $this->getCurrentPrice();
-		$entryVolume = $this->calculateQuantity(Money::from($volume), $currentPrice);
-		$success = $this->exchange->openLong($this, $entryVolume, null, $takeProfitPercent);
+		$success = $this->exchange->openLong($this, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}
 
 	public function openShortPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
-		$currentPrice = $this->getCurrentPrice();
-		$entryVolume = $this->calculateQuantity(Money::from($volume), $currentPrice);
 		$success = $this->exchange->openShort($this, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}

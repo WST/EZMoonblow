@@ -21,7 +21,6 @@ use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IPositionOnExchange;
-use Izzy\Interfaces\IStoredPosition;
 
 /**
  * Driver for working with Bybit exchange.
@@ -271,20 +270,37 @@ class Bybit extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 
-		// Amount should be adjusted using QtyStep.
-		$properAmount = $amount->formatForOrder($this->getQtyStep($market));
-
 		// Params to be sent to Bybit.
 		$params = [
 			'category' => $this->getBybitCategory($pair),
 			'symbol' => $ticker,
 			'side' => 'Buy',
 			'orderType' => 'Market',
-			'qty' => $properAmount,
 		];
 
-		if ($takeProfitPrice) {
-			$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+		if ($market->isSpot()) {
+			// Adding to the params for the API call.
+			$params['qty'] = $amount->formatForOrder($this->getTickSize($market));
+
+			// NOTE: we cannot assign TP here.
+		}
+
+		if ($market->isFutures()) {
+			// For spot, the amount should be in the quote currency, for futures in the base currency.
+			$entryVolume = $market->calculateQuantity(Money::from($amount), $currentPrice);
+
+			// Amount should be adjusted using QtyStep.
+			$properVolume = $entryVolume->formatForOrder($this->getQtyStep($market));
+			
+			// Adding to the params for the API call.
+			$params['qty'] = $properVolume;
+			
+			// Assign TP.
+			if ($takeProfitPrice) {
+				$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+			}
+
+			$params['positionIdx'] = 1;
 		}
 		
 		try {
