@@ -5,7 +5,7 @@ This document contains rules and guidelines for developers & AI assistants worki
 ## Code Style Rules
 
 ### 1. Brace Placement
-- **Functions, loops, conditionals, try blocks**: Opening brace on the same line as the statement
+- **Functions, methods, loops, conditionals, try blocks**: Opening brace on the same line as the statement
   ```php
   if ($condition) {
       // code

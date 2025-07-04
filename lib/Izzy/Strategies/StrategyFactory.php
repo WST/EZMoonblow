@@ -69,4 +69,14 @@ class StrategyFactory
 	public static function register(string $strategyName, string $className): void {
 		self::$strategies[$strategyName] = $className;
 	}
+	
+	/**
+	 * Get strategy class name by strategy name.
+	 * 
+	 * @param string $strategyName Strategy name.
+	 * @return string|null Strategy class name or null if not found.
+	 */
+	public static function getStrategyClass(string $strategyName): ?string {
+		return self::$strategies[$strategyName] ?? null;
+	}
 }

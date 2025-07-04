@@ -6,6 +6,7 @@ use Izzy\AbstractApplications\WebApplication;
 use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Financial\Pair;
+use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
 class WatchedPairsViewer extends PageViewer
@@ -116,9 +117,25 @@ class WatchedPairsViewer extends PageViewer
 	
 	private function renderStrategyParamsTable(array $strategyParams, string $strategyName): string {
 		$viewer = new DetailViewer(['showHeader' => false]);
+		
+		// Try to find parameter formatter in strategy class.
+		$strategyClass = $this->getStrategyClass($strategyName);
+		if ($strategyClass && method_exists($strategyClass, 'formatParameterName')) {
+			$viewer->insertKeyColumn('key', 'Parameter', [$strategyClass, 'formatParameterName'], [
+				'align' => 'left',
+				'width' => '40%',
+				'class' => 'param-name'
+			]);
+		}
+		
 		return $viewer->setCaption('Strategy: ' . $strategyName)
 		             ->setDataFromArray($strategyParams)
 		             ->render();
+	}
+	
+	private function getStrategyClass(string $strategyName): ?string
+	{
+		return StrategyFactory::getStrategyClass($strategyName);
 	}
 	
 	/**

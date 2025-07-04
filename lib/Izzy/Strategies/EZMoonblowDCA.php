@@ -38,4 +38,23 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 		// Buy when RSI shows oversold condition
 		return $rsiSignal === 'oversold';
 	}
+	
+	/**
+	 * Convert machine-readable parameter names to human-readable format.
+	 * @param string $paramName Machine-readable parameter name.
+	 * @return string Human-readable parameter name.
+	 */
+	public static function formatParameterName(string $paramName): string {
+		$formattedNames = [
+			'numberOfLevels' => 'Number of DCA orders including the entry order',
+			'entryVolume' => 'Initial entry volume (USDT)',
+			'volumeMultiplier' => 'Volume multiplier for each subsequent order',
+			'priceDeviation' => 'Price deviation for first averaging (%)',
+			'priceDeviationMultiplier' => 'Price deviation multiplier for subsequent orders',
+			'expectedProfit' => 'Expected profit percentage',
+			'UseLimitOrders' => 'Use limit orders instead of market orders'
+		];
+		
+		return $formattedNames[$paramName] ?? $paramName;
+	}
 }

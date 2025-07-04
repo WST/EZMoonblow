@@ -248,8 +248,6 @@ footer {
     display: block;
 }
 
-
-
 .no-pairs {
     text-align: center;
     padding: 40px;
@@ -321,14 +319,11 @@ footer {
 
 /* Styles for DetailViewer - key-value tables */
 .detail-viewer-table {
-    width: 100%;
-    border-collapse: collapse;
-    margin: 10px 0;
-    background-color: white;
+    /* Inherits from .data-table */
 }
 
 .detail-viewer-table td {
-    border: 1px solid #ddd;
+    border: 1px solid #a9bdcd;
     padding: 8px;
     text-align: left;
     font-size: 13px;
@@ -338,7 +333,10 @@ footer {
     background-color: #e8f4fd;
     color: #003366;
     font-weight: bold;
-    width: 40%;
+    /* width: 40%; */
+    white-space: nowrap;
+    width: 1%;
+    max-width: none;
 }
 
 .detail-viewer-table .param-value {
@@ -487,6 +485,34 @@ footer {
     font-size: 14px;
 }
 
+/* Universal table styles for TableViewer and DetailViewer */
+.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10px 0;
+    background-color: white;
+}
+
+.data-table th,
+.data-table td {
+    border: 1px solid #a9bdcd;
+    padding: 8px;
+    text-align: center;
+    font-size: 13px;
+}
+
+.data-table th {
+    background-color: #5c7589;
+    color: #dfefff;
+    font-weight: bold;
+    border: 1px solid #395e83;
+}
+
+.data-table tr:nth-child(even) td {
+    background-color: #f9f9f9;
+}
+
+/* Legacy support for dca-table */
 .dca-table {
     width: 100%;
     border-collapse: collapse;
@@ -496,7 +522,7 @@ footer {
 
 .dca-table th,
 .dca-table td {
-    border: 1px solid #ddd;
+    border: 1px solid #a9bdcd;
     padding: 8px;
     text-align: center;
     font-size: 13px;
@@ -529,6 +555,16 @@ footer {
     margin: 0;
     color: #666;
     font-size: 13px;
+}
+
+/* Error styling for table cells */
+.error {
+    color: #d32f2f;
+    font-style: italic;
+    background-color: #ffebee;
+    padding: 2px 4px;
+    border-radius: 3px;
+    font-size: 12px;
 }
 
 
