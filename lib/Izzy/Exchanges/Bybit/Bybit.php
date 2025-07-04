@@ -340,10 +340,11 @@ class Bybit extends AbstractExchangeDriver
 				$response[BybitParam::OrderId]
 			);
 			$position->setAverageEntryPrice($currentPrice);
-			$position->setExpectedProfitPercent($takeProfitPercent);
 			
 			// If there is a TP, set it.
-			if ($takeProfitPrice) {
+			if ($takeProfitPercent) {
+				$position->setExpectedProfitPercent($takeProfitPercent);
+				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
 				$position->setTakeProfitPrice($takeProfitPrice);
 				$this->setTakeProfit($market, $takeProfitPrice);
 			}
