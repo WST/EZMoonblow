@@ -43,4 +43,6 @@ interface IMarket
 	public function openShortByLimitOrderMap(array $orderMap, float $takeProfitPercent);
 
 	public function removeLimitOrders();
+
+	public function setTakeProfit(Money $expectedTPPrice): bool;
 }

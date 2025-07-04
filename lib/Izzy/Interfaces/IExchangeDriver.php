@@ -113,4 +113,6 @@ interface IExchangeDriver
 	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null);
 
 	public function removeLimitOrders(IMarket $market): bool;
+
+	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool;
 }

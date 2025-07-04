@@ -86,17 +86,19 @@ abstract class AbstractDCAStrategy extends Strategy
 	 */
 	public function handleLong(IMarket $market): IPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			return $market->openLongByLimitOrderMap(
+			$newPosition = $market->openLongByLimitOrderMap(
 				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::LONG->value],
 				$this->dcaSettings->getExpectedProfit()
 			);
 		} else {
 			// Market open the Long position.
-			return $market->openLongPosition(
+			$newPosition = $market->openLongPosition(
 				$this->getEntryVolume(),
 				$this->dcaSettings->getExpectedProfit()
 			);
 		}
+		$newPosition->setExpectedProfitPercent($this->dcaSettings->getExpectedProfit());
+		$newPosition->save();
 	}
 
 	/**

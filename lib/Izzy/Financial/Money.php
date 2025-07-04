@@ -12,7 +12,8 @@ class Money
 		$this->currency = $currency;
 	}
 	
-	public static function from(string|int|float $amount, string $currency = 'USDT'): Money {
+	public static function from(string|int|float|null $amount, string $currency = 'USDT'): ?Money {
+		if (is_null($amount)) return null;
 		return new self($amount, $currency);
 	}
 

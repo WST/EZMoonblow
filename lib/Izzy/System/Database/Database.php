@@ -424,7 +424,8 @@ class Database
 		if (is_null($totalBalance)) return false;
 		$exchangeNameQuoted = $this->quote($exchangeName);
 		$totalBalanceQuoted = $this->quote($totalBalance->format());
-		$this->exec("REPLACE INTO exchange_balances (name, balance) VALUES ($exchangeNameQuoted, $totalBalanceQuoted)");
+		$now = time();
+		$this->exec("REPLACE INTO exchanges (exchange_name, exchange_balance, exchange_updated_at) VALUES ($exchangeNameQuoted, $totalBalanceQuoted, $now)");
 		return true;
 	}
 
@@ -435,7 +436,7 @@ class Database
 	 * @return Money Total balance as Money object, or zero if no data found.
 	 */
 	public function getTotalBalance(): Money {
-		$sql = "SELECT SUM(CAST(balance AS DECIMAL(20,8))) as total FROM exchange_balances";
+		$sql = "SELECT SUM(CAST(exchange_balance AS DECIMAL(20,8))) as total FROM exchanges";
 		$result = $this->queryOneRow($sql);
 		
 		if ($result && isset($result['total'])) {

@@ -31,7 +31,7 @@ $applicationsKeys = [
 $manager->createTable('applications', $applicationsFields, $applicationsKeys);
 
 /**
- * New columnt to store the expected profit for the position.
+ * New column to store the expected profit for the position.
  */
 $manager->addTableColumn(
 	Position::getTableName(),

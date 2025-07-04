@@ -426,7 +426,7 @@ class Bybit extends AbstractExchangeDriver
 			
 			// It’s a Long position.
 			if ($positionIdx == 1) {
-				return Position::create(
+				$positionOnExchange = Position::create(
 					$market,
 					$positionSize,
 					PositionDirectionEnum::LONG,
@@ -435,11 +435,13 @@ class Bybit extends AbstractExchangeDriver
 					PositionStatusEnum::OPEN,
 					''
 				);
+				$positionOnExchange->setAverageEntryPrice($avgPrice);
+				return $positionOnExchange;
 			}
 			
 			// It’s a Short position.
 			if ($positionIdx == 2) {
-				return Position::create(
+				$positionOnExchange = Position::create(
 					$market,
 					$positionSize,
 					PositionDirectionEnum::SHORT,
@@ -448,12 +450,23 @@ class Bybit extends AbstractExchangeDriver
 					PositionStatusEnum::OPEN,
 					''
 				);
+				$positionOnExchange->setAverageEntryPrice($avgPrice);
+				return $positionOnExchange;
 			}
 		}
 		
 		return false;
 	}
 
+	/**
+	 * NOTE: We cannot detect TP order Id at this point.
+	 * @param IMarket $market
+	 * @param Money $amount
+	 * @param Money $price
+	 * @param string $side
+	 * @param float|null $takeProfitPercent
+	 * @return string|false
+	 */
 	public function placeLimitOrder(
 		IMarket $market,
 		Money $amount,
@@ -548,6 +561,21 @@ class Bybit extends AbstractExchangeDriver
 				'symbol' => $pair->getExchangeTicker($this),
 			]);
 
+			return true;
+		} catch (\Throwable $e) {
+			return false;
+		}
+	}
+
+	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
+		$pair = $market->getPair();
+		try {
+			$this->api->positionApi()->setTradingStop([
+				'category' => $this->getBybitCategory($pair),
+				'symbol' => $pair->getExchangeTicker($this),
+				'tpTriggerBy' => 'LastPrice',
+				'takeProfit' => $expectedPrice->formatForOrder($this->getTickSize($market)),
+			]);
 			return true;
 		} catch (\Throwable $e) {
 			return false;

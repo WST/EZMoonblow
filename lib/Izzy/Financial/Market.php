@@ -628,6 +628,10 @@ class Market implements IMarket
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
+		
+		/** 
+		 * This is the entry order. 
+		 */
 		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Buy', $takeProfitPercent);
 		 
 		foreach ($orderMap as $level) {
@@ -635,7 +639,10 @@ class Market implements IMarket
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
 			$this->placeLimitOrder($orderVolume, $orderPrice, 'Buy');
 		}
-		
+
+		/**
+		 * Position to be saved into the database.
+		 */
 		$position = Position::create(
 			$this,
 			$entryVolume,
@@ -645,7 +652,17 @@ class Market implements IMarket
 			PositionStatusEnum::PENDING,
 			$orderIdOnExchange
 		);
+
+		/**
+		 * Some extra financial info for further calculations.
+		 */
+		$position->setExpectedProfitPercent($takeProfitPercent);
+		$position->setTakeProfitPrice($entryPrice);
+		$position->setAverageEntryPrice($entryPrice);
+		
+		// Save the position.
 		$position->save();
+		
 		return $position;
 	}
 
@@ -653,6 +670,10 @@ class Market implements IMarket
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
+
+		/**
+		 * This is the entry order.
+		 */
 		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Sell', $takeProfitPercent);
 		
 		foreach ($orderMap as $level) {
@@ -661,6 +682,9 @@ class Market implements IMarket
 			$this->placeLimitOrder($orderVolume, $orderPrice, 'Sell');
 		}
 
+		/**
+		 * Position to be saved into the database.
+		 */
 		$position = Position::create(
 			$this,
 			$entryVolume,
@@ -670,11 +694,25 @@ class Market implements IMarket
 			PositionStatusEnum::PENDING,
 			$orderIdOnExchange
 		);
+
+		/**
+		 * Some extra financial info for further calculations.
+		 */
+		$position->setExpectedProfitPercent($takeProfitPercent);
+		$position->setTakeProfitPrice($entryPrice);
+		$position->setAverageEntryPrice($entryPrice);
+		
+		// Save the position.
 		$position->save();
+		
 		return $position;
 	}
 
 	public function removeLimitOrders(): bool {
 		return $this->exchange->removeLimitOrders($this);
+	}
+
+	public function setTakeProfit(Money $expectedTPPrice): bool {
+		return $this->exchange->setTakeProfit($this, $expectedTPPrice);
 	}
 }

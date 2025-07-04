@@ -77,4 +77,10 @@ interface IPosition
 	public function buyAdditional(Money $dcaAmount);
 
 	public function sellAdditional(Money $dcaAmount);
+
+	public function setExpectedProfitPercent(float $expectedProfitPercent): void;
+	
+	public function getExpectedProfitPercent(): float;
+
+	public function updateTakeProfit(): void;
 }

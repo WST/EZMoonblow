@@ -46,6 +46,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	
 	/** TP and SL */
 	const string FExpectedProfitPercent = 'position_expected_profit_percent';
+	const string FExpectedTakeProfitPrice = 'position_expected_tp_price';
 
 	/**
 	 * Market.
@@ -337,6 +338,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 					}
 				} else {
 					$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
+					$this->setAverageEntryPrice($positionOnExchange->getAverageEntryPrice());
 				}
 			}
 		}
@@ -356,7 +358,53 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 		$this->row[self::FFinishedAt] = $time;
 	}
 	
-	public function setExpectedProfitPercent(float $percent): void {
-		$this->row[self::FExpectedProfitPercent] = $percent;
+	public function setExpectedProfitPercent(float $expectedProfitPercent): void {
+		$this->row[self::FExpectedProfitPercent] = $expectedProfitPercent;
+	}
+	
+	public function getExpectedProfitPercent(): float {
+		return floatval($this->row[self::FExpectedProfitPercent]);
+	}
+
+	public function setTakeProfitPrice(Money $entryPrice): void {
+		$this->row[self::FExpectedTakeProfitPrice] = $entryPrice->getAmount();
+	}
+	
+	public function getTakeProfitPrice(): ?Money {
+		return Money::from($this->row[self::FExpectedTakeProfitPrice]);
+	}
+
+	/**
+	 * Move the TP order on the Exchange to match the expected profit % assigned to this Position.
+	 * @return void
+	 */
+	public function updateTakeProfit(): void {
+		// This is the average entry point (aka the PnL line). Above this line we are at benefit.
+		$averageEntryPrice = $this->getAverageEntryPrice();
+		
+		// This is the expected profit in %.
+		$expectedProfitPercent = $this->getExpectedProfitPercent();
+		
+		// Current price of the take profit order.
+		$currentTPPrice = $this->getTakeProfitPrice();
+		
+		// The expected price for the take profit order.
+		$expectedTPPrice = $averageEntryPrice->modifyByPercent($expectedProfitPercent);
+		
+		// Difference between the current and the expected price.
+		$diff = abs($currentTPPrice->getPercentDifference($expectedTPPrice));
+		
+		// If the prices are different enough, we should move the TP order.
+		if ($diff > 0.1) {
+			$this->getMarket()->setTakeProfit($expectedTPPrice);
+		}
+	}
+
+	public function getAverageEntryPrice(): Money {
+		return Money::from($this->row[self::FAverageEntryPrice]);
+	}
+	
+	public function setAverageEntryPrice(Money $averageEntryPrice): void {
+		$this->row[self::FAverageEntryPrice] = $averageEntryPrice->getAmount();
 	}
 }
