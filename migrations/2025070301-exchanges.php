@@ -4,7 +4,7 @@
  * General info on the Exchanges.
  */
 
-use Izzy\Financial\Position;
+use Izzy\Financial\StoredPosition;
 
 $exchangesFields = [
 	'exchange_name' => "VARCHAR(32) NOT NULL DEFAULT 'unknown'",
@@ -34,7 +34,7 @@ $manager->createTable('applications', $applicationsFields, $applicationsKeys);
  * New column to store the expected profit for the position.
  */
 $manager->addTableColumn(
-	Position::getTableName(),
+	StoredPosition::getTableName(),
 	'position_expected_profit_percent',
 	"DECIMAL(5,2) NOT NULL DEFAULT '0.00'",
 );

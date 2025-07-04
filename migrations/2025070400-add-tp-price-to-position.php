@@ -4,10 +4,10 @@
  * New column to store the expected TP price for the position.
  */
 
-use Izzy\Financial\Position;
+use Izzy\Financial\StoredPosition;
 
 $manager->addTableColumn(
-	Position::getTableName(),
+	StoredPosition::getTableName(),
 	'position_expected_tp_price',
 	"DECIMAL(20,8) NULL DEFAULT NULL",
 );

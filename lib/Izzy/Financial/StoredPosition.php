@@ -7,7 +7,7 @@ use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 use Izzy\System\Logger;
@@ -15,7 +15,7 @@ use Izzy\System\Logger;
 /**
  * Base implementation of position interface.
  */
-class Position extends SurrogatePKDatabaseRecord implements IPosition
+class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition
 {
 	/** Position attributes */
 	const string FId = 'position_id';
@@ -132,6 +132,13 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 	 */
 	public function getVolume(): Money {
 		return Money::from($this->row[self::FVolume]);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setVolume(Money $volume): void {
+		$this->row[self::FVolume] = $volume->getAmount();
 	}
 
 	/**
@@ -339,6 +346,7 @@ class Position extends SurrogatePKDatabaseRecord implements IPosition
 				} else {
 					$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
 					$this->setAverageEntryPrice($positionOnExchange->getAverageEntryPrice());
+					$this->setVolume($positionOnExchange->getVolume());
 				}
 			}
 		}

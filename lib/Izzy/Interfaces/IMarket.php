@@ -26,9 +26,9 @@ interface IMarket
 
 	public function updateChart();
 
-	public function openLongPosition(Money $volume, float $takeProfitPercent): IPosition|false;
+	public function openLongPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false;
 
-	public function openShortPosition(Money $volume, float $takeProfitPercent): IPosition|false;
+	public function openShortPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false;
 
 	public function getDatabase(): Database;
 

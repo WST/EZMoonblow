@@ -5,7 +5,7 @@ namespace Izzy\Strategies;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IStoredPosition;
 
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
@@ -82,9 +82,9 @@ abstract class AbstractDCAStrategy extends Strategy
 	/**
 	 * Here, we enter the Long position.
 	 * @param IMarket $market
-	 * @return IPosition|false
+	 * @return IStoredPosition|false
 	 */
-	public function handleLong(IMarket $market): IPosition|false {
+	public function handleLong(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
 			$newPosition = $market->openLongByLimitOrderMap(
 				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::LONG->value],
@@ -104,9 +104,9 @@ abstract class AbstractDCAStrategy extends Strategy
 	/**
 	 * Here, we enter the Short position.
 	 * @param IMarket $market
-	 * @return IPosition|false
+	 * @return IStoredPosition|false
 	 */
-	public function handleShort(IMarket $market): IPosition|false {
+	public function handleShort(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
 			return $market->openShortByLimitOrderMap(
 				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::SHORT->value],
@@ -126,10 +126,10 @@ abstract class AbstractDCAStrategy extends Strategy
 	 * Instead, it relies on the DCA mechanism to average down the position.
 	 * Since this is an abstract class, this method will call the getDCALevels() method
 	 * of the child class to determine the DCA levels.
-	 * @param IPosition $position
+	 * @param IStoredPosition $position
 	 * @return void
 	 */
-	public function updatePosition(IPosition $position): void {
+	public function updatePosition(IStoredPosition $position): void {
 		// If the position uses limit orders, we only need to move TP order.
 		if ($this->dcaSettings->isUseLimitOrders()) {
 			$position->updateTakeProfit();

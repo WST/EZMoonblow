@@ -10,7 +10,7 @@ use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
-use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IStoredPosition;
 use KuCoin\SDK\Auth;
 use KuCoin\SDK\KuCoinApi;
 use KuCoin\SDK\PrivateApi\Account;
@@ -380,7 +380,7 @@ class KuCoin extends AbstractExchangeDriver
 		return Money::from(0.0, $coin);
 	}
 
-	public function getCurrentFuturesPosition(IMarket $market): IPosition|false {
+	public function getCurrentFuturesPosition(IMarket $market): IStoredPosition|false {
 		return false;
 	}
 

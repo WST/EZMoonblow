@@ -17,10 +17,11 @@ use Izzy\Financial\Candle;
 use Izzy\Financial\Money;
 use Izzy\Financial\Order;
 use Izzy\Financial\Pair;
-use Izzy\Financial\Position;
+use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
-use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IPositionOnExchange;
+use Izzy\Interfaces\IStoredPosition;
 
 /**
  * Driver for working with Bybit exchange.
@@ -254,7 +255,7 @@ class Bybit extends AbstractExchangeDriver
 				$orderAmountInBaseCurrency = $order->getVolume();
 				
 				// Create and save the position. For the spot market, positions are emulated.
-				$position = Position::create(
+				$position = StoredPosition::create(
 					$market,
 					$amount,
 					PositionDirectionEnum::LONG,
@@ -395,7 +396,7 @@ class Bybit extends AbstractExchangeDriver
 		return Money::from($balanceInfo['walletBalance'], $coin);
 	}
 
-	public function getCurrentFuturesPosition(IMarket $market): IPosition|false {
+	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false {
 		$pair = $market->getPair();
 		$marketType = $market->getMarketType();
 		if (!$marketType->isFutures()) {
@@ -417,41 +418,18 @@ class Bybit extends AbstractExchangeDriver
 		 */
 		foreach ($positionList as $positionInfo) {
 			$positionIdx = $positionInfo['positionIdx'];
-			$positionSize = Money::from($positionInfo['size'], $pair->getBaseCurrency());
-			$avgPrice = Money::from($positionInfo['avgPrice'], $pair->getQuoteCurrency());
-			$currentPrice = Money::from($positionInfo['markPrice'], $pair->getQuoteCurrency());
 			
 			// Skip empty positions.
-			if ($positionSize->isZero()) continue;
+			if (Money::from($positionInfo['size'], $pair->getBaseCurrency())?->isZero()) continue;
 			
 			// It’s a Long position.
 			if ($positionIdx == 1) {
-				$positionOnExchange = Position::create(
-					$market,
-					$positionSize,
-					PositionDirectionEnum::LONG,
-					$avgPrice, // NOTE: this is the average price, not the “entry” price!
-					$currentPrice,
-					PositionStatusEnum::OPEN,
-					''
-				);
-				$positionOnExchange->setAverageEntryPrice($avgPrice);
-				return $positionOnExchange;
+				return PositionOnBybit::create($market, $positionInfo);
 			}
 			
 			// It’s a Short position.
 			if ($positionIdx == 2) {
-				$positionOnExchange = Position::create(
-					$market,
-					$positionSize,
-					PositionDirectionEnum::SHORT,
-					$avgPrice, // NOTE: this is the average price, not the “entry” price!
-					$currentPrice,
-					PositionStatusEnum::OPEN,
-					''
-				);
-				$positionOnExchange->setAverageEntryPrice($avgPrice);
-				return $positionOnExchange;
+				return PositionOnBybit::create($market, $positionInfo);
 			}
 		}
 		

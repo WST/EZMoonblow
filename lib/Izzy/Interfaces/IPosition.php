@@ -2,13 +2,11 @@
 
 namespace Izzy\Interfaces;
 
-use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
 
 /**
- * Represents currently open position.
+ * Base interface for all positions.
  */
 interface IPosition
 {
@@ -31,12 +29,6 @@ interface IPosition
 	public function getEntryPrice(): Money;
 
 	/**
-	 * Get current market price.
-	 * @return Money
-	 */
-	public function getCurrentPrice(): Money;
-
-	/**
 	 * Get unrealized profit/loss.
 	 * @return Money
 	 */
@@ -47,40 +39,6 @@ interface IPosition
 	 * @return float
 	 */
 	public function getUnrealizedPnLPercent(): float;
-
-	/**
-	 * Get position status: 'open', 'closed', 'pending'.
-	 * @return PositionStatusEnum
-	 */
-	public function getStatus(): PositionStatusEnum;
-
-	/**
-	 * Check if position is open.
-	 * @return bool
-	 */
-	public function isOpen(): bool;
-
-	/**
-	 * Izzy’s internal Position identifier.
-	 * @return int
-	 */
-	public function getPositionId(): int;
-
-	/**
-	 * Market close the position.
-	 * @return void
-	 */
-	public function close(): void;
-
-	public function getMarketType(): MarketTypeEnum;
-
-	public function buyAdditional(Money $dcaAmount);
-
-	public function sellAdditional(Money $dcaAmount);
-
-	public function setExpectedProfitPercent(float $expectedProfitPercent): void;
 	
-	public function getExpectedProfitPercent(): float;
-
-	public function updateTakeProfit(): void;
+	
 }

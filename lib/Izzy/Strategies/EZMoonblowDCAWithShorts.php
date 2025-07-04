@@ -2,7 +2,7 @@
 
 namespace Izzy\Strategies;
 
-use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IMarket;
 
 /**

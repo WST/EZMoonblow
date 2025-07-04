@@ -13,7 +13,7 @@ use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
+use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IStrategy;
 use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Database\Database;
@@ -175,7 +175,7 @@ class Market implements IMarket
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPosition(): IPosition|false {
+	public function getCurrentPosition(): IStoredPosition|false {
 		if ($this->getMarketType()->isSpot()) {
 			// For a spot market, we emulate the positions by using a database.
 			$storedPosition = $this->getStoredPosition();
@@ -368,12 +368,12 @@ class Market implements IMarket
 		return $this->getDescription();
 	}
 
-	public function openLongPosition(Money $volume, float $takeProfitPercent): IPosition|false {
+	public function openLongPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
 		$success = $this->exchange->openLong($this, $volume, $takeProfitPercent);
 		return $this->getCurrentPosition();
 	}
 
-	public function openShortPosition(Money $volume, float $takeProfitPercent): IPosition|false {
+	public function openShortPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
 		$success = $this->exchange->openShort($this, $volume, $takeProfitPercent);
 		return $this->getCurrentPosition();
 	}
@@ -388,16 +388,16 @@ class Market implements IMarket
 
 	/**
 	 * Get a stored position for this market.
-	 * @return IPosition|false Position data or false if not found.
+	 * @return IStoredPosition|false Position data or false if not found.
 	 */
-	public function getStoredPosition(): IPosition|false {
+	public function getStoredPosition(): IStoredPosition|false {
 		$where = [
-			Position::FExchangeName =>  $this->getExchangeName(),
-			Position::FTicker => $this->getTicker(),
-			Position::FMarketType => $this->getMarketType()->value,
-			Position::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+			StoredPosition::FExchangeName =>  $this->getExchangeName(),
+			StoredPosition::FTicker => $this->getTicker(),
+			StoredPosition::FMarketType => $this->getMarketType()->value,
+			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 		];
-		return $this->database->selectOneObject(Position::class, $where, $this);
+		return $this->database->selectOneObject(StoredPosition::class, $where, $this);
 	}
 
 	/**
@@ -545,11 +545,11 @@ class Market implements IMarket
 	}
 
 	/**
-	 * @param IPosition $currentPosition
+	 * @param IStoredPosition $currentPosition
 	 * @return void
 	 * Called only on an existent and active position.
 	 */
-	private function updatePosition(IPosition $currentPosition): void {
+	private function updatePosition(IStoredPosition $currentPosition): void {
 		if (!method_exists($this->strategy, 'updatePosition')) {
 			return;
 		}
@@ -624,7 +624,7 @@ class Market implements IMarket
 		return $this->exchange->placeLimitOrder($this, $volume, $price, $side, $takeProfitPercent);
 	}
 
-	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent): IPosition {
+	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent): IStoredPosition {
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
@@ -643,7 +643,7 @@ class Market implements IMarket
 		/**
 		 * Position to be saved into the database.
 		 */
-		$position = Position::create(
+		$position = StoredPosition::create(
 			$this,
 			$entryVolume,
 			PositionDirectionEnum::LONG,
@@ -666,7 +666,7 @@ class Market implements IMarket
 		return $position;
 	}
 
-	public function openShortByLimitOrderMap(array $orderMap, float $takeProfitPercent): IPosition { 
+	public function openShortByLimitOrderMap(array $orderMap, float $takeProfitPercent): IStoredPosition { 
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
@@ -685,7 +685,7 @@ class Market implements IMarket
 		/**
 		 * Position to be saved into the database.
 		 */
-		$position = Position::create(
+		$position = StoredPosition::create(
 			$this,
 			$entryVolume,
 			PositionDirectionEnum::SHORT,
@@ -713,6 +713,7 @@ class Market implements IMarket
 	}
 
 	public function setTakeProfit(Money $expectedTPPrice): bool {
+		$this->exchange->getLogger()->debug("Updating TP on $this, setting to $expectedTPPrice");
 		return $this->exchange->setTakeProfit($this, $expectedTPPrice);
 	}
 }

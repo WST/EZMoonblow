@@ -1,9 +1,9 @@
 <?php
 
-use Izzy\Financial\Position;
+use Izzy\Financial\StoredPosition;
 
 $manager->addTableColumn(
-	Position::getTableName(),
+	StoredPosition::getTableName(),
 	'position_finished_at',
 	"TIMESTAMP NULL DEFAULT NULL"
 );
