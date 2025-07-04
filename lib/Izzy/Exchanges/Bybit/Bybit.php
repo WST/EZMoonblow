@@ -21,6 +21,7 @@ use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\Interfaces\IPositionOnExchange;
+use Throwable;
 
 /**
  * Driver for working with Bybit exchange.
@@ -74,13 +75,13 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	public function updateBalance(): void {
 		try {
-			$params = ['accountType' => AccountType::UNIFIED];
+			$params = [BybitParam::AccountType => AccountType::UNIFIED];
 			$info = $this->api->accountApi()->getWalletBalance($params);
-			if (!isset($info['list'][0]['totalEquity'])) {
+			if (!isset($info[BybitParam::List][0]['totalEquity'])) {
 				$this->logger->error("Failed to get balance: invalid response format from Bybit");
 				return;
 			}
-			$value = (float)$info['list'][0]['totalEquity'];
+			$value = (float)$info[BybitParam::List][0]['totalEquity'];
 			$totalBalance = Money::from($value);
 			$this->saveBalance($totalBalance);
 		} catch (Exception $e) {
@@ -125,10 +126,10 @@ class Bybit extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $ticker,
-				'interval' => $this->timeframeToBybitInterval($pair->getTimeframe()),
-				'limit' => $limit
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $ticker,
+				BybitParam::Interval => $this->timeframeToBybitInterval($pair->getTimeframe()),
+				BybitParam::Limit => $limit
 			];
 			
 			if ($startTime !== null) $params['start'] = $startTime;
@@ -136,7 +137,7 @@ class Bybit extends AbstractExchangeDriver
 
 			$response = $this->api->marketApi()->getKline($params);
 			
-			if (empty($response['list'])) {
+			if (empty($response[BybitParam::List])) {
 				return []; // No candles received.
 			}
 
@@ -149,7 +150,7 @@ class Bybit extends AbstractExchangeDriver
 					(float)$item[4], // close.
 					(float)$item[5]  // volume.
 				),
-				$response['list']
+				$response[BybitParam::List]
 			);
 
 			// Sort candles by time (oldest to newest).
@@ -192,20 +193,20 @@ class Bybit extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $ticker
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $ticker
 			];
 
 			$response = $this->api->marketApi()->getTickers($params);
 			
-			if (empty($response['list'])) {
+			if (empty($response[BybitParam::List])) {
 				$this->logger->error("Failed to get current price for $ticker: empty response");
 				return null;
 			}
 
 			// Find the ticker in the response
-			foreach ($response['list'] as $tickerData) {
-				if ($tickerData['symbol'] === $ticker) {
+			foreach ($response[BybitParam::List] as $tickerData) {
+				if ($tickerData[BybitParam::Symbol] === $ticker) {
 					return Money::from($tickerData['lastPrice']);
 				}
 			}
@@ -279,15 +280,15 @@ class Bybit extends AbstractExchangeDriver
 
 		// Params to be sent to Bybit.
 		$params = [
-			'category' => $this->getBybitCategory($pair),
-			'symbol' => $ticker,
-			'side' => $direction->getBuySell(),
-			'orderType' => 'Market',
+			BybitParam::Category => $this->getBybitCategory($pair),
+			BybitParam::Symbol => $ticker,
+			BybitParam::Side => $direction->getBuySell(),
+			BybitParam::OrderType => 'Market',
 		];
 
 		if ($market->isSpot()) {
 			// Adding to the params for the API call.
-			$params['qty'] = $amount->formatForOrder($this->getTickSize($market));
+			$params[BybitParam::Qty] = $amount->formatForOrder($this->getTickSize($market));
 
 			// NOTE: we cannot assign TP here.
 		}
@@ -300,17 +301,17 @@ class Bybit extends AbstractExchangeDriver
 			$properVolume = $entryVolume->formatForOrder($this->getQtyStep($market));
 			
 			// Adding to the params for the API call.
-			$params['qty'] = $properVolume;
+			$params[BybitParam::Qty] = $properVolume;
 			
 			// If we have a TP defined.
 			if ($takeProfitPercent) {
 				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
-				$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+				$params[BybitParam::TakeProfit] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
 			}
 
-			$params['positionIdx'] = $this->getPositionIdxByDirection($direction);
+			$params[BybitParam::PositionIdx] = $this->getPositionIdxByDirection($direction);
 			if ($direction->isShort()) {
-				$params['isReduceOnly'] = false;
+				$params[BybitParam::IsReduceOnly] = false;
 			}
 		}
 		
@@ -318,7 +319,7 @@ class Bybit extends AbstractExchangeDriver
 			// Make an API call.
 			$response = $this->api->tradeApi()->placeOrder($params);
 			
-			if (!isset($response['orderId'])) {
+			if (!isset($response[BybitParam::OrderId])) {
 				$this->logger->error("Failed to open long position on $market: " . json_encode($response));
 				return false;
 			}
@@ -337,7 +338,7 @@ class Bybit extends AbstractExchangeDriver
 				$currentPrice,
 				$currentPrice,
 				PositionStatusEnum::OPEN,
-				$response['orderId']
+				$response[BybitParam::OrderId]
 			);
 			$position->setAverageEntryPrice($currentPrice);
 			$position->setExpectedProfitPercent($takeProfitPercent);
@@ -360,14 +361,6 @@ class Bybit extends AbstractExchangeDriver
 			// Failure.
 			return false;
 		}
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
-		// TODO
-		return false;
 	}
 
 	/**
@@ -399,20 +392,20 @@ class Bybit extends AbstractExchangeDriver
 	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false {
 		$pair = $market->getPair();
 		$params = [
-			'category' => $this->getBybitCategory($pair),
-			'symbol' => $market->getPair()->getExchangeTicker($this),
-			'orderId' => $orderIdOnExchange,
+			BybitParam::Category => $this->getBybitCategory($pair),
+			BybitParam::Symbol => $market->getPair()->getExchangeTicker($this),
+			BybitParam::OrderId => $orderIdOnExchange,
 		];
 		$response = $this->api->tradeApi()->getOpenOrders($params);
 
 		// If there is no order list in the response, there was probably no such order.
-		if (!isset($response['list'])) return false;
+		if (!isset($response[BybitParam::List])) return false;
 
 		// But if it’s empty, we also think that there was no such order.
-		if (empty($response['list'])) return false;
+		if (empty($response[BybitParam::List])) return false;
 		
 		// Order info is an array. Let’s build an object for convenience.
-		$orderInfo = $response['list'][0];
+		$orderInfo = $response[BybitParam::List][0];
 		return $this->orderInfoToObject($orderInfo);
 	}
 
@@ -434,9 +427,9 @@ class Bybit extends AbstractExchangeDriver
 	private function orderInfoToObject(array $orderInfo): Order {
 		$order = new Order();
 		$order->setVolume(Money::from($orderInfo['cumExecQty']));
-		$order->setOrderType(OrderTypeEnum::from($orderInfo['orderType']));
+		$order->setOrderType(OrderTypeEnum::from($orderInfo[BybitParam::OrderType]));
 		$order->setStatus($this->getOrderStatusFromInfoString($orderInfo['orderStatus']));
-		$order->setIdOnExchange($orderInfo['orderId']);
+		$order->setIdOnExchange($orderInfo[BybitParam::OrderId]);
 		return $order;
 	}
 
@@ -454,10 +447,10 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	public function getSpotBalanceByCurrency(string $coin): Money {
-		$params = ['accountType' => 'UNIFIED', 'coin' => $coin];
+		$params = [BybitParam::AccountType => 'UNIFIED', BybitParam::Coin => $coin];
 		$response = $this->api->assetApi()->getSingleCoinBalance($params);
-		$balanceInfo = $response['balance'];
-		return Money::from($balanceInfo['walletBalance'], $coin);
+		$balanceInfo = $response[BybitParam::Balance];
+		return Money::from($balanceInfo[BybitParam::WalletBalance], $coin);
 	}
 
 	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false {
@@ -469,32 +462,21 @@ class Bybit extends AbstractExchangeDriver
 		}
 		
 		$params = [
-			'category' => $this->getBybitCategory($pair),
-			'symbol' => $pair->getExchangeTicker($this),
+			BybitParam::Category => $this->getBybitCategory($pair),
+			BybitParam::Symbol => $pair->getExchangeTicker($this),
 		];
 		
 		$response = $this->api->positionApi()->getPositionInfo($params);
-		$positionList = $response['list'];
+		$positionList = $response[BybitParam::List];
 		
 		/*
 		 * Bybit always returns 2 positions in 1 list for two-way mode.
 		 * Long has positionIdx = 1, Short has positionIdx = 2.
 		 */
 		foreach ($positionList as $positionInfo) {
-			$positionIdx = $positionInfo['positionIdx'];
-			
 			// Skip empty positions.
-			if (Money::from($positionInfo['size'], $pair->getBaseCurrency())?->isZero()) continue;
-			
-			// It’s a Long position.
-			if ($positionIdx == 1) {
-				return PositionOnBybit::create($market, $positionInfo);
-			}
-			
-			// It’s a Short position.
-			if ($positionIdx == 2) {
-				return PositionOnBybit::create($market, $positionInfo);
-			}
+			if (Money::from($positionInfo[BybitParam::Size], $pair->getBaseCurrency())?->isZero()) continue;
+			return PositionOnBybit::create($market, $positionInfo);
 		}
 		
 		return false;
@@ -520,26 +502,26 @@ class Bybit extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $ticker,
-				'side' => $direction->getBuySell(),
-				'orderType' => 'Limit',
-				'qty' => $amount->formatForOrder($this->getQtyStep($market)),
-				'price' => $price->formatForOrder($this->getTickSize($market)),
-				'positionIdx' => $this->getPositionIdxByDirection($direction),
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $ticker,
+				BybitParam::Side => $direction->getBuySell(),
+				BybitParam::OrderType => 'Limit',
+				BybitParam::Qty => $amount->formatForOrder($this->getQtyStep($market)),
+				BybitParam::Price => $price->formatForOrder($this->getTickSize($market)),
+				BybitParam::PositionIdx => $this->getPositionIdxByDirection($direction),
 			];
 
 			// If we have a TP defined.
 			if ($takeProfitPercent) {
 				$takeProfitPrice = $price->modifyByPercentWithDirection($takeProfitPercent, $direction);
-				$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+				$params[BybitParam::TakeProfit] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
 			}
 
 			// Make an API call.
 			$response = $this->api->tradeApi()->placeOrder($params);
 
-			if (isset($response['orderId'])) {
-				return $response['orderId'];
+			if (isset($response[BybitParam::OrderId])) {
+				return $response[BybitParam::OrderId];
 			} else {
 				$this->logger->error("Failed to place a limit order on $market: " . json_encode($response));
 				return false;
@@ -563,12 +545,12 @@ class Bybit extends AbstractExchangeDriver
 		if (isset($this->qtySteps[$ticker])) return $this->qtySteps[$ticker];
 		
 		$params = [
-			'category' => $this->getBybitCategory($pair),
-			'symbol' => $pair->getExchangeTicker($this),
+			BybitParam::Category => $this->getBybitCategory($pair),
+			BybitParam::Symbol => $pair->getExchangeTicker($this),
 			
 		];
 		$response = $this->api->marketApi()->getInstrumentsInfo($params);
-		$qtyStep = $response['list'][0]['lotSizeFilter']['qtyStep'] ?? '0.01';
+		$qtyStep = $response[BybitParam::List][0][BybitParam::LotSizeFilter][BybitParam::QtyStep] ?? '0.01';
 		$this->qtySteps[$ticker] = $qtyStep;
 		return $qtyStep;
 	}
@@ -586,11 +568,11 @@ class Bybit extends AbstractExchangeDriver
 		if (isset($this->tickSizes[$ticker])) return $this->tickSizes[$ticker];
 
 		$params = [
-			'category' => $this->getBybitCategory($pair),
-			'symbol' => $pair->getExchangeTicker($this),
+			BybitParam::Category => $this->getBybitCategory($pair),
+			BybitParam::Symbol => $pair->getExchangeTicker($this),
 		];
 		$response = $this->api->marketApi()->getInstrumentsInfo($params);
-		$tickSize = $response['list'][0]['priceFilter']['tickSize'] ?? '0.0001';
+		$tickSize = $response[BybitParam::List][0][BybitParam::PriceFilter][BybitParam::TickSize] ?? '0.0001';
 		$this->tickSizes[$ticker] = $tickSize;
 		return $tickSize;
 	}
@@ -599,12 +581,12 @@ class Bybit extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		try {
 			$this->api->tradeApi()->cancelAllOrders([
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $pair->getExchangeTicker($this),
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
 			]);
 
 			return true;
-		} catch (\Throwable $e) {
+		} catch (Throwable $e) {
 			return false;
 		}
 	}
@@ -613,13 +595,13 @@ class Bybit extends AbstractExchangeDriver
 		$pair = $market->getPair();
 		try {
 			$this->api->positionApi()->setTradingStop([
-				'category' => $this->getBybitCategory($pair),
-				'symbol' => $pair->getExchangeTicker($this),
-				'tpTriggerBy' => 'LastPrice',
-				'takeProfit' => $expectedPrice->formatForOrder($this->getTickSize($market)),
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+				BybitParam::TPTriggerBy => 'LastPrice',
+				BybitParam::TakeProfit => $expectedPrice->formatForOrder($this->getTickSize($market)),
 			]);
 			return true;
-		} catch (\Throwable $e) {
+		} catch (Throwable $e) {
 			return false;
 		}
 	}
