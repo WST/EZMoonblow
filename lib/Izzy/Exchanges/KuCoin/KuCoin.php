@@ -3,6 +3,7 @@
 namespace Izzy\Exchanges\KuCoin;
 
 use Exception;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\AbstractExchangeDriver;
 use Izzy\Financial\Candle;
@@ -300,10 +301,8 @@ class KuCoin extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function openPosition(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		
+	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
+		// TODO: Implement openPosition() method.
 	}
 
 	/**
@@ -399,14 +398,14 @@ class KuCoin extends AbstractExchangeDriver
 		}
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string|false {
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, PositionDirectionEnum $direction, ?float $takeProfitPercent = null): string|false {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
 				'clientOid' => uniqid(),
 				'symbol' => $ticker,
-				'side' => $side,
+				'side' => $direction->getBuySell(),
 				'type' => 'limit',
 				'price' => (string)$price->getAmount(),
 				'size' => (string)($amount->getAmount() / $price->getAmount()),

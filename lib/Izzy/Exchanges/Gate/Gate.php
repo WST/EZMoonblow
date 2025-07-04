@@ -8,6 +8,7 @@ use GateApi\Api\SpotApi;
 use GateApi\Api\WalletApi;
 use GateApi\ApiException;
 use GateApi\Configuration;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\AbstractExchangeDriver;
 use Izzy\Financial\Candle;
@@ -317,15 +318,6 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function openPosition(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-		
-	}
-
-	/**
-	 * @inheritDoc
-	 */
 	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		$this->logger->warning("Short positions not supported on Gate.io for $ticker");
 		return false;
@@ -425,13 +417,13 @@ class Gate extends AbstractExchangeDriver
 		}
 	}
 
-	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, string $side, ?float $takeProfitPercent = null): string|false {
+	public function placeLimitOrder(IMarket $market, Money $amount, Money $price, PositionDirectionEnum $direction, ?float $takeProfitPercent = null): string|false {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		try {
 			$params = [
 				'currency_pair' => $ticker,
-				'side' => $side,
+				'side' => $direction->getBuySell(),
 				'amount' => $this->calculateQuantity($market, $amount, $price),
 				'price' => (string)$price->getAmount(),
 				'type' => 'limit'
@@ -479,5 +471,12 @@ class Gate extends AbstractExchangeDriver
 			$this->logger->error("Failed to set take profit for $ticker: " . $e->getMessage());
 			return false;
 		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
+		// TODO: Implement openPosition() method.
 	}
 }
