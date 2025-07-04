@@ -221,24 +221,25 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function openLong(
+	public function openPosition(
 		IMarket $market,
+		PositionDirectionEnum $direction,
 		Money $amount,
 		?Money $price = null,
-		?float $takeProfitPercent = null
+		?float $takeProfitPercent = null,
 	): bool {
 		// Current price.
 		$currentPrice = $this->getCurrentPrice($market);
-
-		// If we have a TP defined.
-		$takeProfitPrice = null;
-		if ($takeProfitPercent) {
-			$takeProfitPrice = $currentPrice->modifyByPercent($takeProfitPercent);
-		}
 		
 		// If the price is not null, we want a limit order.
 		if (!is_null($price)) {
-			$orderIdOnExchange = $this->placeLimitOrder($market, $amount, $price, 'Buy', $takeProfitPercent);
+			$orderIdOnExchange = $this->placeLimitOrder(
+				$market,
+				$amount,
+				$price,
+				$direction,
+				$takeProfitPercent
+			);
 			if ($orderIdOnExchange) {
 				/**
 				 * Create and save the position. For the spot market, positions are emulated.
@@ -247,16 +248,22 @@ class Bybit extends AbstractExchangeDriver
 				$position = StoredPosition::create(
 					$market,
 					$amount,
-					PositionDirectionEnum::LONG,
+					$direction,
 					$currentPrice,
 					$currentPrice,
 					PositionStatusEnum::OPEN,
 					$orderIdOnExchange
 				);
+
+				// If we have a TP defined.
+				if ($takeProfitPercent) {
+					$takeProfitPrice = $price->modifyByPercentWithDirection($takeProfitPercent, $direction);
+					$position->setExpectedProfitPercent($takeProfitPercent);
+					$position->setTakeProfitPrice($takeProfitPrice);
+					$this->setTakeProfit($market, $takeProfitPrice);
+				}
+
 				$position->setAverageEntryPrice($currentPrice);
-				$position->setExpectedProfitPercent($takeProfitPercent);
-				$position->setTakeProfitPrice($takeProfitPrice);
-				$this->setTakeProfit($market, $takeProfitPrice);
 
 				// Save the “position” to the database.
 				$position->save();
@@ -274,7 +281,7 @@ class Bybit extends AbstractExchangeDriver
 		$params = [
 			'category' => $this->getBybitCategory($pair),
 			'symbol' => $ticker,
-			'side' => 'Buy',
+			'side' => $direction->getBuySell(),
 			'orderType' => 'Market',
 		];
 
@@ -295,12 +302,16 @@ class Bybit extends AbstractExchangeDriver
 			// Adding to the params for the API call.
 			$params['qty'] = $properVolume;
 			
-			// Assign TP.
-			if ($takeProfitPrice) {
+			// If we have a TP defined.
+			if ($takeProfitPercent) {
+				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
 				$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
 			}
 
-			$params['positionIdx'] = 1;
+			$params['positionIdx'] = $this->getPositionIdxByDirection($direction);
+			if ($direction->isShort()) {
+				$params['isReduceOnly'] = false;
+			}
 		}
 		
 		try {
@@ -314,7 +325,7 @@ class Bybit extends AbstractExchangeDriver
 
 			// Inform the user.
 			$this->logger->warning("Successfully opened long position on Bybit for $market: $properAmount");
-
+			
 			/**
 			 * Create and save the position. For the spot market, positions are emulated.
 			 * So, we use a StoredPosition instead of PositionOnBybit here.
@@ -494,7 +505,7 @@ class Bybit extends AbstractExchangeDriver
 	 * @param IMarket $market
 	 * @param Money $amount
 	 * @param Money $price
-	 * @param string $side
+	 * @param PositionDirectionEnum $direction
 	 * @param float|null $takeProfitPercent
 	 * @return string|false
 	 */
@@ -502,7 +513,7 @@ class Bybit extends AbstractExchangeDriver
 		IMarket $market,
 		Money $amount,
 		Money $price,
-		string $side,
+		PositionDirectionEnum $direction,
 		?float $takeProfitPercent = null
 	): string|false {
 		$pair = $market->getPair();
@@ -510,17 +521,17 @@ class Bybit extends AbstractExchangeDriver
 		try {
 			$params = [
 				'category' => $this->getBybitCategory($pair),
-				'symbol' => $pair->getExchangeTicker($this),
-				'side' => $side,
+				'symbol' => $ticker,
+				'side' => $direction->getBuySell(),
 				'orderType' => 'Limit',
 				'qty' => $amount->formatForOrder($this->getQtyStep($market)),
 				'price' => $price->formatForOrder($this->getTickSize($market)),
-				'positionIdx' => ($side == 'Buy') ? 1 : 2,
+				'positionIdx' => $this->getPositionIdxByDirection($direction),
 			];
 
 			// If we have a TP defined.
 			if ($takeProfitPercent) {
-				$takeProfitPrice = $price->modifyByPercent($takeProfitPercent);
+				$takeProfitPrice = $price->modifyByPercentWithDirection($takeProfitPercent, $direction);
 				$params["takeProfit"] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
 			}
 
@@ -611,5 +622,12 @@ class Bybit extends AbstractExchangeDriver
 		} catch (\Throwable $e) {
 			return false;
 		}
+	}
+
+	private function getPositionIdxByDirection(PositionDirectionEnum $direction): int {
+		return match ($direction) {
+			PositionDirectionEnum::LONG => 1,
+			PositionDirectionEnum::SHORT => 2,
+		};
 	}
 }

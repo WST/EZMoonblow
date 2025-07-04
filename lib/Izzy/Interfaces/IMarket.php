@@ -2,6 +2,7 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\System\Database\Database;
 
@@ -36,7 +37,7 @@ interface IMarket
 
 	public function drawChart();
 
-	public function placeLimitOrder(Money $volume, Money $price, string $side);
+	public function placeLimitOrder(Money $volume, Money $price, PositionDirectionEnum $direction, ?float $takeProfitPercent = null);
 
 	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent);
 

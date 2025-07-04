@@ -317,7 +317,7 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function openLong(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
+	public function openPosition(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
 		$pair = $market->getPair();
 		$ticker = $pair->getExchangeTicker($this);
 		

@@ -2,6 +2,7 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 
 /**
@@ -43,26 +44,16 @@ interface IExchangeDriver
 	public function getCurrentPrice(IMarket $market): ?Money;
 
 	/**
-	 * Open a long position.
+	 * Open a Long or Short position by a single limit or market order.
 	 *
 	 * @param IMarket $market
+	 * @param PositionDirectionEnum $direction
 	 * @param Money $amount Amount to invest.
 	 * @param Money|null $price
 	 * @param float|null $takeProfitPercent
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openLong(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
-
-	/**
-	 * Open a short position (futures only).
-	 *
-	 * @param IMarket $market
-	 * @param Money $amount Amount to invest.
-	 * @param Money|null $price
-	 * @param float|null $takeProfitPercent
-	 * @return bool True if order placed successfully, false otherwise.
-	 */
-	public function openShort(IMarket $market, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
+	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
 
 	/**
 	 * Buy additional volume (market).
@@ -115,7 +106,7 @@ interface IExchangeDriver
 	 * @param IMarket $market Active Market to place the order into.
 	 * @param Money $amount Amount in the base currency.
 	 * @param Money $price Price in the quote currency.
-	 * @param string $side Buy or Sell.
+	 * @param PositionDirectionEnum $direction
 	 * @param float|null $takeProfitPercent Take Profit distance from the entry in %.
 	 * @return string|false Order Id on the Exchange on success, false on failure.
 	 */
@@ -123,7 +114,7 @@ interface IExchangeDriver
 		IMarket $market,
 		Money $amount,
 		Money $price,
-		string $side,
+		PositionDirectionEnum $direction,
 		?float $takeProfitPercent = null
 	): string|false;
 

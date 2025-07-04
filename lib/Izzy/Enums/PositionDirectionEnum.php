@@ -30,4 +30,12 @@ enum PositionDirectionEnum: string
 	public function toString(): string {
 		return $this->value;
 	}
+	
+	public function getBuySell(): string {
+		return $this->isLong() ? 'Buy' : 'Sell';
+	}
+
+	public function getMultiplier(): float {
+		return $this->isLong() ? 1.0 : -1.0;
+	}
 }

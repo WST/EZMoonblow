@@ -369,12 +369,12 @@ class Market implements IMarket
 	}
 
 	public function openLongPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
-		$success = $this->exchange->openLong($this, $volume, null, $takeProfitPercent);
+		$success = $this->exchange->openPosition($this, PositionDirectionEnum::LONG, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}
 
 	public function openShortPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
-		$success = $this->exchange->openShort($this, $volume, null, $takeProfitPercent);
+		$success = $this->exchange->openPosition($this, PositionDirectionEnum::SHORT, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}
 	
@@ -616,12 +616,12 @@ class Market implements IMarket
 	 *
 	 * @param Money $volume Volume in USDT (quote currency).
 	 * @param Money $price
-	 * @param string $side
+	 * @param PositionDirectionEnum $direction
 	 * @param float|null $takeProfitPercent
 	 * @return string|false
 	 */
-	public function placeLimitOrder(Money $volume, Money $price, string $side, ?float $takeProfitPercent = null): string|false {
-		return $this->exchange->placeLimitOrder($this, $volume, $price, $side, $takeProfitPercent);
+	public function placeLimitOrder(Money $volume, Money $price, PositionDirectionEnum $direction, ?float $takeProfitPercent = null): string|false {
+		return $this->exchange->placeLimitOrder($this, $volume, $price, $direction, $takeProfitPercent);
 	}
 
 	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent): IStoredPosition {
@@ -632,12 +632,12 @@ class Market implements IMarket
 		/** 
 		 * This is the entry order. 
 		 */
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Buy', $takeProfitPercent);
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, PositionDirectionEnum::LONG, $takeProfitPercent);
 		 
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
-			$this->placeLimitOrder($orderVolume, $orderPrice, 'Buy');
+			$this->placeLimitOrder($orderVolume, $orderPrice, PositionDirectionEnum::LONG);
 		}
 
 		/**

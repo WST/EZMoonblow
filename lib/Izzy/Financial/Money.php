@@ -2,6 +2,8 @@
 
 namespace Izzy\Financial;
 
+use Izzy\Enums\PositionDirectionEnum;
+
 class Money
 {
 	private float $amount;
@@ -56,11 +58,15 @@ class Money
 		return $this->amount < 0.0001;
 	}
 
-	public function modifyByPercent(mixed $percent): Money {
+	public function modifyByPercent(float $percent): Money {
 		$newAmount = $this->amount;
 		$change = ($percent / 100.0) * $this->amount;
 		$newAmount += $change;
 		return new Money($newAmount, $this->currency);
+	}
+	
+	public function modifyByPercentWithDirection(float $percent, PositionDirectionEnum $direction): Money {
+		return Money::from($direction->getMultiplier() * $this->modifyByPercent($percent)->getAmount(), $this->currency);
 	}
 
 	public function getPercentDifference(?Money $otherPrice): float {
