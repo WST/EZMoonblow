@@ -201,4 +201,29 @@ abstract class AbstractDCAStrategy extends Strategy
 	public function getDCASettings(): ?DCASettings {
 		return $this->dcaSettings;
 	}
+
+	/**
+	 * Convert machine-readable parameter names to human-readable format.
+	 * @param string $paramName Machine-readable parameter name.
+	 * @return string Human-readable parameter name.
+	 */
+	public static function formatParameterName(string $paramName): string {
+		$formattedNames = [
+			'numberOfLevels' => 'Number of DCA orders including the entry order',
+			'entryVolume' => 'Initial entry volume (USDT)',
+			'volumeMultiplier' => 'Volume multiplier for each subsequent order',
+			'priceDeviation' => 'Price deviation for first averaging (%)',
+			'priceDeviationMultiplier' => 'Price deviation multiplier for subsequent orders',
+			'expectedProfit' => 'Expected profit percentage',
+			'UseLimitOrders' => 'Use limit orders instead of market orders',
+			'numberOfLevelsShort' => 'Number of short DCA orders including the entry order',
+			'entryVolumeShort' => 'Initial short entry volume (USDT)',
+			'volumeMultiplierShort' => 'Short volume multiplier for each subsequent order',
+			'priceDeviationShort' => 'Short price deviation for first averaging (%)',
+			'priceDeviationMultiplierShort' => 'Short price deviation multiplier for subsequent orders',
+			'expectedProfitShort' => 'Expected short profit percentage',
+		];
+
+		return $formattedNames[$paramName] ?? $paramName;
+	}
 }
