@@ -674,12 +674,12 @@ class Market implements IMarket
 		/**
 		 * This is the entry order.
 		 */
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, 'Sell', $takeProfitPercent);
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, PositionDirectionEnum::SHORT, $takeProfitPercent);
 		
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
-			$this->placeLimitOrder($orderVolume, $orderPrice, 'Sell');
+			$this->placeLimitOrder($orderVolume, $orderPrice, PositionDirectionEnum::SHORT);
 		}
 
 		/**

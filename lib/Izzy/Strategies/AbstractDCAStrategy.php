@@ -24,7 +24,7 @@ abstract class AbstractDCAStrategy extends Strategy
 	 */
 	private function initializeDCASettings(): void {
 		/** Use limit orders */
-		$useLimitOrders = ($this->params['UseLimitOrders'] == 'yes'); 
+		$useLimitOrders = ($this->params['UseLimitOrders'] == 'yes');
 		
 		/** Long */
 		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;

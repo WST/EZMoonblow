@@ -265,7 +265,7 @@ class Bybit extends AbstractExchangeDriver
 
 				$position->setAverageEntryPrice($currentPrice);
 
-				// Save the “position” to the database.
+				// Save the "position" to the database.
 				$position->save();
 
 				// Success.
@@ -349,7 +349,7 @@ class Bybit extends AbstractExchangeDriver
 				$this->setTakeProfit($market, $takeProfitPrice);
 			}
 			
-			// Save the “position” to the database.
+			// Save the "position" to the database.
 			$position->save();
 
 			// Success.
@@ -381,7 +381,7 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Bybit uses tickers like “BTCUSDT” for pairs.
+	 * Bybit uses tickers like "BTCUSDT" for pairs.
 	 * @param IPair $pair
 	 * @return string
 	 */
@@ -401,10 +401,10 @@ class Bybit extends AbstractExchangeDriver
 		// If there is no order list in the response, there was probably no such order.
 		if (!isset($response[BybitParam::List])) return false;
 
-		// But if it’s empty, we also think that there was no such order.
+		// But if it's empty, we also think that there was no such order.
 		if (empty($response[BybitParam::List])) return false;
 		
-		// Order info is an array. Let’s build an object for convenience.
+		// Order info is an array. Let's build an object for convenience.
 		$orderInfo = $response[BybitParam::List][0];
 		return $this->orderInfoToObject($orderInfo);
 	}
