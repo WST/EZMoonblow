@@ -368,13 +368,8 @@ class Market implements IMarket
 		return $this->getDescription();
 	}
 
-	public function openLongPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
-		$success = $this->exchange->openPosition($this, PositionDirectionEnum::LONG, $volume, null, $takeProfitPercent);
-		return $success ? $this->getCurrentPosition() : false;
-	}
-
-	public function openShortPosition(Money $volume, float $takeProfitPercent): IStoredPosition|false {
-		$success = $this->exchange->openPosition($this, PositionDirectionEnum::SHORT, $volume, null, $takeProfitPercent);
+	public function openPosition(Money $volume, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
+		$success = $this->exchange->openPosition($this, $direction, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}
 	
@@ -624,7 +619,7 @@ class Market implements IMarket
 		return $this->exchange->placeLimitOrder($this, $volume, $price, $direction, $takeProfitPercent);
 	}
 
-	public function openLongByLimitOrderMap(array $orderMap, float $takeProfitPercent): IStoredPosition {
+	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition {
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
@@ -632,12 +627,12 @@ class Market implements IMarket
 		/** 
 		 * This is the entry order. 
 		 */
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, PositionDirectionEnum::LONG, $takeProfitPercent);
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $direction, $takeProfitPercent);
 		 
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
-			$this->placeLimitOrder($orderVolume, $orderPrice, PositionDirectionEnum::LONG);
+			$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
 		}
 
 		/**
@@ -646,7 +641,7 @@ class Market implements IMarket
 		$position = StoredPosition::create(
 			$this,
 			$entryVolume,
-			PositionDirectionEnum::LONG,
+			$direction,
 			$entryPrice,
 			$entryPrice,
 			PositionStatusEnum::PENDING,
@@ -657,49 +652,7 @@ class Market implements IMarket
 		 * Some extra financial info for further calculations.
 		 */
 		$position->setExpectedProfitPercent($takeProfitPercent);
-		$position->setTakeProfitPrice($entryPrice);
-		$position->setAverageEntryPrice($entryPrice);
-		
-		// Save the position.
-		$position->save();
-		
-		return $position;
-	}
-
-	public function openShortByLimitOrderMap(array $orderMap, float $takeProfitPercent): IStoredPosition { 
-		$entryLevel = array_shift($orderMap);
-		$entryPrice = $this->getCurrentPrice();
-		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
-
-		/**
-		 * This is the entry order.
-		 */
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, PositionDirectionEnum::SHORT, $takeProfitPercent);
-		
-		foreach ($orderMap as $level) {
-			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
-			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
-			$this->placeLimitOrder($orderVolume, $orderPrice, PositionDirectionEnum::SHORT);
-		}
-
-		/**
-		 * Position to be saved into the database.
-		 */
-		$position = StoredPosition::create(
-			$this,
-			$entryVolume,
-			PositionDirectionEnum::SHORT,
-			$entryPrice,
-			$entryPrice,
-			PositionStatusEnum::PENDING,
-			$orderIdOnExchange
-		);
-
-		/**
-		 * Some extra financial info for further calculations.
-		 */
-		$position->setExpectedProfitPercent($takeProfitPercent);
-		$position->setTakeProfitPrice($entryPrice);
+		$position->setTakeProfitPrice($entryPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		$position->setAverageEntryPrice($entryPrice);
 		
 		// Save the position.

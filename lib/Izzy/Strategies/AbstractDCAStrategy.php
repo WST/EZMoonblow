@@ -86,14 +86,16 @@ abstract class AbstractDCAStrategy extends Strategy
 	 */
 	public function handleLong(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			$newPosition = $market->openLongByLimitOrderMap(
+			$newPosition = $market->openPositionByLimitOrderMap(
 				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::LONG->value],
+				PositionDirectionEnum::LONG,
 				$this->dcaSettings->getExpectedProfit()
 			);
 		} else {
 			// Market open the Long position.
-			$newPosition = $market->openLongPosition(
+			$newPosition = $market->openPosition(
 				$this->getEntryVolume(),
+				PositionDirectionEnum::LONG,
 				$this->dcaSettings->getExpectedProfit()
 			);
 		}
@@ -109,14 +111,16 @@ abstract class AbstractDCAStrategy extends Strategy
 	 */
 	public function handleShort(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			return $market->openShortByLimitOrderMap(
+			return $market->openPositionByLimitOrderMap(
 				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::SHORT->value],
+				PositionDirectionEnum::SHORT,
 				$this->dcaSettings->getExpectedProfit()
 			);
 		} else {
 			// Market open the Short position.
-			return $market->openShortPosition(
+			return $market->openPosition(
 				$this->getEntryVolume(),
+				PositionDirectionEnum::SHORT,
 				$this->dcaSettings->getExpectedProfit()
 			);
 		}
