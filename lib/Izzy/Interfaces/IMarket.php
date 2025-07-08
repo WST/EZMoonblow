@@ -22,24 +22,71 @@ interface IMarket
 	 * @return ICandle
 	 */
 	public function lastCandle(): ICandle;
-	
+
+	/**
+	 * @return string
+	 */
 	public function getTicker(): string;
 
-	public function updateChart();
+	/**
+	 * @return void
+	 */
+	public function updateChart(): void;
 
+	/**
+	 * @param Money $volume
+	 * @param PositionDirectionEnum $direction
+	 * @param float $takeProfitPercent
+	 * @return IStoredPosition|false
+	 */
 	public function openPosition(Money $volume, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false;
 
+	/**
+	 * @return Database
+	 */
 	public function getDatabase(): Database;
 
-	public function hasOrder(string $orderIdOnExchange);
+	/**
+	 * @param string $orderIdOnExchange
+	 * @return bool
+	 */
+	public function hasOrder(string $orderIdOnExchange): bool;
 
-	public function drawChart();
+	/**
+	 * @return void
+	 */
+	public function drawChart(): void;
 
-	public function placeLimitOrder(Money $volume, Money $price, PositionDirectionEnum $direction, ?float $takeProfitPercent = null);
+	/**
+	 * @param Money $volume
+	 * @param Money $price
+	 * @param PositionDirectionEnum $direction
+	 * @param float|null $takeProfitPercent
+	 * @return false|string
+	 */
+	public function placeLimitOrder(
+		Money $volume,
+		Money $price,
+		PositionDirectionEnum $direction,
+		?float $takeProfitPercent = null
+	): string|false;
 
-	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $directionEnum, float $takeProfitPercent);
+	/**
+	 * @param array $orderMap
+	 * @param PositionDirectionEnum $directionEnum
+	 * @param float $takeProfitPercent
+	 * @return IStoredPosition|false
+	 */
+	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $directionEnum, float $takeProfitPercent): IStoredPosition|false;
 
-	public function removeLimitOrders();
+	/**
+	 * @return bool
+	 */
+	public function removeLimitOrders(): bool;
 
+	/**
+	 * @param Money $expectedTPPrice
+	 * @return bool
+	 */
 	public function setTakeProfit(Money $expectedTPPrice): bool;
 }

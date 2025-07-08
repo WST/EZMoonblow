@@ -619,7 +619,7 @@ class Market implements IMarket
 		return $this->exchange->placeLimitOrder($this, $volume, $price, $direction, $takeProfitPercent);
 	}
 
-	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition {
+	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
