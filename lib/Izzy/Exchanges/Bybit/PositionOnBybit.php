@@ -6,6 +6,7 @@ use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPositionOnExchange;
+use Izzy\Interfaces\IStoredPosition;
 
 /**
  * NOTE: only USDT supported as the quote currency.
@@ -61,5 +62,9 @@ class PositionOnBybit implements IPositionOnExchange {
 		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
 		$pnlPercent = (($markPrice - $avgPrice) / $avgPrice) * 100 * $direction;
 		return round($pnlPercent, 4);
+	}
+
+	public function store(): IStoredPosition {
+		// TODO: Implement store() method.
 	}
 }

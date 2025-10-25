@@ -13,6 +13,7 @@ use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IStrategy;
 use Izzy\Strategies\StrategyFactory;
@@ -174,7 +175,7 @@ class Market implements IMarket {
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPosition(): IStoredPosition|false {
+	public function getCurrentPosition(): IPosition|false {
 		if ($this->getMarketType()->isSpot()) {
 			// For a spot market, we emulate the positions by using a database.
 			$storedPosition = $this->getStoredPosition();
@@ -194,7 +195,8 @@ class Market implements IMarket {
 				if ($positionFromExchange) {
 					// NOTE: we don’t have info about entry order here.
 					$this->exchange->getLogger()->debug("Found position on the exchange for $this");
-					$positionFromExchange->save();
+					$storedPosition = $positionFromExchange->store(); // TODO
+					$storedPosition->save();
 					return $positionFromExchange;
 				}
 			}
