@@ -13,8 +13,7 @@ use Izzy\Traits\HasMarketTypeTrait;
  * Trading pair representation.
  * Contains information about a specific trading pair including ticker, timeframe, exchange, and market type.
  */
-class Pair implements IPair
-{
+class Pair implements IPair {
 	use HasMarketTypeTrait;
 
 	/**
@@ -40,19 +39,19 @@ class Pair implements IPair
 	 * @var string
 	 */
 	private string $exchangeName;
-	
+
 	/**
 	 * Whether to monitor the pair (draw charts, emit signals).
 	 * @var bool
 	 */
 	private bool $monitoringEnabled = false;
-	
+
 	/**
 	 * Whether to trade the pair (execute buy/sell orders).
 	 * @var bool
 	 */
 	private bool $tradingEnabled = false;
-	
+
 	/**
 	 * Name of the strategy to use for trading.
 	 * @var string
@@ -67,7 +66,7 @@ class Pair implements IPair
 
 	/**
 	 * Constructor for creating a new trading pair.
-	 * 
+	 *
 	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT"), including “/” is important.
 	 * @param TimeFrameEnum $timeFrame Timeframe for the pair (e.g., 15m, 1h).
 	 * @param string $exchangeName Name of the exchange (e.g., "Bybit", "Gate").
@@ -87,7 +86,7 @@ class Pair implements IPair
 
 	/**
 	 * Check if this is a spot trading pair.
-	 * 
+	 *
 	 * @return bool True if this is a spot pair, false otherwise.
 	 */
 	public function isSpot(): bool {
@@ -96,7 +95,7 @@ class Pair implements IPair
 
 	/**
 	 * Check if this is a futures trading pair.
-	 * 
+	 *
 	 * @return bool True if this is a futures pair, false otherwise.
 	 */
 	public function isFutures(): bool {
@@ -106,26 +105,26 @@ class Pair implements IPair
 	/**
 	 * Check if this is an inverse futures trading pair.
 	 * Currently not implemented, always returns false.
-	 * 
+	 *
 	 * @return bool Always returns false.
 	 */
 	public function isInverseFutures(): bool {
 		return false;
 	}
-	
+
 	/**
 	 * Get a human-readable description of the trading pair.
 	 * Example: "BTC/USDT 15m spot Bybit".
-	 * 
+	 *
 	 * @return string Formatted description of the pair.
 	 */
 	public function getDescription(): string {
 		return "{$this->getTicker()} {$this->timeframe->value} {$this->marketType->value} {$this->exchangeName}";
 	}
-	
+
 	/**
 	 * Get the exchange name for this trading pair.
-	 * 
+	 *
 	 * @return string Exchange name.
 	 */
 	public function getExchangeName(): string {
@@ -134,7 +133,7 @@ class Pair implements IPair
 
 	/**
 	 * Set the exchange name for this trading pair.
-	 * 
+	 *
 	 * @param string $exchangeName New exchange name.
 	 */
 	public function setExchangeName(string $exchangeName): void {
@@ -143,7 +142,7 @@ class Pair implements IPair
 
 	/**
 	 * Get the ticker symbol for this trading pair.
-	 * 
+	 *
 	 * @return string Trading pair ticker.
 	 */
 	public function getTicker(): string {
@@ -152,7 +151,7 @@ class Pair implements IPair
 
 	/**
 	 * Set the ticker symbol for this trading pair.
-	 * 
+	 *
 	 * @param string $ticker New ticker symbol.
 	 */
 	public function setTicker(string $ticker): void {
@@ -166,7 +165,7 @@ class Pair implements IPair
 
 	/**
 	 * Get the timeframe for this trading pair.
-	 * 
+	 *
 	 * @return TimeFrameEnum Trading pair timeframe.
 	 */
 	public function getTimeframe(): TimeFrameEnum {
@@ -175,7 +174,7 @@ class Pair implements IPair
 
 	/**
 	 * Set the timeframe for this trading pair.
-	 * 
+	 *
 	 * @param TimeFrameEnum $timeframe New timeframe.
 	 */
 	public function setTimeframe(TimeFrameEnum $timeframe): void {
@@ -184,7 +183,7 @@ class Pair implements IPair
 
 	/**
 	 * Get the market type for this trading pair.
-	 * 
+	 *
 	 * @return MarketTypeEnum Market type enum.
 	 */
 	public function getMarketType(): MarketTypeEnum {
@@ -193,7 +192,7 @@ class Pair implements IPair
 
 	/**
 	 * Set the market type for this trading pair.
-	 * 
+	 *
 	 * @param MarketTypeEnum $marketType New market type.
 	 */
 	public function setMarketType(MarketTypeEnum $marketType): void {
@@ -203,28 +202,28 @@ class Pair implements IPair
 	/**
 	 * Get the filename for the chart image of this trading pair.
 	 * Generates a filename based on ticker, timeframe, market type, and exchange.
-	 * 
+	 *
 	 * @return string Chart filename with full path.
 	 */
 	public function getChartFilename(): string {
 		$basename = "{$this->getFilenameTicker()}_{$this->timeframe->value}_{$this->marketType->value}_{$this->exchangeName}.png";
-		return IZZY_CHARTS . "/$basename";
+		return IZZY_CHARTS."/$basename";
 	}
-	
+
 	/**
 	 * Get the chart key for URL generation.
 	 * This key corresponds to the filename without extension and path.
-	 * 
+	 *
 	 * @return string Chart key for URL.
 	 */
 	public function getChartKey(): string {
 		return "{$this->getFilenameTicker()}_{$this->timeframe->value}_{$this->marketType->value}_{$this->exchangeName}";
 	}
-	
+
 	/**
 	 * Get the title for the chart of this trading pair.
 	 * Includes ticker, timeframe, market type, exchange, and current timestamp.
-	 * 
+	 *
 	 * @return string Chart title string.
 	 */
 	public function getChartTitle(): string {
@@ -240,7 +239,7 @@ class Pair implements IPair
 
 	/**
 	 * Check if monitoring is enabled for this trading pair.
-	 * 
+	 *
 	 * @return bool True if monitoring is enabled, false otherwise.
 	 */
 	public function isMonitoringEnabled(): bool {
@@ -249,7 +248,7 @@ class Pair implements IPair
 
 	/**
 	 * Enable or disable monitoring for this trading pair.
-	 * 
+	 *
 	 * @param bool $monitor True to enable monitoring, false to disable.
 	 */
 	public function setMonitoringEnabled(bool $monitor): void {
@@ -258,7 +257,7 @@ class Pair implements IPair
 
 	/**
 	 * Check if trading is enabled for this trading pair.
-	 * 
+	 *
 	 * @return bool True if trading is enabled, false otherwise.
 	 */
 	public function isTradingEnabled(): bool {
@@ -267,7 +266,7 @@ class Pair implements IPair
 
 	/**
 	 * Enable or disable trading for this trading pair.
-	 * 
+	 *
 	 * @param bool $tradingEnabled True to enable trading, false to disable.
 	 */
 	public function setTradingEnabled(bool $tradingEnabled): void {
@@ -276,7 +275,7 @@ class Pair implements IPair
 
 	/**
 	 * Get the strategy name associated with this trading pair.
-	 * 
+	 *
 	 * @return string Strategy name or empty string if not set.
 	 */
 	public function getStrategyName(): string {
@@ -285,7 +284,7 @@ class Pair implements IPair
 
 	/**
 	 * Set the strategy name for this trading pair.
-	 * 
+	 *
 	 * @param string $strategyName Name of the trading strategy to use.
 	 */
 	public function setStrategyName(string $strategyName): void {
@@ -294,7 +293,7 @@ class Pair implements IPair
 
 	/**
 	 * Get strategy parameters as associative array.
-	 * 
+	 *
 	 * @return array Strategy parameters.
 	 */
 	public function getStrategyParams(): array {
@@ -303,7 +302,7 @@ class Pair implements IPair
 
 	/**
 	 * Set strategy parameters.
-	 * 
+	 *
 	 * @param array $params Strategy parameters as associative array.
 	 */
 	public function setStrategyParams(array $params): void {
@@ -321,7 +320,7 @@ class Pair implements IPair
 	 * @inheritDoc
 	 */
 	public function getFilenameTicker(): string {
-		return $this->baseCurrency . '_' . $this->quoteCurrency;
+		return $this->baseCurrency.'_'.$this->quoteCurrency;
 	}
 
 	/**
@@ -339,6 +338,6 @@ class Pair implements IPair
 	}
 
 	public function __toString(): string {
-		return $this->getBaseCurrency() . '/' . $this->getQuoteCurrency();
+		return $this->getBaseCurrency().'/'.$this->getQuoteCurrency();
 	}
 }

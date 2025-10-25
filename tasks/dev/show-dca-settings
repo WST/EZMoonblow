@@ -1,0 +1,300 @@
+#!/usr/bin/env php
+<?php
+
+/**
+ * Script for displaying DCA settings for all trading pairs
+ * Shows order grid and maximum total position volume
+ */
+
+require_once __DIR__.'/../../lib/common.php';
+
+use Izzy\AbstractApplications\IzzyApplication;
+use Izzy\Configuration\Configuration;
+use Izzy\Financial\Market;
+use Izzy\Strategies\AbstractDCAStrategy;
+use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Strategies\StrategyFactory;
+use Symfony\Component\Console\Application;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
+use Symfony\Component\Console\Helper\Table;
+use Symfony\Component\Console\Helper\TableSeparator;
+
+class ShowDCASettingsCommand extends Command {
+	protected function configure(): void {
+		$this
+			->setName('show-dca-settings')
+			->setDescription('Displays DCA settings for all trading pairs');
+	}
+
+	private array $dcaPairs = [];
+
+	protected function execute(InputInterface $input, OutputInterface $output): int {
+		$io = new SymfonyStyle($input, $output);
+
+		try {
+			$this->loadDCAPairs($io);
+			$this->displayDCASettings($io);
+
+			$io->success('DCA settings display completed');
+			return Command::SUCCESS;
+
+		} catch (Exception $e) {
+			$io->error('Critical error: '.$e->getMessage());
+			if ($io->isVerbose()) {
+				$io->writeln($e->getTraceAsString());
+			}
+			return Command::FAILURE;
+		}
+	}
+
+	/**
+	 * Load configuration and find all DCA pairs.
+	 */
+	private function loadDCAPairs(SymfonyStyle $io): void {
+		$io->section('🔍 Loading configuration and searching for DCA pairs');
+
+		try {
+			$config = Configuration::getInstance();
+			$exchanges = $config->connectExchanges(new class extends IzzyApplication {
+				public function run(): void {
+				}
+			});
+
+			foreach ($exchanges as $exchangeName => $exchange) {
+				$io->writeln("📊 Processing exchange: <info>{$exchangeName}</info>");
+
+				// Get spot pairs.
+				$spotPairs = $exchange->getExchangeConfiguration()->getSpotPairs($exchange);
+				$this->processPairs($exchange, $spotPairs, 'SPOT');
+
+				// Get futures pairs.
+				try {
+					$futuresPairs = $exchange->getExchangeConfiguration()->getFuturesPairs($exchange);
+					$this->processPairs($exchange, $futuresPairs, 'FUTURES');
+				} catch (Exception $e) {
+					$io->warning("Error getting futures pairs: ".$e->getMessage());
+				}
+			}
+
+		} catch (Exception $e) {
+			throw new Exception("Error loading configuration: ".$e->getMessage());
+		}
+
+		if (empty($this->dcaPairs)) {
+			$io->warning('No pairs with DCA strategies found');
+			return;
+		}
+
+		$io->success(sprintf('Found %d pairs with DCA strategies', count($this->dcaPairs)));
+	}
+
+	/**
+	 * Process pairs and find DCA strategies
+	 */
+	private function processPairs($exchange, array $pairs, string $marketType): void {
+		foreach ($pairs as $pair) {
+			$strategyName = $pair->getStrategyName();
+			if (empty($strategyName)) {
+				continue;
+			}
+
+			// Check if strategy is DCA.
+			$strategyClass = StrategyFactory::getStrategyClass($strategyName);
+			if (!$strategyClass || !is_subclass_of($strategyClass, AbstractDCAStrategy::class)) {
+				continue;
+			}
+
+			try {
+				// Create Market object.
+				$market = new Market($exchange, $pair);
+				$market->initializeStrategy();
+
+				$strategy = $market->getStrategy();
+				if ($strategy instanceof AbstractDCAStrategy) {
+					$this->dcaPairs[] = [
+						'exchange' => $exchange->getName(),
+						'ticker' => $pair->getTicker(),
+						'timeframe' => $pair->getTimeframe()->value,
+						'marketType' => $marketType,
+						'strategy' => $strategy,
+						'strategyName' => $strategyName
+					];
+				}
+			} catch (Exception $e) {
+				// Ignore individual strategy initialization errors.
+			}
+		}
+	}
+
+	/**
+	 * Display all DCA settings.
+	 */
+	private function displayDCASettings(SymfonyStyle $io): void {
+		foreach ($this->dcaPairs as $index => $pairData) {
+			$this->displayPairDCASettings($io, $pairData, $index + 1);
+			if ($index < count($this->dcaPairs) - 1) {
+				$io->newLine();
+				$io->writeln(str_repeat('=', 80));
+				$io->newLine();
+			}
+		}
+	}
+
+	/**
+	 * Display DCA settings for one pair.
+	 */
+	private function displayPairDCASettings(SymfonyStyle $io, array $pairData, int $number): void {
+		$exchange = $pairData['exchange'];
+		$ticker = $pairData['ticker'];
+		$timeframe = $pairData['timeframe'];
+		$marketType = $pairData['marketType'];
+		$strategy = $pairData['strategy'];
+		$strategyName = $pairData['strategyName'];
+
+		// Header.
+		$title = sprintf('📈 DCA Settings #%d: %s (%s, %s, %s)',
+			$number, $ticker, $exchange, $marketType, $timeframe);
+		$io->title($title);
+		$io->writeln("Strategy: <info>{$strategyName}</info>");
+
+		// Get DCA levels.
+		$dcaLevels = $strategy->getDCALevels();
+
+		// Display Long positions.
+		if (!empty($dcaLevels[PositionDirectionEnum::LONG->value])) {
+			$this->displayDirectionSettings($io, '🟢 LONG', $dcaLevels[PositionDirectionEnum::LONG->value], $strategy);
+		}
+
+		// Display Short positions only if they are actually configured.
+		if (!empty($dcaLevels[PositionDirectionEnum::SHORT->value])) {
+			// Check if strategy parameters have Short position settings.
+			$hasShortConfig = isset($pairData['strategy']->params['numberOfLevelsShort']) ||
+				isset($pairData['strategy']->params['entryVolumeShort']) ||
+				isset($pairData['strategy']->params['volumeMultiplierShort']);
+
+			if ($hasShortConfig) {
+				$this->displayDirectionSettings($io, '🔴 SHORT', $dcaLevels[PositionDirectionEnum::SHORT->value], $strategy);
+			}
+		}
+
+		// General information
+		$this->displaySummaryInfo($io, $strategy);
+	}
+
+	/**
+	 * Display settings for one direction (Long/Short)
+	 */
+	private function displayDirectionSettings(SymfonyStyle $io, string $direction, array $levels, AbstractDCAStrategy $strategy): void {
+		$io->section($direction.' positions');
+
+		$table = new Table($io);
+		$table->setHeaders([
+			'Level',
+			'Volume (USDT)',
+			'Deviation (%)',
+			'Cumulative Volume'
+		]);
+
+		$totalVolume = 0;
+		$cumulativeVolume = 0;
+
+		foreach ($levels as $level => $data) {
+			$volume = $data['volume'];
+			$offset = $data['offset'];
+
+			$cumulativeVolume += $volume;
+			$totalVolume += $volume;
+
+			// Format deviation.
+			$offsetFormatted = $offset > 0 ? "+{$offset}%" : "{$offset}%";
+
+			$table->addRow([
+				$level,
+				number_format($volume, 2),
+				$offsetFormatted,
+				number_format($cumulativeVolume, 2)
+			]);
+		}
+
+		$table->addRow(new TableSeparator());
+		$table->addRow([
+			'<info>Total Volume:</info>',
+			'<info>'.number_format($totalVolume, 2).' USDT</info>',
+			'',
+			''
+		]);
+
+		$table->render();
+		$io->newLine();
+	}
+
+
+	/**
+	 * Display general information.
+	 */
+	private function displaySummaryInfo(SymfonyStyle $io, AbstractDCAStrategy $strategy): void {
+		$dcaSettings = $this->getDCASettings($strategy);
+
+		$io->section('📊 General Information');
+
+		// Maximum volumes.
+		$maxLongVolume = $dcaSettings->getMaxLongPositionVolume();
+		$maxShortVolume = $dcaSettings->getMaxShortPositionVolume();
+		$maxTotalVolume = $dcaSettings->getMaxTotalPositionVolume();
+
+		$summaryTable = new Table($io);
+		$summaryTable->setHeaders(['Parameter', 'Value']);
+		$summaryTable->addRow(['Max Long Position Volume', sprintf('%s %s',
+			number_format($maxLongVolume->getAmount(), 2), $maxLongVolume->getCurrency())]);
+		$summaryTable->addRow(['Max Short Position Volume', sprintf('%s %s',
+			number_format($maxShortVolume->getAmount(), 2), $maxShortVolume->getCurrency())]);
+		$summaryTable->addRow(['Max Total Volume', sprintf('%s %s',
+			number_format($maxTotalVolume->getAmount(), 2), $maxTotalVolume->getCurrency())]);
+		$summaryTable->render();
+
+		// Strategy settings.
+		$io->section('⚙️ Strategy Settings');
+
+		$settingsTable = new Table($io);
+		$settingsTable->setHeaders(['Parameter', 'Value']);
+		$settingsTable->addRow(['Use Limit Orders', $dcaSettings->isUseLimitOrders() ? 'Yes' : 'No']);
+		$settingsTable->addRow(['Expected Profit Long', $dcaSettings->getExpectedProfit().'%']);
+
+		// Get Short settings via reflection.
+		$reflection = new ReflectionClass($dcaSettings);
+		$expectedProfitShort = $reflection->getProperty('expectedProfitShort');
+		$expectedProfitShort->setAccessible(true);
+		$volumeMultiplierShort = $reflection->getProperty('volumeMultiplierShort');
+		$volumeMultiplierShort->setAccessible(true);
+		$priceDeviationMultiplierShort = $reflection->getProperty('priceDeviationMultiplierShort');
+		$priceDeviationMultiplierShort->setAccessible(true);
+
+		$settingsTable->addRow(['Expected Profit Short', $expectedProfitShort->getValue($dcaSettings).'%']);
+		$settingsTable->addRow(['Volume Multiplier Long', $dcaSettings->getVolumeMultiplier().'x']);
+		$settingsTable->addRow(['Volume Multiplier Short', $volumeMultiplierShort->getValue($dcaSettings).'x']);
+		$settingsTable->addRow(['Price Deviation Multiplier Long', $dcaSettings->getPriceDeviationMultiplier().'x']);
+		$settingsTable->addRow(['Price Deviation Multiplier Short', $priceDeviationMultiplierShort->getValue($dcaSettings).'x']);
+
+		$settingsTable->render();
+	}
+
+	/**
+	 * Get DCA settings (if available).
+	 */
+	private function getDCASettings(AbstractDCAStrategy $strategy) {
+		// Use reflection to access protected property.
+		$reflection = new ReflectionClass($strategy);
+		$property = $reflection->getProperty('dcaSettings');
+		$property->setAccessible(true);
+		return $property->getValue($strategy);
+	}
+}
+
+// Create and run application.
+$application = new Application('EZMoonblow DCA Settings Viewer', '1.0.0');
+$application->add(new ShowDCASettingsCommand());
+$application->setDefaultCommand('show-dca-settings', true);
+$application->run();

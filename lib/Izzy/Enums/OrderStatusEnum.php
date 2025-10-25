@@ -2,20 +2,19 @@
 
 namespace Izzy\Enums;
 
-enum OrderStatusEnum: string
-{
+enum OrderStatusEnum: string {
 	case NewOrder = 'New';
 	case PartiallyFilled = 'PartiallyFilled';
 	case Filled = 'Filled';
-	
+
 	public function isNew(): bool {
 		return $this === self::NewOrder;
 	}
-	
+
 	public function isPartiallyFilled(): bool {
 		return $this === self::PartiallyFilled;
 	}
-	
+
 	public function isFilled(): bool {
 		return $this === self::Filled;
 	}

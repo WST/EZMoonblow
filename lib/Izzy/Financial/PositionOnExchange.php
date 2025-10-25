@@ -7,8 +7,7 @@ use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Interfaces\IPositionOnExchange;
 
-class PositionOnExchange implements IPositionOnExchange
-{
+class PositionOnExchange implements IPositionOnExchange {
 
 	public function getVolume(): Money {
 		// TODO: Implement getVolume() method.

@@ -10,10 +10,9 @@ use Izzy\Interfaces\IStoredPosition;
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
  */
-abstract class AbstractDCAStrategy extends Strategy
-{
+abstract class AbstractDCAStrategy extends Strategy {
 	protected DCASettings $dcaSettings;
-	
+
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
 		$this->initializeDCASettings();
@@ -25,7 +24,7 @@ abstract class AbstractDCAStrategy extends Strategy
 	private function initializeDCASettings(): void {
 		/** Use limit orders */
 		$useLimitOrders = ($this->params['UseLimitOrders'] == 'yes');
-		
+
 		/** Long */
 		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;
 		$entryVolume = $this->params['entryVolume'] ?? 40;
@@ -43,10 +42,10 @@ abstract class AbstractDCAStrategy extends Strategy
 		$expectedProfitShort = $this->params['expectedProfitShort'] ?? 2;
 
 		// Remove % sign if present and convert to float
-		$priceDeviation = (float) str_replace('%', '', $priceDeviation);
-		$expectedProfit = (float) str_replace('%', '', $expectedProfit);
-		$priceDeviationShort = (float) str_replace('%', '', $priceDeviationShort);
-		$expectedProfitShort = (float) str_replace('%', '', $expectedProfitShort);
+		$priceDeviation = (float)str_replace('%', '', $priceDeviation);
+		$expectedProfit = (float)str_replace('%', '', $expectedProfit);
+		$priceDeviationShort = (float)str_replace('%', '', $priceDeviationShort);
+		$expectedProfitShort = (float)str_replace('%', '', $expectedProfitShort);
 
 		$this->dcaSettings = new DCASettings(
 			$useLimitOrders,
@@ -64,7 +63,7 @@ abstract class AbstractDCAStrategy extends Strategy
 			$expectedProfitShort
 		);
 	}
-	
+
 	/**
 	 * This method should be implemented by child classes to determine when to enter long position.
 	 * @return bool
@@ -140,13 +139,15 @@ abstract class AbstractDCAStrategy extends Strategy
 			$position->updateTakeProfit();
 			return;
 		}
-		
+
 		// Complete DCA map.
 		$dcaLevels = $this->getDCALevels();
-		
+
 		// Separate maps for Long and Short positions.
-		$dcaLevelsLong = $dcaLevels[PositionDirectionEnum::LONG->value]; krsort($dcaLevelsLong);
-		$dcaLevelsShort = $dcaLevels[PositionDirectionEnum::SHORT->value]; krsort($dcaLevelsShort);
+		$dcaLevelsLong = $dcaLevels[PositionDirectionEnum::LONG->value];
+		krsort($dcaLevelsLong);
+		$dcaLevelsShort = $dcaLevels[PositionDirectionEnum::SHORT->value];
+		krsort($dcaLevelsShort);
 
 		/**
 		 * 0 — initial entry, i.e: 0 => ['volume' => 100, 'offset' => 0]
@@ -154,19 +155,20 @@ abstract class AbstractDCAStrategy extends Strategy
 		 * ...
 		 * offset should be negative for Long, positive for Short trades.
 		 */
-		
+
 		$entryPrice = $position->getEntryPrice()->getAmount();
 		$currentPrice = $position->getCurrentPrice()->getAmount();
-		
+
 		// Calculate current price drop percentage.
 		$priceChangePercent = (($currentPrice - $entryPrice) / $entryPrice) * 100;
 		echo "PRICE CHANGE IN %: $priceChangePercent\n";
-		
+
 		// Check if we should execute DCA. Long first.
 		foreach ($dcaLevelsLong as $level) {
 			$volume = $level['volume'];
 			$offset = $level['offset'];
-			if (abs($offset) < 0.1) continue;
+			if (abs($offset) < 0.1)
+				continue;
 			if ($priceChangePercent <= $offset) {
 				// Execute DCA buy order
 				$dcaAmount = new Money($volume, 'USDT');
@@ -179,7 +181,8 @@ abstract class AbstractDCAStrategy extends Strategy
 		foreach ($dcaLevelsShort as $level) {
 			$volume = $level['volume'];
 			$offset = $level['offset'];
-			if (abs($offset) < 0.1) continue;
+			if (abs($offset) < 0.1)
+				continue;
 			if ($priceChangePercent >= $offset) {
 				// Execute DCA buy order
 				$dcaAmount = new Money($volume, 'USDT');

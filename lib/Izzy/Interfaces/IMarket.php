@@ -6,8 +6,7 @@ use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\System\Database\Database;
 
-interface IMarket
-{
+interface IMarket {
 	/**
 	 * @return ICandle[]
 	 */

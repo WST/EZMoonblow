@@ -1,0 +1,22 @@
+# .editorconfig
+root = true
+
+[*]
+indent_style = tab
+tab_width = 4
+end_of_line = lf
+charset = utf-8
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+[*.{php,js,ts,jsx,tsx,css,scss,html,xml,sh,py,go,rb,java,c,cpp,h,hpp}]
+indent_style = tab
+tab_width = 4
+
+[*.{yml,yaml}]
+indent_style = space
+indent_size = 2
+
+[Makefile]
+indent_style = tab
+tab_width = 4

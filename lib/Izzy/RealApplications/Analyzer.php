@@ -13,8 +13,7 @@ use Izzy\System\QueueTask;
  * Analyzer application for monitoring and analyzing exchange balances.
  * Provides balance tracking, logging, and chart generation capabilities.
  */
-class Analyzer extends ConsoleApplication
-{
+class Analyzer extends ConsoleApplication {
 	/** @var string RRD database file path for balance tracking. */
 	private string $balanceRrdFile;
 
@@ -23,8 +22,8 @@ class Analyzer extends ConsoleApplication
 	 */
 	public function __construct() {
 		parent::__construct();
-		$this->balanceRrdFile = IZZY_RRD . '/balance.rrd';
-		
+		$this->balanceRrdFile = IZZY_RRD.'/balance.rrd';
+
 		// Ensure charts directory exists.
 		if (!is_dir(IZZY_CHARTS)) {
 			mkdir(IZZY_CHARTS, 0755, true);
@@ -37,15 +36,15 @@ class Analyzer extends ConsoleApplication
 	 */
 	private function createBalanceRrdDatabase(): void {
 		$filenameEscaped = escapeshellarg($this->balanceRrdFile);
-		
+
 		if (!file_exists($this->balanceRrdFile)) {
 			$minutesInYear = 525960;
 			$fiveYears = 5 * $minutesInYear;
-			
-			$command = "rrdtool create $filenameEscaped --step 60 " .
-				"DS:balance:GAUGE:120:0:10000000 " .
+
+			$command = "rrdtool create $filenameEscaped --step 60 ".
+				"DS:balance:GAUGE:120:0:10000000 ".
 				"RRA:MAX:0.5:1:$fiveYears";
-			
+
 			exec($command);
 			$this->logger->info("Created RRD database: $this->balanceRrdFile");
 		}
@@ -53,16 +52,16 @@ class Analyzer extends ConsoleApplication
 
 	/**
 	 * Update balance log in RRD database.
-	 * 
+	 *
 	 * @param Money $balance Current total balance to log.
 	 */
 	public function updateBalanceLog(Money $balance): void {
 		// Ensure RRD database exists.
 		$this->createBalanceRrdDatabase();
-		
+
 		$filenameEscaped = escapeshellarg($this->balanceRrdFile);
 		$balanceFloat = $balance->getAmount();
-		
+
 		$command = "rrdtool update $filenameEscaped --template balance N:$balanceFloat";
 		exec($command);
 
@@ -71,7 +70,7 @@ class Analyzer extends ConsoleApplication
 
 	/**
 	 * Generate balance chart for the specified time period.
-	 * 
+	 *
 	 * @param string $period Time period ('day', 'month', 'year').
 	 * @param string $title Chart title.
 	 * @param string $startTime RRD start time parameter.
@@ -79,33 +78,33 @@ class Analyzer extends ConsoleApplication
 	 */
 	private function generateBalanceChart(string $period, string $title, string $startTime, string $endTime = 'now'): void {
 		$filenameEscaped = escapeshellarg($this->balanceRrdFile);
-		$outputFile = IZZY_CHARTS . "/balance_{$period}.png";
+		$outputFile = IZZY_CHARTS."/balance_{$period}.png";
 		$outputFileEscaped = escapeshellarg($outputFile);
-		
-		$command = "rrdtool graph $outputFileEscaped " .
-			"--start $startTime " .
-			"--end $endTime " .
-			"--title '$title' " .
-			"--vertical-label 'Balance (USDT)' " .
-			"--width 640 " .
-			"--height 320 " .
-			"--color CANVAS#FFFFFF " .
-			"--color BACK#FFFFFF " .
-			"--color SHADEA#FFFFFF " .
-			"--color SHADEB#FFFFFF " .
-			"--color GRID#CCCCCC " .
-			"--color MGRID#999999 " .
-			"--color FONT#000000 " .
-			"--color AXIS#000000 " .
-			"--color ARROW#000000 " .
-			"--color FRAME#000000 " .
-			"DEF:balance=$filenameEscaped:balance:MAX " .
-			"AREA:balance#0066CC:'Balance' " .
-			"GPRINT:balance:LAST:'Current\\: %8.2lf USDT' " .
-			"GPRINT:balance:AVERAGE:'Average\\: %8.2lf USDT' " .
-			"GPRINT:balance:MAX:'Maximum\\: %8.2lf USDT' " .
+
+		$command = "rrdtool graph $outputFileEscaped ".
+			"--start $startTime ".
+			"--end $endTime ".
+			"--title '$title' ".
+			"--vertical-label 'Balance (USDT)' ".
+			"--width 640 ".
+			"--height 320 ".
+			"--color CANVAS#FFFFFF ".
+			"--color BACK#FFFFFF ".
+			"--color SHADEA#FFFFFF ".
+			"--color SHADEB#FFFFFF ".
+			"--color GRID#CCCCCC ".
+			"--color MGRID#999999 ".
+			"--color FONT#000000 ".
+			"--color AXIS#000000 ".
+			"--color ARROW#000000 ".
+			"--color FRAME#000000 ".
+			"DEF:balance=$filenameEscaped:balance:MAX ".
+			"AREA:balance#0066CC:'Balance' ".
+			"GPRINT:balance:LAST:'Current\\: %8.2lf USDT' ".
+			"GPRINT:balance:AVERAGE:'Average\\: %8.2lf USDT' ".
+			"GPRINT:balance:MAX:'Maximum\\: %8.2lf USDT' ".
 			"GPRINT:balance:MIN:'Minimum\\: %8.2lf USDT'";
-		
+
 		exec($command);
 		$this->logger->info("Generated $period chart: $outputFile");
 	}
@@ -160,16 +159,16 @@ class Analyzer extends ConsoleApplication
 	 */
 	public function run(): void {
 		$iteration = 0;
-		
+
 		$this->logger->info("Starting Analyzer application...");
 		$this->logger->info("Balance RRD file: $this->balanceRrdFile");
-		$this->logger->info("Charts directory: " . IZZY_CHARTS);
-		
+		$this->logger->info("Charts directory: ".IZZY_CHARTS);
+
 		while (true) {
 			// Update balance information.
 			$balance = $this->database->getTotalBalance();
 			$this->updateBalanceLog($balance);
-			
+
 			// Process scheduled tasks.
 			$this->processTasks();
 
@@ -183,9 +182,9 @@ class Analyzer extends ConsoleApplication
 			sleep(60);
 		}
 	}
-	
+
 	private function cleanup(): void {
-		$files = glob(IZZY_CHARTS . "/*.png");
+		$files = glob(IZZY_CHARTS."/*.png");
 		foreach ($files as $file) {
 			$mtime = filemtime($file);
 			if ($mtime < time() - 3600) {
@@ -197,14 +196,14 @@ class Analyzer extends ConsoleApplication
 	protected function processTask(QueueTask $task): void {
 		$taskType = $task->getType();
 		$taskStatus = $task->getStatus();
-		
+
 		// Task is to draw a candlestick chart.
 		if ($taskType->isDrawCandlestickChart()) {
 			$this->handleDrawCandlestickChartTask($task->getAttributes());
 			$task->remove();
 			return;
 		}
-		
+
 		$this->logger->warning("Got an unknown task type: $taskType->value");
 	}
 
@@ -216,13 +215,15 @@ class Analyzer extends ConsoleApplication
 		$marketType = MarketTypeEnum::from($attributes['marketType']);
 		$pair = new Pair($ticker, $timeframe, $exchangeName, $marketType);
 		$this->logger->info("Got a task for drawing a candlestick chart for $pair ($marketType->value, $timeframe->value) on $exchangeName");
-		
+
 		$exchange = $this->configuration->connectExchange($this, $exchangeName);
-		if (!$exchange) return;
-		
+		if (!$exchange)
+			return;
+
 		$market = $exchange->createMarket($pair);
-		if (!$market) return;
-		
+		if (!$market)
+			return;
+
 		// Initialize and calculate indicators before drawing chart
 		$market->initializeIndicators();
 		$market->calculateIndicators();

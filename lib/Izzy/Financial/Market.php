@@ -20,10 +20,9 @@ use Izzy\System\Database\Database;
 use Izzy\System\QueueTask;
 use Izzy\Traits\HasMarketTypeTrait;
 
-class Market implements IMarket
-{
+class Market implements IMarket {
 	use HasMarketTypeTrait;
-	
+
 	/**
 	 * Active pair.
 	 */
@@ -33,7 +32,7 @@ class Market implements IMarket
 	 * The relevant exchange driver.
 	 */
 	private IExchangeDriver $exchange;
-	
+
 	/**
 	 * Set of candles.
 	 * @var ICandle[]
@@ -64,7 +63,7 @@ class Market implements IMarket
 
 	/**
 	 * Link with the database.
-	 * @var Database 
+	 * @var Database
 	 */
 	private Database $database;
 
@@ -133,7 +132,7 @@ class Market implements IMarket
 
 	/**
 	 * Get active strategy for this market.
-	 * 
+	 *
 	 * @return IStrategy|null Active strategy or null if not set.
 	 */
 	public function getStrategy(): ?IStrategy {
@@ -142,7 +141,7 @@ class Market implements IMarket
 
 	/**
 	 * Initialize indicators from strategy configuration.
-	 * 
+	 *
 	 * @return void
 	 */
 	private function initializeStrategyIndicators(): void {
@@ -158,7 +157,7 @@ class Market implements IMarket
 				$this->addIndicator($indicator);
 			} catch (Exception $e) {
 				// Log error but continue with other indicators
-				error_log("Failed to initialize indicator {$indicatorClass}: " . $e->getMessage());
+				error_log("Failed to initialize indicator {$indicatorClass}: ".$e->getMessage());
 			}
 		}
 	}
@@ -179,7 +178,8 @@ class Market implements IMarket
 		if ($this->getMarketType()->isSpot()) {
 			// For a spot market, we emulate the positions by using a database.
 			$storedPosition = $this->getStoredPosition();
-			if (!$storedPosition) return false;
+			if (!$storedPosition)
+				return false;
 			return $storedPosition;
 		}
 
@@ -199,14 +199,14 @@ class Market implements IMarket
 				}
 			}
 		}
-		
+
 		return false;
 	}
-	
+
 	public function initializeIndicators(): void {
 		// Initialize indicators from configuration first, so they handle their settings.
 		$this->initializeConfiguredIndicators();
-		
+
 		// Initialize the indicators required by the strategy using the default settings.
 		$this->initializeStrategyIndicators();
 	}
@@ -218,10 +218,10 @@ class Market implements IMarket
 	public function drawChart(): string {
 		// Initialize indicators from configuration
 		$this->initializeIndicators();
-		
+
 		// Calculate indicator values
 		$this->calculateIndicators();
-		
+
 		$filename = $this->pair->getChartFilename();
 		$chart = new Chart($this);
 		$chart->draw();
@@ -243,7 +243,7 @@ class Market implements IMarket
 
 	/**
 	 * Add indicator to the market.
-	 * 
+	 *
 	 * @param IIndicator $indicator Indicator instance.
 	 * @return void
 	 */
@@ -253,7 +253,7 @@ class Market implements IMarket
 
 	/**
 	 * Remove indicator from the market.
-	 * 
+	 *
 	 * @param string $indicatorName Indicator name.
 	 * @return void
 	 */
@@ -264,7 +264,7 @@ class Market implements IMarket
 
 	/**
 	 * Get all registered indicators.
-	 * 
+	 *
 	 * @return IIndicator[] Array of indicators.
 	 */
 	public function getIndicators(): array {
@@ -273,7 +273,7 @@ class Market implements IMarket
 
 	/**
 	 * Check if indicator is registered.
-	 * 
+	 *
 	 * @param string $indicatorName Indicator name.
 	 * @return bool True if registered, false otherwise.
 	 */
@@ -283,7 +283,7 @@ class Market implements IMarket
 
 	/**
 	 * Calculate all indicators.
-	 * 
+	 *
 	 * @return void
 	 */
 	public function calculateIndicators(): void {
@@ -294,7 +294,7 @@ class Market implements IMarket
 
 	/**
 	 * Get indicator result.
-	 * 
+	 *
 	 * @param string $indicatorName Indicator name.
 	 * @return IndicatorResult|null Indicator result or null if not found.
 	 */
@@ -304,7 +304,7 @@ class Market implements IMarket
 
 	/**
 	 * Get all indicator results.
-	 * 
+	 *
 	 * @return IndicatorResult[] Array of indicator results.
 	 */
 	public function getAllIndicatorResults(): array {
@@ -313,7 +313,7 @@ class Market implements IMarket
 
 	/**
 	 * Get latest indicator value.
-	 * 
+	 *
 	 * @param string $indicatorName Indicator name.
 	 * @return float|null Latest value or null if not found.
 	 */
@@ -324,7 +324,7 @@ class Market implements IMarket
 
 	/**
 	 * Get latest indicator signal.
-	 * 
+	 *
 	 * @param string $indicatorName Indicator name.
 	 * @return mixed Latest signal or null if not found.
 	 */
@@ -340,24 +340,24 @@ class Market implements IMarket
 	 * @return string
 	 */
 	public function getDescription(bool $consoleColors = true): string {
-	    if ($consoleColors) {
-			$exchangeName = "\033[37;45m " . $this->exchange->getName() . " \033[0m";
-	        $marketType = "\033[37;44m " . $this->getMarketType()->name . " \033[0m";
-	        $ticker = "\033[37;41m " . $this->pair->getTicker() . " \033[0m";
-	        $timeframe = "\033[37;42m " . $this->pair->getTimeframe()->name . " \033[0m";
-	        
-	        return $exchangeName . $marketType . $ticker . $timeframe;
-	    } else {
-	        $format = "%s, %s, %s, %s";
-	        $args = [
+		if ($consoleColors) {
+			$exchangeName = "\033[37;45m ".$this->exchange->getName()." \033[0m";
+			$marketType = "\033[37;44m ".$this->getMarketType()->name." \033[0m";
+			$ticker = "\033[37;41m ".$this->pair->getTicker()." \033[0m";
+			$timeframe = "\033[37;42m ".$this->pair->getTimeframe()->name." \033[0m";
+
+			return $exchangeName.$marketType.$ticker.$timeframe;
+		} else {
+			$format = "%s, %s, %s, %s";
+			$args = [
 				$this->getExchange()->getName(),
-	            $this->getMarketType()->name,
-	            $this->pair->getTicker(),
-	            $this->pair->getTimeframe()->name
-	        ];
-	        
-	        return sprintf($format, ...$args);
-	    }
+				$this->getMarketType()->name,
+				$this->pair->getTicker(),
+				$this->pair->getTimeframe()->name
+			];
+
+			return sprintf($format, ...$args);
+		}
 	}
 
 	/**
@@ -372,7 +372,7 @@ class Market implements IMarket
 		$success = $this->exchange->openPosition($this, $direction, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}
-	
+
 	public function getExchangeName(): string {
 		return $this->exchange->getName();
 	}
@@ -387,7 +387,7 @@ class Market implements IMarket
 	 */
 	public function getStoredPosition(): IStoredPosition|false {
 		$where = [
-			StoredPosition::FExchangeName =>  $this->getExchangeName(),
+			StoredPosition::FExchangeName => $this->getExchangeName(),
 			StoredPosition::FTicker => $this->getTicker(),
 			StoredPosition::FMarketType => $this->getMarketType()->value,
 			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
@@ -417,7 +417,7 @@ class Market implements IMarket
 			$this->strategy = $strategy;
 			$this->exchange->getLogger()->info("Set strategy $strategyName for market $this");
 		} catch (Exception $e) {
-			$this->exchange->getLogger()->error("Failed to set strategy $strategyName for market $this: " . $e->getMessage());
+			$this->exchange->getLogger()->error("Failed to set strategy $strategyName for market $this: ".$e->getMessage());
 		}
 	}
 
@@ -530,7 +530,7 @@ class Market implements IMarket
 				$this->addIndicator($indicator);
 				$this->getExchange()->getLogger()->info("Added indicator {$indicatorType} to market $this");
 			} catch (Exception $e) {
-				$this->getExchange()->getLogger()->error("Failed to add indicator {$indicatorType} to market $this: " . $e->getMessage());
+				$this->getExchange()->getLogger()->error("Failed to add indicator {$indicatorType} to market $this: ".$e->getMessage());
 			}
 		}
 	}
@@ -548,10 +548,10 @@ class Market implements IMarket
 		if (!method_exists($this->strategy, 'updatePosition')) {
 			return;
 		}
-		
+
 		// Update position info from the Exchange.
 		$currentPosition->updateInfo();
-		
+
 		// All checks passed, we can ask the Strategy to update our active Position.
 		$this->strategy->updatePosition($currentPosition);
 		$currentPosition->save();
@@ -562,7 +562,7 @@ class Market implements IMarket
 	}
 
 	/**
-	 * 
+	 *
 	 * @return void
 	 */
 	private function sendNewPositionIntentNotifications(): void {
@@ -601,8 +601,10 @@ class Market implements IMarket
 		$currentAttributes = $this->getTaskMarketAttributes();
 		foreach ($currentAttributes as $attribute => $value) {
 			// We don’t check the extra attributes, we only compare Market attributes instead.
-			if (!isset($taskAttributes[$attribute])) continue;
-			if ($taskAttributes[$attribute] !== $value) return false;
+			if (!isset($taskAttributes[$attribute]))
+				continue;
+			if ($taskAttributes[$attribute] !== $value)
+				return false;
 		}
 		return true;
 	}
@@ -623,12 +625,12 @@ class Market implements IMarket
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
-		
-		/** 
-		 * This is the entry order. 
+
+		/**
+		 * This is the entry order.
 		 */
 		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $direction, $takeProfitPercent);
-		 
+
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
@@ -654,10 +656,10 @@ class Market implements IMarket
 		$position->setExpectedProfitPercent($takeProfitPercent);
 		$position->setTakeProfitPrice($entryPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		$position->setAverageEntryPrice($entryPrice);
-		
+
 		// Save the position.
 		$position->save();
-		
+
 		return $position;
 	}
 

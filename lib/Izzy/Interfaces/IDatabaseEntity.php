@@ -2,7 +2,6 @@
 
 namespace Izzy\Interfaces;
 
-interface IDatabaseEntity
-{
+interface IDatabaseEntity {
 	public static function getTableName(): string;
 }

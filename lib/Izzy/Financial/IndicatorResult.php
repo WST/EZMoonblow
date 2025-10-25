@@ -6,8 +6,7 @@ namespace Izzy\Financial;
  * Result of indicator calculation.
  * Contains calculated values, timestamps, and signals.
  */
-class IndicatorResult
-{
+class IndicatorResult {
 	/**
 	 * Array of indicator values.
 	 * @var array

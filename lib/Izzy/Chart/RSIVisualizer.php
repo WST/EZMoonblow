@@ -10,8 +10,7 @@ use Izzy\Interfaces\IIndicator;
  * RSI indicator visualizer.
  * Draws RSI as an oscillator below the main chart with overbought/oversold levels.
  */
-class RSIVisualizer extends AbstractIndicatorVisualizer
-{
+class RSIVisualizer extends AbstractIndicatorVisualizer {
 	/**
 	 * RSI-specific colors.
 	 */

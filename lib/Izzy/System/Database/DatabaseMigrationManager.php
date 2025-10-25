@@ -5,62 +5,61 @@ namespace Izzy\System\Database;
 use Exception;
 use Izzy\System\Logger;
 
-class DatabaseMigrationManager
-{
+class DatabaseMigrationManager {
 	private Database $db;
 	private Logger $logger;
 
 	/**
-	 * Padding for nicer console output. 
+	 * Padding for nicer console output.
 	 */
 	private int $padding = 0;
 
 	private int $paddingWidth = 1;
 
 	/**
-	 * Tracks current migration status: if one action fails, we consider the whole migration failed. 
+	 * Tracks current migration status: if one action fails, we consider the whole migration failed.
 	 */
 	private bool $currentStatus = true;
 
 	/**
 	 * Indicates that the current migration has called some real actions. Used to track empty migrations.
-	 * @var bool 
+	 * @var bool
 	 */
 	private bool $migrationHasPerformedActions = false;
 
 	/**
 	 * Cache of the already applied migration numbers.
-	 * @var int[] 
+	 * @var int[]
 	 */
 	private array $alreadyAppliedMigrations = [];
 
 	public function __construct(Database $db) {
 		$this->db = $db;
 		$this->logger = Logger::getLogger();
-		
+
 		// If the migrations table does not exist, create it.
-		if(!$this->tableExists('migrations')) {
+		if (!$this->tableExists('migrations')) {
 			$fields = [
 				'number' => 'INT UNSIGNED NOT NULL DEFAULT 0',
 			];
 			$this->createTable('migrations', $fields, [], 'InnoDB');
 		} else {
 			$rows = $this->db->selectAllRows('migrations');
-			foreach($rows as $row) {
-				$number = (int) $row['number'];
+			foreach ($rows as $row) {
+				$number = (int)$row['number'];
 				$this->alreadyAppliedMigrations[$number] = $number;
 			}
 		}
 	}
-	
+
 	protected function logDatabaseOperationWithStatus(string $description, bool $successful = true): void {
 		$statusIcon = $successful ? "✅" : "❌";
 		$method = $successful ? [$this->logger, 'info'] : [$this->logger, 'error'];
-		$method(str_repeat(' ', $this->padding * $this->paddingWidth) . $statusIcon . ' ' . $description);
+		$method(str_repeat(' ', $this->padding * $this->paddingWidth).$statusIcon.' '.$description);
 	}
 
 	protected function logDatabaseOperation(string $description): void {
-		$this->logger->info(str_repeat(' ', $this->padding * $this->paddingWidth) . $description);
+		$this->logger->info(str_repeat(' ', $this->padding * $this->paddingWidth).$description);
 	}
 
 	/**
@@ -78,15 +77,15 @@ class DatabaseMigrationManager
 		}
 		return $exists;
 	}
-	
+
 	/**
 	 * Creates a new table in the database with specified fields and keys.
-	 * 
+	 *
 	 * @param string $table Name of the table to create
 	 * @param array $fields Array of table fields
 	 * @param array $keys Array of table keys (optional)
 	 * @param string $engine Table engine (default: InnoDB)
-	 * 
+	 *
 	 * Usage example:
 	 * ```php
 	 * $fields = [
@@ -95,13 +94,13 @@ class DatabaseMigrationManager
 	 *   'email' => 'VARCHAR(255) NOT NULL',
 	 *   'created_at' => 'TIMESTAMP DEFAULT CURRENT_TIMESTAMP'
 	 * ];
-	 * 
+	 *
 	 * $keys = [
 	 *   'PRIMARY KEY' => ['id'],
 	 *   'UNIQUE KEY email_idx' => ['email'],
 	 *   'KEY name_created_idx' => ['name', 'created_at']
 	 * ];
-	 * 
+	 *
 	 * $manager->createTable('users', $fields, $keys, 'InnoDB');
 	 * ```
 	 */
@@ -111,7 +110,7 @@ class DatabaseMigrationManager
 		$this->logDatabaseOperationWithStatus("Creating table “{$table}”...", $success);
 		$this->migrationHasPerformedActions = true;
 	}
-	
+
 	public function dropTable(string $table): void {
 		$success = $this->db->dropTable($table);
 		$this->updateCurrentStatus($success);
@@ -154,14 +153,14 @@ class DatabaseMigrationManager
 	 * @return void
 	 */
 	public function exec($sql, $comment): void {
-		
+
 	}
 
 	private function requireIfValid(string $filename): void {
 		$output = null;
 		$code = null;
 
-		exec('php -l ' . escapeshellarg($filename), $output, $code);
+		exec('php -l '.escapeshellarg($filename), $output, $code);
 		if ($code !== 0) {
 			$this->currentStatus = false;
 		}
@@ -176,22 +175,22 @@ class DatabaseMigrationManager
 		$basename = basename($filename);
 		$this->logDatabaseOperation("Running migration {$basename}...");
 		$this->increasePadding();
-		
+
 		// By default, we assume successful execution.
 		$this->currentStatus = true;
-		
+
 		// However, we need to skip empty migrations for convenient development process.
 		$this->migrationHasPerformedActions = false;
-		
+
 		// Pass the control to the migration file.
 		$this->requireIfValid($filename);
-		
+
 		// If the migration was successful, mark it as applied.
-		$currentMigrationOverallStatus = $this->currentStatus && $this->migrationHasPerformedActions;  
+		$currentMigrationOverallStatus = $this->currentStatus && $this->migrationHasPerformedActions;
 		if ($currentMigrationOverallStatus) {
 			$this->markApplied($number);
 		}
-		
+
 		// Report the migration status.
 		$statusText = $currentMigrationOverallStatus ? 'finished' : 'failed';
 		$this->logDatabaseOperationWithStatus("Migration {$basename} {$statusText}.", $currentMigrationOverallStatus);
@@ -199,7 +198,7 @@ class DatabaseMigrationManager
 			$this->logger->error($this->db->getErrorMessage());
 		}
 		$this->resetPadding();
-		
+
 		// If a migration has failed, we shouldn’t be applying the further migrations.
 		if (!$currentMigrationOverallStatus) {
 			$this->logDatabaseOperation("Exiting due to a failed migration.");
@@ -234,10 +233,10 @@ class DatabaseMigrationManager
 		$manager = $this;
 
 		// Our database migrations.
-		$phpFiles = glob(IZZY_MIGRATIONS . '/*.php');
+		$phpFiles = glob(IZZY_MIGRATIONS.'/*.php');
 
 		// Some checks to exclude obviously non-migration files.
-		$phpFiles = array_filter($phpFiles, function($migrationFile) {
+		$phpFiles = array_filter($phpFiles, function ($migrationFile) {
 			return is_file($migrationFile) && is_readable($migrationFile);
 		});
 
@@ -245,38 +244,39 @@ class DatabaseMigrationManager
 		$migrationFiles = [];
 		foreach ($phpFiles as $file) {
 			$matches = [];
-			if (!preg_match('#(\\d{10})\-[0-9a-z\-_]+\.php$#', $file, $matches)) continue;
+			if (!preg_match('#(\\d{10})\-[0-9a-z\-_]+\.php$#', $file, $matches))
+				continue;
 			$timestamp = (int)$matches[1];
 			$migrationFiles[$timestamp] = $file;
 		}
 
 		// Now, we exclude the already applied migrations.
-		$migrationFiles = array_filter($migrationFiles, function(int $number) use ($manager) {
+		$migrationFiles = array_filter($migrationFiles, function (int $number) use ($manager) {
 			return $manager->isNewMigration($number);
 		}, ARRAY_FILTER_USE_KEY);
 
 		// We should always execute migrations in correct order.
 		ksort($migrationFiles);
-		
+
 		// If there is no new migrations, inform the user that the database is OK.
 		if (empty($migrationFiles)) {
 			$this->logger->info("Database is up to date.");
 		}
 
 		// Finally, let’s execute the migrations.
-		array_walk($migrationFiles, function($filename, $number) use ($manager) {
+		array_walk($migrationFiles, function ($filename, $number) use ($manager) {
 			$manager->runMigration($number, $filename);
 		});
 	}
-	
+
 	public function increasePadding(): void {
-		$this->padding ++;
+		$this->padding++;
 	}
-	
+
 	public function decreasePadding(): void {
-		$this->padding --;
+		$this->padding--;
 	}
-	
+
 	public function resetPadding(): void {
 		$this->padding = 0;
 	}
@@ -286,7 +286,7 @@ class DatabaseMigrationManager
 			$this->currentStatus = false;
 		}
 	}
-	
+
 	public function renameColumn(string $table, string $columnName, string $newColumnName): void {
 		$sql = "ALTER TABLE {$table} RENAME COLUMN $columnName TO $newColumnName";
 		$success = !($this->db->exec($sql) === false);
@@ -302,24 +302,24 @@ class DatabaseMigrationManager
 	 */
 	public static function getNextMigrationNumber(): int {
 		$today = date('Ymd');
-		$migrationFiles = glob(IZZY_MIGRATIONS . '/' . $today . '*.php');
-		
+		$migrationFiles = glob(IZZY_MIGRATIONS.'/'.$today.'*.php');
+
 		$maxNumber = -1;
 		foreach ($migrationFiles as $file) {
 			$matches = [];
-			if (preg_match('/' . $today . '(\d{2})/', basename($file), $matches)) {
+			if (preg_match('/'.$today.'(\d{2})/', basename($file), $matches)) {
 				$number = (int)$matches[1];
 				if ($number > $maxNumber) {
 					$maxNumber = $number;
 				}
 			}
 		}
-		
+
 		$nextNumber = $maxNumber + 1;
 		if ($nextNumber > 99) {
 			throw new Exception("Migration limit for today has been reached (99). Try again tomorrow.");
 		}
-		
+
 		return $nextNumber;
 	}
 
@@ -333,18 +333,18 @@ class DatabaseMigrationManager
 		if (!preg_match('/^[a-z0-9-]+$/', $migrationName)) {
 			throw new Exception("Migration name should contain only lowercase latin letters, digits and hyphens");
 		}
-		
+
 		$nextNumber = self::getNextMigrationNumber();
 		$today = date('Ymd');
 		$filename = sprintf('%s%02d-%s.php', $today, $nextNumber, $migrationName);
-		$filepath = IZZY_MIGRATIONS . '/' . $filename;
-		
+		$filepath = IZZY_MIGRATIONS.'/'.$filename;
+
 		$content = "<?php\n\n/* Put your migration code here. */\n";
-		
+
 		if (file_put_contents($filepath, $content) === false) {
-			throw new Exception("Could not create migration: " . $filepath);
+			throw new Exception("Could not create migration: ".$filepath);
 		}
-		
+
 		return $filepath;
 	}
 
@@ -357,7 +357,7 @@ class DatabaseMigrationManager
 		$handle = fopen("php://stdin", "r");
 		$migrationName = trim(fgets($handle));
 		fclose($handle);
-		
+
 		return $migrationName;
 	}
 }

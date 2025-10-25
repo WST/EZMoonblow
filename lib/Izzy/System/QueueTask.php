@@ -12,15 +12,14 @@ use Izzy\RealApplications\Notifier;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 
-class QueueTask extends SurrogatePKDatabaseRecord
-{
+class QueueTask extends SurrogatePKDatabaseRecord {
 	const FId = 'task_id';
 	const FRecipient = 'task_recipient';
 	const FType = 'task_type';
 	const FStatus = 'task_status';
 	const FCreatedAt = 'task_created_at';
 	const FAttributes = 'task_attributes';
-	
+
 	public function __construct(Database $database, array $row) {
 		parent::__construct($database, $row, self::FId);
 	}
@@ -32,7 +31,7 @@ class QueueTask extends SurrogatePKDatabaseRecord
 	public static function getTableName(): string {
 		return 'tasks';
 	}
-	
+
 	public static function addTelegramNotification_newPosition(Market $sender, PositionDirectionEnum $direction): void {
 		$database = $sender->getDatabase();
 		$appName = Notifier::getApplicationName();
@@ -41,7 +40,7 @@ class QueueTask extends SurrogatePKDatabaseRecord
 		if (self::taskAlreadyExists($database, $sender, $appName, TaskTypeEnum::TELEGRAM_WANT_NEW_POSITION)) {
 			return;
 		}
-		
+
 		// New attributes.
 		$attributes = $sender->getTaskMarketAttributes();
 		$attributes['direction'] = $direction->value;
@@ -66,15 +65,15 @@ class QueueTask extends SurrogatePKDatabaseRecord
 		Logger::getLogger()->debug("Scheduling chart update for $sender");
 		$database = $sender->getDatabase();
 		$appName = Analyzer::getApplicationName();
-		
+
 		// Check if such a task already exists for this market.
 		if (self::taskAlreadyExists($database, $sender, $appName, TaskTypeEnum::DRAW_CANDLESTICK_CHART)) {
 			return;
 		}
-		
+
 		// New attributes.
 		$attributes = $sender->getTaskMarketAttributes();
-		
+
 		// New row.
 		$row = [
 			self::FCreatedAt => time(),
@@ -83,10 +82,10 @@ class QueueTask extends SurrogatePKDatabaseRecord
 			self::FType => TaskTypeEnum::DRAW_CANDLESTICK_CHART->value,
 			self::FStatus => TaskStatusEnum::PENDING->value,
 		];
-		
+
 		// New task.
 		$task = new self($database, $row);
-		
+
 		// Saving the newly created task.
 		$task->save();
 	}
@@ -118,18 +117,18 @@ class QueueTask extends SurrogatePKDatabaseRecord
 				return true;
 			}
 		}
-		
+
 		return false;
 	}
 
 	public function getStatus(): TaskStatusEnum {
 		return TaskStatusEnum::from($this->row[self::FStatus]);
 	}
-	
+
 	public function getRecipient(): TaskRecipientEnum {
 		return TaskRecipientEnum::from($this->row[self::FRecipient]);
 	}
-	
+
 	public function getType(): TaskTypeEnum {
 		return TaskTypeEnum::from($this->row[self::FType]);
 	}
@@ -143,7 +142,7 @@ class QueueTask extends SurrogatePKDatabaseRecord
 		$currentAttributes[$key] = $value;
 		$this->row[self::FAttributes] = json_encode($currentAttributes);
 	}
-	
+
 	public function getCreatedAt(): int {
 		return intval($this->row[self::FCreatedAt]);
 	}

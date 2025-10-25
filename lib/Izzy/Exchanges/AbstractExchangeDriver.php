@@ -17,8 +17,7 @@ use Izzy\System\QueueTask;
  * Abstract cryptocurrency exchange driver class.
  * Contains common logic for all cryptocurrency exchanges.
  */
-abstract class AbstractExchangeDriver implements IExchangeDriver
-{
+abstract class AbstractExchangeDriver implements IExchangeDriver {
 	/** @var ExchangeConfiguration Configuration settings for the exchange. */
 	protected ExchangeConfiguration $config;
 
@@ -39,16 +38,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * @var IMarket[]
 	 */
 	protected array $markets = [];
-	
+
 	/** @var Database Database connection instance. */
 	protected Database $database;
-	
+
 	/** @var Logger Logger instance for logging operations. */
 	protected Logger $logger;
 
 	/**
 	 * Constructor for the exchange driver.
-	 * 
+	 *
 	 * @param ExchangeConfiguration $config Exchange configuration settings.
 	 * @param IzzyApplication $application Application instance.
 	 */
@@ -60,7 +59,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 	/**
 	 * Get the name of the exchange.
-	 * 
+	 *
 	 * @return string Exchange name.
 	 */
 	public function getName(): string {
@@ -82,7 +81,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$market->initializeIndicators();
 		return $market;
 	}
-	
+
 	/**
 	 * Update the list of trading pairs and associated markets.
 	 * Creates new markets for new pairs and removes markets for unused pairs.
@@ -90,7 +89,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	protected function updatePairs(): void {
 		$this->spotPairs = $this->config->getSpotPairs($this);
 		$this->futuresPairs = $this->config->getFuturesPairs($this);
-		
+
 		// First, create the absent markets.
 		foreach ($this->spotPairs + $this->futuresPairs as $pair) {
 			$pairTicker = $pair->getExchangeTicker($this);
@@ -105,7 +104,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 				}
 			}
 		}
-		
+
 		// Now, remove the markets that are no longer needed.
 		foreach ($this->markets as $ticker => $market) {
 			if (!isset($this->spotPairs[$ticker]) && !isset($this->futuresPairs[$ticker])) {
@@ -118,21 +117,21 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 	/**
 	 * Update exchange information and data.
-	 * 
+	 *
 	 * @return int Number of seconds to sleep after the update.
 	 */
 	public function update(): int {
 		$this->logger->info("Updating total balance information for {$this->getName()}");
 		$this->updateBalance();
-		
+
 		// Updating the lists of pairs.
 		$this->logger->info("Updating the list of pairs for {$this->getName()}");
 		$this->updatePairs();
-		
+
 		// Update markets.
 		$this->logger->info("Updating market data for {$this->getName()}");
 		$this->updateMarkets();
-		
+
 		// Update charts for all markets.
 		$this->logger->info("Updating charts for all markets on {$this->getName()}");
 		$this->updateCharts();
@@ -140,10 +139,10 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		// Default sleep time of 60 seconds.
 		return 60;
 	}
-	
+
 	/**
 	 * Save balance information in the database.
-	 * 
+	 *
 	 * @param Money $balance Balance amount to store.
 	 * @return bool True if successfully stored, false otherwise.
 	 */
@@ -154,16 +153,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 	/**
 	 * Fork into a child process and run the exchange driver.
-	 * 
+	 *
 	 * @return int Process ID of the child process, or -1 on failure.
 	 */
 	public function run(): int {
 		$pid = pcntl_fork();
-		if($pid) {
+		if ($pid) {
 			return $pid;
 		}
 
-		if(!$this->connect()) {
+		if (!$this->connect()) {
 			return -1;
 		}
 
@@ -172,7 +171,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 		// Log that the driver has been successfully loaded.
 		$this->logger->info("Driver for exchange {$this->getName()} loaded.");
-		
+
 		// Check if this exchange is disabled by the configuration.
 		// We return success, because this is completely OK.
 		if (!$this->config->isEnabled()) {
@@ -181,12 +180,12 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		}
 
 		// Main loop.
-		while(true) {
+		while (true) {
 			$timeout = $this->update();
 			sleep($timeout);
 		}
 	}
-	
+
 	/**
 	 * Update charts for all markets.
 	 */
@@ -204,7 +203,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		foreach ($this->markets as $ticker => $market) {
 			// First, let's determine the type of market.
 			$marketType = $market->getMarketType();
-			
+
 			// If the market type is spot, we need to fetch spot candles.
 			if ($marketType->isSpot()) {
 				if (isset($this->spotPairs[$ticker])) {
@@ -213,7 +212,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 					$market->setCandles($candles);
 				}
 			}
-			
+
 			// If the market type is futures, we need to fetch futures candles.
 			if ($marketType->isFutures()) {
 				if (isset($this->futuresPairs[$ticker])) {
@@ -222,7 +221,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 					$market->setCandles($candles);
 				}
 			}
-			
+
 			// Calculate all indicators.
 			$market->calculateIndicators();
 
@@ -231,15 +230,15 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			$market->processTrading();
 		}
 	}
-	
+
 	public function getDatabase(): Database {
 		return $this->database;
 	}
-	
+
 	public function getLogger(): Logger {
 		return $this->logger;
 	}
-	
+
 	public function getExchangeConfiguration(): ExchangeConfiguration {
 		return $this->config;
 	}

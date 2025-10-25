@@ -1,123 +1,124 @@
 {% extends 'base-page.htt' %}
 
 {% block content %}
-<div class="traded-pairs">
-    <h1>Trading Pairs</h1>
-    
-    {% if tradedPairs is empty %}
-    <div class="no-pairs">
-        <p>No active trading pairs. Check configuration.</p>
-    </div>
-    {% else %}
-        <div class="pairs-layout">
-            <!-- Sidebar with pair list -->
-            <div class="pairs-sidebar">
-                <h3>Pairs</h3>
-                <div class="pairs-list">
-                    {% for pair in tradedPairs %}
-                    <div class="pair-item" data-pair-id="{{ loop.index0 }}">
-                        <div class="pair-item-header">
-                            <span class="pair-ticker">{{ pair.ticker }}</span>
-                            <span class="pair-exchange">{{ pair.exchange }}</span>
-                        </div>
-                        <div class="pair-item-details">
-                            <span class="pair-timeframe">{{ pair.timeframe }}</span>
-                            <span class="pair-market-type">{{ pair.marketType }}</span>
-                        </div>
+    <div class="traded-pairs">
+        <h1>Trading Pairs</h1>
+
+        {% if tradedPairs is empty %}
+            <div class="no-pairs">
+                <p>No active trading pairs. Check configuration.</p>
+            </div>
+        {% else %}
+            <div class="pairs-layout">
+                <!-- Sidebar with pair list -->
+                <div class="pairs-sidebar">
+                    <h3>Pairs</h3>
+                    <div class="pairs-list">
+                        {% for pair in tradedPairs %}
+                            <div class="pair-item" data-pair-id="{{ loop.index0 }}">
+                                <div class="pair-item-header">
+                                    <span class="pair-ticker">{{ pair.ticker }}</span>
+                                    <span class="pair-exchange">{{ pair.exchange }}</span>
+                                </div>
+                                <div class="pair-item-details">
+                                    <span class="pair-timeframe">{{ pair.timeframe }}</span>
+                                    <span class="pair-market-type">{{ pair.marketType }}</span>
+                                </div>
+                            </div>
+                        {% endfor %}
                     </div>
+                </div>
+
+                <!-- Main content area -->
+                <div class="pairs-content">
+                    {% for pair in tradedPairs %}
+                        <div class="pair-panel" data-pair-id="{{ loop.index0 }}"
+                             {% if loop.first %}style="display: block;"{% endif %}>
+                            <div class="pair-header">
+                                <h2>{{ pair.exchange }} — {{ pair.ticker }}</h2>
+                                <span class="timeframe">{{ pair.timeframe }}</span>
+                                <span class="market-type">{{ pair.marketType }}</span>
+                            </div>
+
+                            <!-- Chart and strategy parameters -->
+                            <div class="chart-and-strategy">
+                                <!-- Pair chart -->
+                                <div class="pair-chart">
+                                    <img src="/charts/{{ pair.chartKey }}.png"
+                                         alt="Chart {{ pair.ticker }}"/>
+                                </div>
+
+                                <div class="strategy-info">
+                                    {{ pair.strategyParamsHtml | raw }}
+                                </div>
+                            </div>
+
+                            {% if pair.dcaTables is defined %}
+                                <div class="dca-info">
+                                    <h3>DCA Grid</h3>
+
+                                    <div class="dca-tables-container">
+                                        {% if pair.dcaTables.long is defined %}
+                                            <div class="dca-section">
+                                                {{ pair.dcaTables.long | raw }}
+                                                <p class="total-volume">
+                                                    Maximum volume: {{ pair.dcaInfo.maxLongVolume.amount }} USDT
+                                                </p>
+                                            </div>
+                                        {% endif %}
+
+                                        {% if pair.dcaTables.short is defined %}
+                                            <div class="dca-section">
+                                                {{ pair.dcaTables.short | raw }}
+                                                <p class="total-volume">
+                                                    Maximum volume: {{ pair.dcaInfo.maxShortVolume.amount }} USDT
+                                                </p>
+                                            </div>
+                                        {% endif %}
+                                    </div>
+
+                                    <div class="dca-settings">
+                                        <p>Order type: {{ pair.dcaInfo.useLimitOrders ? 'Limit' : 'Market' }}</p>
+                                    </div>
+                                </div>
+                            {% endif %}
+                        </div>
                     {% endfor %}
                 </div>
             </div>
-            
-            <!-- Main content area -->
-            <div class="pairs-content">
-                {% for pair in tradedPairs %}
-                <div class="pair-panel" data-pair-id="{{ loop.index0 }}" {% if loop.first %}style="display: block;"{% endif %}>
-                    <div class="pair-header">
-                        <h2>{{ pair.exchange }} — {{ pair.ticker }}</h2>
-                        <span class="timeframe">{{ pair.timeframe }}</span>
-                        <span class="market-type">{{ pair.marketType }}</span>
-                    </div>
-                    
-                    <!-- Chart and strategy parameters -->
-                    <div class="chart-and-strategy">
-                        <!-- Pair chart -->
-                        <div class="pair-chart">
-                            <img src="/charts/{{ pair.chartKey }}.png" 
-                                 alt="Chart {{ pair.ticker }}" />
-                        </div>
-                        
-                        <div class="strategy-info">
-                            {{ pair.strategyParamsHtml | raw }}
-                        </div>
-                    </div>
-                    
-                    {% if pair.dcaTables is defined %}
-                    <div class="dca-info">
-                        <h3>DCA Grid</h3>
-                        
-                        <div class="dca-tables-container">
-                            {% if pair.dcaTables.long is defined %}
-                            <div class="dca-section">
-                                {{ pair.dcaTables.long | raw }}
-                                <p class="total-volume">
-                                    Maximum volume: {{ pair.dcaInfo.maxLongVolume.amount }} USDT
-                                </p>
-                            </div>
-                            {% endif %}
-                            
-                            {% if pair.dcaTables.short is defined %}
-                            <div class="dca-section">
-                                {{ pair.dcaTables.short | raw }}
-                                <p class="total-volume">
-                                    Maximum volume: {{ pair.dcaInfo.maxShortVolume.amount }} USDT
-                                </p>
-                            </div>
-                            {% endif %}
-                        </div>
-                        
-                        <div class="dca-settings">
-                            <p>Order type: {{ pair.dcaInfo.useLimitOrders ? 'Limit' : 'Market' }}</p>
-                        </div>
-                    </div>
-                    {% endif %}
-                </div>
-                {% endfor %}
-            </div>
-        </div>
-    {% endif %}
-</div>
+        {% endif %}
+    </div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const pairItems = document.querySelectorAll('.pair-item');
-    const pairPanels = document.querySelectorAll('.pair-panel');
-    
-    pairItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const pairId = this.getAttribute('data-pair-id');
-            
-            // Remove active class from all items
-            pairItems.forEach(i => i.classList.remove('active'));
-            
-            // Hide all panels
-            pairPanels.forEach(p => p.style.display = 'none');
-            
-            // Add active class to clicked item
-            this.classList.add('active');
-            
-            // Show corresponding panel
-            const targetPanel = document.querySelector(`.pair-panel[data-pair-id="${pairId}"]`);
-            if (targetPanel) {
-                targetPanel.style.display = 'block';
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const pairItems = document.querySelectorAll('.pair-item');
+            const pairPanels = document.querySelectorAll('.pair-panel');
+
+            pairItems.forEach(item => {
+                item.addEventListener('click', function () {
+                    const pairId = this.getAttribute('data-pair-id');
+
+                    // Remove active class from all items
+                    pairItems.forEach(i => i.classList.remove('active'));
+
+                    // Hide all panels
+                    pairPanels.forEach(p => p.style.display = 'none');
+
+                    // Add active class to clicked item
+                    this.classList.add('active');
+
+                    // Show corresponding panel
+                    const targetPanel = document.querySelector(`.pair-panel[data-pair-id="${pairId}"]`);
+                    if (targetPanel) {
+                        targetPanel.style.display = 'block';
+                    }
+                });
+            });
+
+            // Activate first item by default
+            if (pairItems.length > 0) {
+                pairItems[0].classList.add('active');
             }
         });
-    });
-    
-    // Activate first item by default
-    if (pairItems.length > 0) {
-        pairItems[0].classList.add('active');
-    }
-});
-</script>
+    </script>
 {% endblock %} 

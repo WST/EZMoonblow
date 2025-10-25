@@ -2,7 +2,6 @@
 
 namespace Izzy\Interfaces;
 
-interface IPositionOnExchange extends IPosition
-{
-	
+interface IPositionOnExchange extends IPosition {
+
 }

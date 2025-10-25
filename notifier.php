@@ -3,7 +3,7 @@
 
 use Izzy\RealApplications\Notifier;
 
-require __DIR__ . '/lib/common.php';
+require __DIR__.'/lib/common.php';
 
 $trader = Notifier::getInstance();
 $trader->run();

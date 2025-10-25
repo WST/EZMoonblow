@@ -8,8 +8,7 @@ use Izzy\Financial\Money;
 /**
  * Crypto exchange driver interface.
  */
-interface IExchangeDriver
-{
+interface IExchangeDriver {
 	/**
 	 * Update the exchange state.
 	 * @return int time to sleep before the next update in seconds.
@@ -94,7 +93,7 @@ interface IExchangeDriver
 	 * @return IMarket|null Market instance or null if not found.
 	 */
 	public function createMarket(IPair $pair): ?IMarket;
-	
+
 	public function pairToTicker(IPair $pair): string;
 
 	public function getSpotBalanceByCurrency(string $coin): Money;

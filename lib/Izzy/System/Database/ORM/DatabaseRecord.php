@@ -9,11 +9,10 @@ use Izzy\System\Database\Database;
 /**
  * Database record.
  */
-abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity
-{
+abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity {
 	/**
 	 * Link with the database.
-	 * @var Database 
+	 * @var Database
 	 */
 	protected Database $database;
 
@@ -68,9 +67,9 @@ abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity
 		$this->isFresh = $isFresh;
 
 		// If columns forming a natural primary key are specified, mark this.
-		if(is_array($pkFields) && count($pkFields)) {
-			foreach($pkFields as $pkPartField) {
-				$this->pkValues[$pkPartField] = & $this->row[$pkPartField];
+		if (is_array($pkFields) && count($pkFields)) {
+			foreach ($pkFields as $pkPartField) {
+				$this->pkValues[$pkPartField] = &$this->row[$pkPartField];
 			}
 		}
 	}
@@ -86,7 +85,7 @@ abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity
 		$row = array_intersect_key($this->row, $table_columns);
 
 		// Save the data and indicate it.
-		if($this->isFresh) {
+		if ($this->isFresh) {
 			// A fresh record.
 			$success = $this->database->insert(static::getTableName(), $row);
 			$this->isFresh = false;
@@ -100,15 +99,17 @@ abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity
 
 	public function remove(): bool {
 		// It’s impossible to delete a new record that isn’t in the database yet.
-		if($this->isFresh) return false;
+		if ($this->isFresh)
+			return false;
 
 		// Can’t delete something unclear.
-		if(!count($this->pkValues)) return false;
+		if (!count($this->pkValues))
+			return false;
 
 		// Build the condition.
 		$where = [];
-		foreach($this->pkValues as $field => $value) {
-			$where[] = "$field = " . $this->database->quote($value);
+		foreach ($this->pkValues as $field => $value) {
+			$where[] = "$field = ".$this->database->quote($value);
 		}
 
 		// Write the modifications.

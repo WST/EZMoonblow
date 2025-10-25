@@ -9,10 +9,9 @@ use Izzy\Interfaces\IExchangeDriver;
  * Main class of the Trader application.
  * This application is responsible for the actual trading process.
  */
-class Trader extends ConsoleApplication
-{
+class Trader extends ConsoleApplication {
 	/**
-	 * @var IExchangeDriver[] 
+	 * @var IExchangeDriver[]
 	 */
 	private array $exchanges;
 
@@ -22,15 +21,15 @@ class Trader extends ConsoleApplication
 	public function __construct() {
 		// Let's build the parent.
 		parent::__construct();
-		
-		// Finally, let's load the currently active exchange drivers.
+
+		// Finally, let’s load the currently active exchange drivers.
 		$this->exchanges = $this->configuration->connectExchanges($this);
 	}
 
 	public function run(): void {
 		// Show console message.
 		$this->logger->info('Trader is starting...');
-		
+
 		// We need to disconnect from the database before splitting.
 		$this->database->close();
 
@@ -43,10 +42,8 @@ class Trader extends ConsoleApplication
 	 * Run the exchange updaters.
 	 */
 	private function runExchangeUpdaters(): int {
-		$updaters = array_map(function (IExchangeDriver $exchange) {
-			return $exchange->run();
-		}, $this->exchanges);
-		
+		$updaters = array_map(fn(IExchangeDriver $exchange) => $exchange->run(), $this->exchanges);
+
 		if (empty($updaters)) {
 			$this->logger->warning('No exchanges were found');
 		}

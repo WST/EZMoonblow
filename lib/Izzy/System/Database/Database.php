@@ -14,20 +14,19 @@ use PDOException;
  * Supports prepared statements for security and provides convenient methods
  * for common database operations like select, insert, update, and delete.
  */
-class Database
-{
+class Database {
 	/** @var PDO Database connection instance */
 	private PDO $pdo;
-	
+
 	/** @var string Database host address */
 	private string $host;
-	
+
 	/** @var string Database username for authentication */
 	private string $username;
-	
+
 	/** @var string Database password for authentication */
 	private string $password;
-	
+
 	/** @var string Database name to connect to */
 	private string $dbname;
 
@@ -60,7 +59,7 @@ class Database
 				$this->username, $this->password
 			);
 			return true;
-		}  catch (PDOException $e) {
+		} catch (PDOException $e) {
 			$this->setError($e);
 			// Connection failed, return false instead of throwing exception
 			return false;
@@ -81,7 +80,8 @@ class Database
 	 */
 	public function queryOneRow(string $sql): ?array {
 		$statement = $this->pdo->query($sql);
-		if (!$statement) return null;
+		if (!$statement)
+			return null;
 		$row = $statement->fetch(PDO::FETCH_ASSOC);
 		return $row !== false ? $row : null;
 	}
@@ -93,7 +93,8 @@ class Database
 	 */
 	public function queryAllRows(string $sql): array {
 		$statement = $this->pdo->query($sql);
-		if (!$statement) return [];
+		if (!$statement)
+			return [];
 		return $statement->fetchAll(PDO::FETCH_ASSOC);
 	}
 
@@ -102,7 +103,7 @@ class Database
 	 * This method handles both simple string conditions and array-based conditions
 	 * where array keys represent field names and values represent field values.
 	 * Supports both single values (using =) and arrays (using IN).
-	 * 
+	 *
 	 * @param string|array $where Condition as string (e.g., "id = :id") or array (e.g., ["id" => 1, "status" => "active", "type" => ["A", "B"]])
 	 * @return array{0: string, 1: array} Returns tuple of [whereClause, parameters]
 	 */
@@ -111,15 +112,15 @@ class Database
 		if (is_string($where)) {
 			return [$where, []];
 		}
-		
+
 		// If where array is empty, return condition that matches all rows
 		if (empty($where)) {
 			return ['1', []];
 		}
-		
+
 		$conditions = [];
 		$parameters = [];
-		
+
 		// Build conditions for each field-value pair in the array
 		foreach ($where as $field => $value) {
 			if (is_array($value)) {
@@ -131,11 +132,11 @@ class Database
 					// Create placeholders for each array element
 					$placeholders = [];
 					foreach ($value as $index => $item) {
-						$paramName = $field . '_' . $index;
+						$paramName = $field.'_'.$index;
 						$placeholders[] = ":$paramName";
 						$parameters[$paramName] = $item;
 					}
-					$conditions[] = "`$field` IN (" . implode(', ', $placeholders) . ")";
+					$conditions[] = "`$field` IN (".implode(', ', $placeholders).")";
 				}
 			} else {
 				// Handle single values using = operator
@@ -143,7 +144,7 @@ class Database
 				$parameters[$field] = $value;
 			}
 		}
-		
+
 		// Join all conditions with AND operator
 		return [implode(' AND ', $conditions), $parameters];
 	}
@@ -159,12 +160,12 @@ class Database
 		// Build WHERE clause and extract parameters
 		[$whereClause, $whereParams] = $this->buildWhereClause($where);
 		$sql = "SELECT $what FROM `$table` WHERE $whereClause";
-		
+
 		// If no parameters, use simple query
 		if (empty($whereParams)) {
 			return $this->queryOneRow($sql);
 		}
-		
+
 		// Use prepared statement for parameterized queries
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
@@ -214,7 +215,7 @@ class Database
 		if (empty($whereParams)) {
 			return $this->queryAllRows($sql);
 		}
-		
+
 		// Use prepared statement for parameterized queries
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
@@ -222,7 +223,7 @@ class Database
 		}
 		return $stmt->fetchAll(PDO::FETCH_ASSOC);
 	}
-	
+
 	/**
 	 * Check if a table exists in the database.
 	 * @param string $table Name of the table to check
@@ -258,8 +259,8 @@ class Database
 		}
 
 		// Build field descriptions by mapping field names to their definitions
-		$fieldLines = array_map(function($definition, $name) {
-		    return "`$name` $definition";
+		$fieldLines = array_map(function ($definition, $name) {
+			return "`$name` $definition";
 		}, $fields, array_keys($fields));
 
 		// Build key definitions if provided
@@ -267,7 +268,7 @@ class Database
 		if (!empty($keys)) {
 			foreach ($keys as $keyName => $keyFields) {
 				$escapedFields = array_map(fn($field) => "`$field`", $keyFields);
-				$keyLines[] = "$keyName (" . implode(', ', $escapedFields) . ")";
+				$keyLines[] = "$keyName (".implode(', ', $escapedFields).")";
 			}
 		}
 
@@ -291,10 +292,10 @@ class Database
 			return false;
 		}
 	}
-	
+
 	public function dropTable(string $table): bool {
 		$sql = "DROP TABLE $table";
-		
+
 		// Execute the query and return success status.
 		try {
 			$result = $this->exec($sql);
@@ -304,7 +305,7 @@ class Database
 			return false;
 		}
 	}
-	
+
 	/**
 	 * Get a database migration manager instance for handling schema migrations.
 	 * @return DatabaseMigrationManager Migration manager instance.
@@ -403,25 +404,26 @@ class Database
 		// If no parameters, use simple query
 		if (empty($whereParams)) {
 			$result = $this->queryOneRow($sql);
-			return $result ? (int) $result['count'] : 0;
+			return $result ? (int)$result['count'] : 0;
 		}
-		
+
 		// Use prepared statement for parameterized queries
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
 			return 0;
 		}
-		
+
 		$result = $stmt->fetch(PDO::FETCH_ASSOC);
-		return $result ? (int) $result['count'] : 0;
+		return $result ? (int)$result['count'] : 0;
 	}
-	
+
 	public function quote(string $string): string {
 		return $this->pdo->quote($string);
 	}
 
 	public function setExchangeBalance(string $exchangeName, ?Money $totalBalance): bool {
-		if (is_null($totalBalance)) return false;
+		if (is_null($totalBalance))
+			return false;
 		$exchangeNameQuoted = $this->quote($exchangeName);
 		$totalBalanceQuoted = $this->quote($totalBalance->format());
 		$now = time();
@@ -432,24 +434,24 @@ class Database
 	/**
 	 * Get the total balance across all exchanges.
 	 * Sums up all balance values from the exchange_balances table.
-	 * 
+	 *
 	 * @return Money Total balance as Money object, or zero if no data found.
 	 */
 	public function getTotalBalance(): Money {
-		$sql = "SELECT SUM(CAST(exchange_balance AS DECIMAL(20,8))) as total FROM exchanges";
+		$sql = "SELECT SUM(CAST(exchange_balance AS DECIMAL(20,8))) AS total FROM exchanges";
 		$result = $this->queryOneRow($sql);
-		
+
 		if ($result && isset($result['total'])) {
 			return Money::from($result['total']);
 		}
-		
+
 		return Money::from(0.0);
 	}
 
 	private function setError(PDOException|Exception $e): void {
 		$this->errorMessage = $e->getMessage();
 	}
-	
+
 	public function getErrorMessage(): string {
 		return $this->errorMessage;
 	}
@@ -457,7 +459,7 @@ class Database
 	public function getFieldList($table): array {
 		$result = [];
 		$columns = $this->queryAllRows("SHOW COLUMNS FROM `$table`");
-		foreach($columns as $column) {
+		foreach ($columns as $column) {
 			$result[] = $column['Field'];
 		}
 		return $result;
@@ -465,7 +467,7 @@ class Database
 
 	public function lastInsertId(): false|int {
 		$lastInsertId = $this->pdo->lastInsertId();
-		return $lastInsertId ?  (int) $lastInsertId : false;
+		return $lastInsertId ? (int)$lastInsertId : false;
 	}
 
 	/**
@@ -481,7 +483,8 @@ class Database
 		$userdata = null
 	): IDatabaseEntity|false {
 		$row = $this->selectOneRow($objectType::getTableName(), '*', $where);
-		if (!$row) return false;
+		if (!$row)
+			return false;
 		if (is_null($userdata)) {
 			$object = new $objectType($this, $row);
 		} else {
@@ -489,11 +492,11 @@ class Database
 		}
 		return $object;
 	}
-	
+
 	public function selectAllObjects($objectType, string|array $where = '1', $userdata = null): array {
 		$results = [];
 		$rows = $this->selectAllRows($objectType::getTableName(), '*', $where);
-		foreach($rows as $row) {
+		foreach ($rows as $row) {
 			if (is_null($userdata)) {
 				$object = new $objectType($this, $row);
 			} else {

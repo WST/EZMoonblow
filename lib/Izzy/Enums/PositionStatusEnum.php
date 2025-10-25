@@ -4,8 +4,7 @@ namespace Izzy\Enums;
 
 use InvalidArgumentException;
 
-enum PositionStatusEnum: string
-{
+enum PositionStatusEnum: string {
 	/**
 	 * The position has placed a limit order, but it wasn't executed yet.
 	 */

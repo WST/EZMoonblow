@@ -2,8 +2,7 @@
 
 namespace Izzy\Enums;
 
-enum PositionDirectionEnum: string
-{
+enum PositionDirectionEnum: string {
 	case LONG = 'LONG';
 	case SHORT = 'SHORT';
 
@@ -30,7 +29,7 @@ enum PositionDirectionEnum: string
 	public function toString(): string {
 		return $this->value;
 	}
-	
+
 	public function getBuySell(): string {
 		return $this->isLong() ? 'Buy' : 'Sell';
 	}

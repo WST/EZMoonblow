@@ -1,38 +1,38 @@
 <?php
 
 namespace Izzy\Strategies;
+
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 
 /**
  * Represents a DCA strategy settings.
  */
-class DCASettings
-{
+class DCASettings {
 	/**
 	 * Map of DCA orders.
-	 * @var array 
+	 * @var array
 	 */
 	private array $orderMap = [];
 
 	/**
 	 * Number of DCA levels, including position entry.
-	 * @var int 
+	 * @var int
 	 */
 	private int $numberOfLevels;
 
 	/**
 	 * Initial position volume.
-	 * @var Money 
+	 * @var Money
 	 */
 	private Money $entryVolume;
 
 	/**
 	 * Martingale coefficient.
-	 * @var float 
+	 * @var float
 	 */
 	private float $volumeMultiplier;
-	
+
 	private float $priceDeviation;
 	private float $priceDeviationMultiplier;
 	private float $expectedProfit;
@@ -88,13 +88,13 @@ class DCASettings
 		// Initialize the order map.
 		$this->orderMap[PositionDirectionEnum::LONG->value] = [];
 		$this->orderMap[PositionDirectionEnum::SHORT->value] = [];
-		
+
 		// First, build the order map for Long trades.
 		$volume = $entryVolume->getAmount();
 		$totalOffset = 0;
 		$currentDeviation = $priceDeviation;
 		for ($level = 0; $level < $numberOfLevels; $level++) {
-			$this->orderMap[PositionDirectionEnum::LONG->value][$level] = ['volume' =>  $volume, 'offset' => - $totalOffset];
+			$this->orderMap[PositionDirectionEnum::LONG->value][$level] = ['volume' => $volume, 'offset' => -$totalOffset];
 			$volume *= $volumeMultiplier;
 			$totalOffset += $currentDeviation;
 			$currentDeviation = $priceDeviationMultiplier * $currentDeviation;
@@ -112,7 +112,7 @@ class DCASettings
 				$currentDeviation = $priceDeviationMultiplierShort * $currentDeviation;
 			}
 		}
-		
+
 		/** Settings of the Long trades */
 		$this->numberOfLevels = $numberOfLevels;
 		$this->entryVolume = $entryVolume;
@@ -130,27 +130,27 @@ class DCASettings
 		$this->expectedProfitShort = $expectedProfitShort;
 		$this->useLimitOrders = $useLimitOrders;
 	}
-	
+
 	public function getOrderMap(): array {
 		return $this->orderMap;
 	}
-	
+
 	public function getMaxTotalPositionVolume(): Money {
 		$totalVolume = 0.0;
-		
+
 		// Volumes for Long trades.
 		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
 			$totalVolume += $level['volume'];
 		}
-		
+
 		// Volumes for Short trades.
 		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {
 			$totalVolume += $level['volume'];
 		}
-		
+
 		return Money::from($totalVolume);
 	}
-	
+
 	public function getMaxLongPositionVolume(): Money {
 		$totalVolume = 0.0;
 		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
@@ -158,7 +158,7 @@ class DCASettings
 		}
 		return Money::from($totalVolume);
 	}
-	
+
 	public function getMaxShortPositionVolume(): Money {
 		$totalVolume = 0.0;
 		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {

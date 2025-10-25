@@ -1,54 +1,54 @@
 {% extends 'base-page.htt' %}
 
 {% block content %}
-<div class="dashboard">
-    <h1>Total assets balance</h1>
-    
-    <div class="dashboard-layout">
-        <!-- Sidebar with time range selection -->
-        <div class="dashboard-sidebar">
-            <h3>Time Range</h3>
-            <div class="time-range-list">
-                {% for rangeKey, rangeName in timeRanges %}
-                <div class="time-range-item {% if rangeKey == selectedRange %}active{% endif %}" 
-                     data-range="{{ rangeKey }}">
-                    <span class="range-name">{{ rangeName }}</span>
+    <div class="dashboard">
+        <h1>Total assets balance</h1>
+
+        <div class="dashboard-layout">
+            <!-- Sidebar with time range selection -->
+            <div class="dashboard-sidebar">
+                <h3>Time Range</h3>
+                <div class="time-range-list">
+                    {% for rangeKey, rangeName in timeRanges %}
+                        <div class="time-range-item {% if rangeKey == selectedRange %}active{% endif %}"
+                             data-range="{{ rangeKey }}">
+                            <span class="range-name">{{ rangeName }}</span>
+                        </div>
+                    {% endfor %}
                 </div>
-                {% endfor %}
             </div>
-        </div>
-        
-        <!-- Main content area -->
-        <div class="dashboard-content">
-            <div class="balance-chart-container">
-                <h2>Total Balance — {{ timeRanges[selectedRange] }}</h2>
-                <div class="balance-chart">
-                    <img src="/balance-chart/{{ selectedRange }}" 
-                         alt="Balance Chart - {{ timeRanges[selectedRange] }}" />
+
+            <!-- Main content area -->
+            <div class="dashboard-content">
+                <div class="balance-chart-container">
+                    <h2>Total Balance — {{ timeRanges[selectedRange] }}</h2>
+                    <div class="balance-chart">
+                        <img src="/balance-chart/{{ selectedRange }}"
+                             alt="Balance Chart - {{ timeRanges[selectedRange] }}"/>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    const timeRangeItems = document.querySelectorAll('.time-range-item');
-    
-    timeRangeItems.forEach(item => {
-        item.addEventListener('click', function() {
-            const range = this.getAttribute('data-range');
-            
-            // Update active state
-            timeRangeItems.forEach(i => i.classList.remove('active'));
-            this.classList.add('active');
-            
-            // Navigate to new URL with selected range
-            const url = new URL(window.location);
-            url.searchParams.set('range', range);
-            window.location.href = url.toString();
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const timeRangeItems = document.querySelectorAll('.time-range-item');
+
+            timeRangeItems.forEach(item => {
+                item.addEventListener('click', function () {
+                    const range = this.getAttribute('data-range');
+
+                    // Update active state
+                    timeRangeItems.forEach(i => i.classList.remove('active'));
+                    this.classList.add('active');
+
+                    // Navigate to new URL with selected range
+                    const url = new URL(window.location);
+                    url.searchParams.set('range', range);
+                    window.location.href = url.toString();
+                });
+            });
         });
-    });
-});
-</script>
+    </script>
 {% endblock %} 

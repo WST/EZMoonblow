@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>{{ title|default("Trading Bot Control Panel") }}</title>
-    <link rel="stylesheet" href="/static/css/ezmoonblow.css" type="text/css" />
+    <link rel="stylesheet" href="/static/css/ezmoonblow.css" type="text/css"/>
     {% block extracss %}{% endblock %}
 </head>
 <body>
@@ -18,7 +18,7 @@
     </nav>
     <main>
         {% block content %}
-           
+
         {% endblock %}
     </main>
     <footer>

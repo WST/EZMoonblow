@@ -6,8 +6,7 @@ use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IFVG;
 
-class Candle implements ICandle
-{
+class Candle implements ICandle {
 	protected int $timestamp;
 	protected float $open;
 	protected float $high;
@@ -15,7 +14,7 @@ class Candle implements ICandle
 	protected float $close;
 	protected float $volume;
 	protected ?Market $market;
-	
+
 	protected ?ICandle $previousCandle;
 	protected ?ICandle $nextCandle;
 

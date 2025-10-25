@@ -11,9 +11,12 @@
     "ext-raphf": "*",
     "irazasyed/telegram-bot-sdk": "^3.15",
     "twig/twig": "^3.0",
-    "slim/psr7": "^1.7"
+    "slim/psr7": "^1.7",
+    "symfony/console": "^7.3"
   },
   "autoload": {
-    "psr-4": {"Izzy\\": "lib/Izzy/"}
+    "psr-4": {
+      "Izzy\\": "lib/Izzy/"
+    }
   }
 }

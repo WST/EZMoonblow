@@ -9,8 +9,7 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IIndicatorVisualizer;
 use Izzy\Strategies\DCASettings;
 
-class Chart extends Image
-{
+class Chart extends Image {
 	/**
 	 * Related Market instance.
 	 */
@@ -22,12 +21,12 @@ class Chart extends Image
 	protected int $candleWidth = 4;
 
 	/**
-	 * Space between nearby candlesticks. 
+	 * Space between nearby candlesticks.
 	 */
 	protected int $candleSpacing = 2;
 
 	/**
-	 * Color of the bullish candlesticks. 
+	 * Color of the bullish candlesticks.
 	 */
 	protected $bullishColor;
 
@@ -35,7 +34,7 @@ class Chart extends Image
 	 * Color of the bearish candlesticks.
 	 */
 	protected $bearishColor;
-	
+
 	protected $wickColor;
 	protected $priceColor;
 	protected $backgroundColor;
@@ -49,15 +48,15 @@ class Chart extends Image
 	public function __construct(Market $market) {
 		$candleCount = count($market->getCandles());
 		$width = $candleCount * ($this->candleWidth + $this->candleSpacing) + 110;  // 110 = left padding (30) + right padding (80)
-		
+
 		if ($candleCount <= 100) {
 			$height = 360;
 		} else {
 			$height = 480;
 		}
-		
+
 		parent::__construct($width, $height);
-		
+
 		$this->market = $market;
 		$this->timeframe = $market->getTimeFrame();
 
@@ -114,7 +113,7 @@ class Chart extends Image
 	public function drawCandles(): void {
 		$candles = $this->market->getCandles();
 		$candleCount = count($candles);
-		
+
 		// If there are no candles, we have nothing to draw.
 		if (!$candleCount) {
 			return;
@@ -123,30 +122,30 @@ class Chart extends Image
 		/** @var Candle $candle */
 		$index = 0;
 		foreach ($candles as $candle) {
-			$this->drawCandle($candle, $index ++);
+			$this->drawCandle($candle, $index++);
 		}
 	}
 
 	public function drawCandle(Candle $candle, int $index = 0): void {
 		$priceRange = $this->market->getPriceRange();
 		$priceScale = $this->chartArea['height'] / $priceRange;
-		
+
 		// Calculate candlestick position.
 		$x = $this->chartArea['x'] + $index * ($this->candleWidth + $this->candleSpacing);
 
 		// Coordinates for the candlestick.
-		$highY = $this->chartArea['y'] + $this->chartArea['height'] 
+		$highY = $this->chartArea['y'] + $this->chartArea['height']
 			- ($candle->getHighPrice() - $this->market->getMinPrice()) * $priceScale;
-		$lowY = $this->chartArea['y'] + $this->chartArea['height'] 
+		$lowY = $this->chartArea['y'] + $this->chartArea['height']
 			- ($candle->getLowPrice() - $this->market->getMinPrice()) * $priceScale;
-		$openY = $this->chartArea['y'] + $this->chartArea['height'] 
+		$openY = $this->chartArea['y'] + $this->chartArea['height']
 			- ($candle->getOpenPrice() - $this->market->getMinPrice()) * $priceScale;
 		$closeY = $this->chartArea['y'] + $this->chartArea['height']
 			- ($candle->getClosePrice() - $this->market->getMinPrice()) * $priceScale;
-		
+
 		$y = min($openY, $closeY);
 		$height = abs($closeY - $openY);
-		
+
 		// Устанавливаем цвет в зависимости от типа свечи
 		if ($candle->isBullish()) {
 			$this->setForegroundColor(0, 200, 0);
@@ -181,7 +180,7 @@ class Chart extends Image
 			$timestamp = $candle->getOpenTime();
 			$date = date('Y-m-d', $timestamp);
 			$time = date('H:i', $timestamp);
-			
+
 			// Рассчитываем позицию метки
 			$x = $chartArea['x'] + $i * ($this->candleWidth + $this->candleSpacing);
 			$y = $this->getHeight() - $this->getPadding('bottom') + 15;
@@ -209,7 +208,7 @@ class Chart extends Image
 		// Фон для всего изображения
 		$this->setForegroundColor(255, 255, 255);
 		$this->fillRectangle(0, 0, $this->getWidth(), $this->getHeight());
-		
+
 		// Фон для области графика
 		$this->fillChartArea(255, 255, 255);
 	}
@@ -222,11 +221,11 @@ class Chart extends Image
 		$chartArea = $this->getChartArea();
 		$priceRange = $this->market->getPriceRange();
 		$step = $priceRange / 10;
-		
+
 		for ($i = 0; $i <= 10; $i++) {
 			$price = $this->market->getMinPrice() + $i * $step;
 			$y = $chartArea['y'] + $chartArea['height'] - ($i * $chartArea['height'] / 10);
-			
+
 			// Рисуем линию сетки более светлым цветом
 			$this->setForegroundColor(230, 230, 230);
 			$this->drawLine(
@@ -235,7 +234,7 @@ class Chart extends Image
 				$chartArea['x'] + $chartArea['width'],
 				$y
 			);
-			
+
 			// Рисуем цену
 			$this->drawHorizontalText(
 				$chartArea['x'] + $chartArea['width'] + 5,
@@ -245,20 +244,20 @@ class Chart extends Image
 			);
 		}
 	}
-	
+
 	public function drawDCAGrid(DCASettings $dcaSettings): void {
 		$chartArea = $this->getChartArea();
 		// TODO
 	}
-	
+
 	/**
 	 * Prepare chart area for indicators (reduce main chart area if oscillators are present).
-	 * 
+	 *
 	 * @return void
 	 */
 	private function prepareChartAreaForIndicators(): void {
 		$indicators = $this->market->getIndicators();
-		
+
 		// Check if we have oscillator indicators
 		$hasOscillators = false;
 		foreach ($indicators as $indicatorName => $indicator) {
@@ -268,80 +267,80 @@ class Chart extends Image
 				break;
 			}
 		}
-		
+
 		// If we have oscillators, reduce main chart area
 		if ($hasOscillators) {
 			$this->adjustChartAreaForOscillators();
 		}
 	}
-	
+
 	/**
 	 * Draw all indicators for this market.
-	 * 
+	 *
 	 * @return void
 	 */
 	public function drawIndicators(): void {
 		$indicators = $this->market->getIndicators();
-		
+
 		// Draw indicators
 		foreach ($indicators as $indicatorName => $indicator) {
 			$result = $this->market->getIndicatorResult($indicatorName);
 			if (!$result) {
 				continue;
 			}
-			
+
 			$visualizer = $this->getVisualizerForIndicator($indicator);
 			if ($visualizer) {
 				$visualizer->visualize($this, $indicator, $result);
 			}
 		}
 	}
-	
+
 	/**
 	 * Adjust chart area to make room for oscillators.
-	 * 
+	 *
 	 * @return void
 	 */
 	private function adjustChartAreaForOscillators(): void {
 		$oscillatorHeightRatio = 0.20; // 20% for oscillators
 		$gapRatio = 0.05; // 5% for gap
 		$mainChartHeightRatio = 1 - $oscillatorHeightRatio - $gapRatio; // 75% for main chart
-		
+
 		// Reduce main chart height
 		$this->chartArea['height'] = $this->chartArea['height'] * $mainChartHeightRatio;
 	}
-	
+
 	/**
 	 * Get visualizer for the given indicator.
-	 * 
+	 *
 	 * @param IIndicator $indicator The indicator.
 	 * @return IIndicatorVisualizer|null Visualizer instance or null.
 	 */
 	private function getVisualizerForIndicator(IIndicator $indicator): ?IIndicatorVisualizer {
 		return IndicatorVisualizerFactory::createVisualizer($indicator);
 	}
-	
+
 	/**
 	 * Get the market instance.
-	 * 
+	 *
 	 * @return Market The market.
 	 */
 	public function getMarket(): Market {
 		return $this->market;
 	}
-	
+
 	/**
 	 * Get candle width.
-	 * 
+	 *
 	 * @return int Candle width in pixels.
 	 */
 	public function getCandleWidth(): int {
 		return $this->candleWidth;
 	}
-	
+
 	/**
 	 * Get candle spacing.
-	 * 
+	 *
 	 * @return int Candle spacing in pixels.
 	 */
 	public function getCandleSpacing(): int {

@@ -4,8 +4,7 @@ namespace Izzy\Chart;
 
 use GdImage;
 
-class Image
-{
+class Image {
 	/**
 	 * Width of the image.
 	 */
@@ -17,7 +16,7 @@ class Image
 	protected int $height;
 
 	/**
-	 * @var mixed|false|GdImage|resource 
+	 * @var mixed|false|GdImage|resource
 	 */
 	protected mixed $image;
 	protected $backgroundColor;
@@ -35,19 +34,19 @@ class Image
 	public function __construct(int $width, int $height) {
 		$this->width = $width;
 		$this->height = $height;
-		
+
 		// Create the image resource
 		$this->image = imagecreatetruecolor($width, $height);
-		
+
 		// Устанавливаем белый фон
 		$this->backgroundColor = $this->color(255, 255, 255);
 		imagefill($this->image, 0, 0, $this->backgroundColor);
-		
+
 		// Устанавливаем чёрный цвет по умолчанию
 		$this->foregroundColor = $this->color(0, 0, 0);
 
 		// Путь к шрифту
-		$this->fontPath = IZZY_ROOT . '/fonts/FiraCode-Regular.ttf';
+		$this->fontPath = IZZY_ROOT.'/fonts/FiraCode-Regular.ttf';
 
 		// Инициализируем область графика
 		$this->updateChartArea();
@@ -159,7 +158,7 @@ class Image
 
 	public function drawGrid(int $horizontalLines, int $verticalLines, int $r = 240, int $g = 240, int $b = 240): void {
 		$color = $this->color($r, $g, $b);
-		
+
 		// Горизонтальные линии
 		$step = $this->chartArea['height'] / $horizontalLines;
 		for ($i = 0; $i <= $horizontalLines; $i++) {
@@ -191,16 +190,16 @@ class Image
 
 	public function drawVerticalText(int $x, int $y, string $text, float $size = 12, int $r = 200, int $g = 200, int $b = 200): void {
 		$this->setForegroundColor($r, $g, $b);
-		
+
 		// Получаем размеры текста при 0 градусов
 		$bbox = imagettfbbox($size, 0, $this->fontPath, $text);
-		
+
 		// Высота текста после поворота на 90 градусов (т.е. его оригинальная ширина)
 		$rotatedTextHeight = abs($bbox[2] - $bbox[0]);
-		
+
 		// X-координата для imagettftext (горизонтальная позиция на изображении)
 		$imagettftext_x = $x; // Оставляем X как есть, так как это точка отсчета для текста
-		
+
 		// Y-координата для imagettftext (вертикальная позиция на изображении)
 		// Чтобы центр текста совпал с $y, нижняя точка текста должна быть на $y + (половина его повернутой высоты)
 		$imagettftext_y = $y + ($rotatedTextHeight / 2);

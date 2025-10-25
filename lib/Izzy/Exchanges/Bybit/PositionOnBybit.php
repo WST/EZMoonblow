@@ -10,12 +10,11 @@ use Izzy\Interfaces\IPositionOnExchange;
 /**
  * NOTE: only USDT supported as the quote currency.
  */
-class PositionOnBybit implements IPositionOnExchange
-{
+class PositionOnBybit implements IPositionOnExchange {
 	private IMarket $market;
-	
+
 	private array $info = [];
-	
+
 	public function __construct(IMarket $market, array $positionInfo) {
 		$this->market = $market;
 		$this->info = $positionInfo;
@@ -51,7 +50,7 @@ class PositionOnBybit implements IPositionOnExchange
 	public function getUnrealizedPnL(): Money {
 		return Money::from($this->info['unrealisedPnl'], $this->market->getPair()->getQuoteCurrency());
 	}
-	
+
 	public function getCurrentPrice(): Money {
 		return Money::from($this->info['markPrice'], $this->market->getPair()->getQuoteCurrency());
 	}

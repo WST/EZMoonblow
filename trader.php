@@ -3,7 +3,7 @@
 
 use Izzy\RealApplications\Trader;
 
-require __DIR__ . '/lib/common.php';
+require __DIR__.'/lib/common.php';
 
 $trader = Trader::getInstance();
 $trader->run();

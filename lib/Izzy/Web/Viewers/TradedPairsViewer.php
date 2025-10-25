@@ -10,8 +10,7 @@ use Izzy\Strategies\AbstractDCAStrategy;
 use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class TradedPairsViewer extends PageViewer
-{
+class TradedPairsViewer extends PageViewer {
 	public function __construct(WebApplication $webApp) {
 		parent::__construct($webApp);
 	}
@@ -53,7 +52,8 @@ class TradedPairsViewer extends PageViewer
 
 		foreach ($exchanges as $exchange) {
 			$exchangeConfig = $this->getExchangeConfig($exchange->getName());
-			if (!$exchangeConfig) continue;
+			if (!$exchangeConfig)
+				continue;
 
 			// Spot pairs
 			$spotPairs = $exchangeConfig->getSpotPairs($exchange);
@@ -83,7 +83,7 @@ class TradedPairsViewer extends PageViewer
 			if ($exchange->getName() === $exchangeName) {
 				// Get exchange configuration from XML
 				$document = new \DOMDocument();
-				$document->load(IZZY_CONFIG . "/config.xml");
+				$document->load(IZZY_CONFIG."/config.xml");
 				$xpath = new \DOMXPath($document);
 
 				$exchangeElement = $xpath->query("//exchanges/exchange[@name='$exchangeName']")->item(0);
@@ -165,13 +165,12 @@ class TradedPairsViewer extends PageViewer
 			]);
 		}
 
-		return $viewer->setCaption('Strategy: ' . $strategyName)
+		return $viewer->setCaption('Strategy: '.$strategyName)
 			->setDataFromArray($strategyParams)
 			->render();
 	}
 
-	private function getStrategyClass(string $strategyName): ?string
-	{
+	private function getStrategyClass(string $strategyName): ?string {
 		return StrategyFactory::getStrategyClass($strategyName);
 	}
 
@@ -187,7 +186,7 @@ class TradedPairsViewer extends PageViewer
 		}
 
 		$viewer = new TableViewer();
-		return $viewer->setCaption($direction . ' positions')
+		return $viewer->setCaption($direction.' positions')
 			->insertTextColumn('level', 'Level', ['align' => 'center'])
 			->insertMoneyColumn('volume', 'Volume (USDT)', ['align' => 'right'])
 			->insertPercentColumn('offset', 'Price deviation (%)', ['align' => 'right'])

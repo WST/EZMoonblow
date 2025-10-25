@@ -7,7 +7,7 @@ use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\RealApplications\Backtester;
 
-require __DIR__ . '/lib/common.php';
+require __DIR__.'/lib/common.php';
 
 $app = Backtester::getInstance();
 $config = $app->getConfiguration();

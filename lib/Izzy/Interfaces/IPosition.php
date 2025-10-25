@@ -8,8 +8,7 @@ use Izzy\Financial\Money;
 /**
  * Base interface for all positions.
  */
-interface IPosition
-{
+interface IPosition {
 	/**
 	 * Get current position volume.
 	 * @return Money

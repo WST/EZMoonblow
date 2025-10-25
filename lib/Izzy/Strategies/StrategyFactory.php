@@ -10,8 +10,7 @@ use Izzy\Interfaces\IStrategy;
  * Factory for creating trading strategies.
  * Provides a centralized way to instantiate strategies by name.
  */
-class StrategyFactory
-{
+class StrategyFactory {
 	/**
 	 * Available strategies mapping.
 	 * @var array
@@ -24,7 +23,7 @@ class StrategyFactory
 
 	/**
 	 * Create strategy instance by name.
-	 * 
+	 *
 	 * @param string $strategyName Strategy name.
 	 * @param IMarket $market Market instance.
 	 * @param array $params Strategy parameters.
@@ -42,7 +41,7 @@ class StrategyFactory
 
 	/**
 	 * Get list of available strategy names.
-	 * 
+	 *
 	 * @return array Array of available strategy names.
 	 */
 	public static function getAvailableStrategies(): array {
@@ -51,7 +50,7 @@ class StrategyFactory
 
 	/**
 	 * Check if strategy is available.
-	 * 
+	 *
 	 * @param string $strategyName Strategy name.
 	 * @return bool True if available, false otherwise.
 	 */
@@ -61,7 +60,7 @@ class StrategyFactory
 
 	/**
 	 * Register a new strategy.
-	 * 
+	 *
 	 * @param string $strategyName Strategy name.
 	 * @param string $className Full class name.
 	 * @return void
@@ -69,10 +68,10 @@ class StrategyFactory
 	public static function register(string $strategyName, string $className): void {
 		self::$strategies[$strategyName] = $className;
 	}
-	
+
 	/**
 	 * Get strategy class name by strategy name.
-	 * 
+	 *
 	 * @param string $strategyName Strategy name.
 	 * @return string|null Strategy class name or null if not found.
 	 */

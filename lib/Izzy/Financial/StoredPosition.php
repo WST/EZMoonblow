@@ -15,8 +15,7 @@ use Izzy\System\Logger;
 /**
  * Base implementation of position interface.
  */
-class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition
-{
+class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition {
 	/** Position attributes */
 	const string FId = 'position_id';
 	const string FExchangeName = 'position_exchange_name';
@@ -28,35 +27,35 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	const string FVolume = 'position_volume';
 	const string FBaseCurrency = 'position_base_currency';
 	const string FQuoteCurrency = 'position_quote_currency';
-	
+
 	/** Prices */
 	const string FInitialEntryPrice = 'position_initial_entry_price';
 	const string FAverageEntryPrice = 'position_average_entry_price';
 	const string FCurrentPrice = 'position_current_price';
-	
+
 	/** Ids of the related orders on the Exchange */
 	const string FEntryOrderIdOnExchange = 'position_entry_order_id_on_exchange';
 	const string FTPOrderIdOnExchange = 'position_tp_order_id_on_exchange';
 	const string FSLOrderIdOnExchange = 'position_tp_order_id_on_exchange';
-	
+
 	/** Important timestamps */
 	const string FCreatedAt = 'position_created_at';
 	const string FUpdatedAt = 'position_updated_at';
 	const string FFinishedAt = 'position_finished_at';
-	
+
 	/** TP and SL */
 	const string FExpectedProfitPercent = 'position_expected_profit_percent';
 	const string FExpectedTakeProfitPrice = 'position_expected_tp_price';
 
 	/**
 	 * Market.
-	 * @var IMarket 
+	 * @var IMarket
 	 */
 	private IMarket $market;
 
 	/**
 	 * Reason of finishing the position. Always null if the position is still active.
-	 * @var PositionFinishReasonEnum|null 
+	 * @var PositionFinishReasonEnum|null
 	 */
 	private ?PositionFinishReasonEnum $finishReason = null;
 
@@ -74,11 +73,11 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	) {
 		// Link to the Market.
 		$this->market = $market;
-		
+
 		// Build the parent.
 		parent::__construct(
 			$market->getDatabase(),
-			$row, 
+			$row,
 			self::FId
 		);
 
@@ -88,7 +87,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 
 	/**
 	 * Builds a Position object from a set of values.
-	 * 
+	 *
 	 * @param IMarket $market
 	 * @param Money $volume
 	 * @param PositionDirectionEnum $direction
@@ -166,7 +165,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @inheritDoc
 	 */
 	public function getUnrealizedPnL(): Money {
-		$volume = $this->getVolume()->getAmount();		
+		$volume = $this->getVolume()->getAmount();
 		if ($this->getDirection()->isLong()) {
 			$pnl = ($this->getCurrentPrice()->getAmount() - $this->getEntryPrice()->getAmount()) * $volume;
 		} else {
@@ -202,7 +201,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @inheritDoc
 	 */
 	public function getPositionId(): int {
-		return (int) $this->row[self::FId];
+		return (int)$this->row[self::FId];
 	}
 
 	/**
@@ -211,7 +210,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function getIdOnExchange(): string {
 		return $this->row[self::FIdOnExchange];
 	}
-	
+
 	public function getEntryOrderIdOnExchange(): string {
 		return $this->row[self::FEntryOrderIdOnExchange];
 	}
@@ -270,11 +269,11 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function buyAdditional(Money $dcaAmount): void {
 		Logger::getLogger()->warning("DCA AVERAGING");
 	}
-	
+
 	public function updateInfo(): bool {
 		$market = $this->getMarket();
 		$exchange = $market->getExchange();
-		
+
 		// Get current position status.
 		$currentStatus = $this->getStatus();
 		$currentPrice = $exchange->getCurrentPrice($market);
@@ -306,7 +305,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 				}
 			}
 		}
-		
+
 		/**
 		 * Futures. Positions are real.
 		 */
@@ -324,7 +323,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 					 */
 					$priceDifference = abs($this->getEntryPrice()->getPercentDifference($currentPrice));
 					if ($priceDifference > 0.5) {
-						if($market->removeLimitOrders()) {
+						if ($market->removeLimitOrders()) {
 							$this->setStatus(PositionStatusEnum::CANCELED);
 						} else {
 							Logger::getLogger()->error("Failed to cancel limit orders for $market");
@@ -332,12 +331,12 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 					}
 				}
 			}
-			
+
 			if ($currentStatus->isOpen()) {
 				// To turn Open into Finished, we need to ensure that the position on the Exchange is finished.
 				$positionOnExchange = $market->getExchange()->getCurrentFuturesPosition($market);
 				if (!$positionOnExchange) {
-					if($market->removeLimitOrders()) {
+					if ($market->removeLimitOrders()) {
 						$this->setStatus(PositionStatusEnum::FINISHED);
 						$this->setFinishedAt(time());
 					} else {
@@ -353,7 +352,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 
 		// Whatever we did, we need to update the update time.
 		$this->setUpdatedAt(time());
-		
+
 		// Save the changes.
 		return self::save();
 	}
@@ -365,11 +364,11 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	private function setFinishedAt(int $time): void {
 		$this->row[self::FFinishedAt] = $time;
 	}
-	
+
 	public function setExpectedProfitPercent(float $expectedProfitPercent): void {
 		$this->row[self::FExpectedProfitPercent] = $expectedProfitPercent;
 	}
-	
+
 	public function getExpectedProfitPercent(): float {
 		return floatval($this->row[self::FExpectedProfitPercent]);
 	}
@@ -377,7 +376,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function setTakeProfitPrice(?Money $entryPrice): void {
 		$this->row[self::FExpectedTakeProfitPrice] = $entryPrice?->getAmount();
 	}
-	
+
 	public function getTakeProfitPrice(): ?Money {
 		return Money::from($this->row[self::FExpectedTakeProfitPrice]);
 	}
@@ -389,19 +388,19 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function updateTakeProfit(): void {
 		// This is the average entry point (aka the PnL line). Above this line we are at benefit.
 		$averageEntryPrice = $this->getAverageEntryPrice();
-		
+
 		// This is the expected profit in %.
 		$expectedProfitPercent = $this->getExpectedProfitPercent();
-		
+
 		// Current price of the take profit order.
 		$currentTPPrice = $this->getTakeProfitPrice();
-		
+
 		// The expected price for the take profit order.
 		$expectedTPPrice = $averageEntryPrice->modifyByPercent($expectedProfitPercent);
-		
+
 		// Difference between the current and the expected price.
 		$diff = abs($currentTPPrice->getPercentDifference($expectedTPPrice));
-		
+
 		// If the prices are different enough, we should move the TP order.
 		if ($diff > 0.1) {
 			$this->getMarket()->setTakeProfit($expectedTPPrice);
@@ -412,7 +411,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function getAverageEntryPrice(): Money {
 		return Money::from($this->row[self::FAverageEntryPrice]);
 	}
-	
+
 	public function setAverageEntryPrice(Money $averageEntryPrice): void {
 		$this->row[self::FAverageEntryPrice] = $averageEntryPrice->getAmount();
 	}

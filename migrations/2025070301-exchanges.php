@@ -26,7 +26,7 @@ $applicationsFields = [
 ];
 $applicationsKeys = [
 	'PRIMARY KEY' => ['application_name'],
-]; 
+];
 
 $manager->createTable('applications', $applicationsFields, $applicationsKeys);
 

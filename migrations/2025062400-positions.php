@@ -2,7 +2,7 @@
 
 /**
  * Migration: Create positions table
- * 
+ *
  * This migration creates a table to store information about trading positions
  * including entry price, volume, direction, status, and exchange details.
  */

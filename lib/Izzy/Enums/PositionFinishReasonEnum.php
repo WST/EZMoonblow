@@ -2,8 +2,7 @@
 
 namespace Izzy\Enums;
 
-enum PositionFinishReasonEnum: string
-{
+enum PositionFinishReasonEnum: string {
 	/**
 	 * The position was closed by a limit Take Profit order.
 	 */
@@ -27,5 +26,5 @@ enum PositionFinishReasonEnum: string
 	/**
 	 * The position was closed because the Exchange has liquidated the position.
 	 */
-	case LIQUIDATION =  'LIQUIDATION';
+	case LIQUIDATION = 'LIQUIDATION';
 }

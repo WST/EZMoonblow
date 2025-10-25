@@ -10,8 +10,7 @@ use Izzy\Financial\Money;
 /**
  * Represents currently open position saved into the local database.
  */
-interface IStoredPosition extends IPosition
-{
+interface IStoredPosition extends IPosition {
 	/**
 	 * Set current position volume.
 	 * @param Money $volume
@@ -52,7 +51,7 @@ interface IStoredPosition extends IPosition
 	public function sellAdditional(Money $dcaAmount);
 
 	public function setExpectedProfitPercent(float $expectedProfitPercent): void;
-	
+
 	public function getExpectedProfitPercent(): float;
 
 	public function updateTakeProfit(): void;

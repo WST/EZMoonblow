@@ -5,29 +5,28 @@ namespace Izzy\Financial;
 use Izzy\Enums\OrderStatusEnum;
 use Izzy\Enums\OrderTypeEnum;
 
-class Order
-{
+class Order {
 	/**
 	 * Order status.
-	 * @var OrderStatusEnum 
+	 * @var OrderStatusEnum
 	 */
 	protected OrderStatusEnum $status;
 
 	/**
 	 * Order type (limit or market).
-	 * @var OrderTypeEnum 
+	 * @var OrderTypeEnum
 	 */
 	protected OrderTypeEnum $type;
 
 	/**
 	 * Id on Exchange.
-	 * @var string 
+	 * @var string
 	 */
 	protected string $idOnExchange;
 
 	/**
 	 * Amount in base currency.
-	 * @var Money 
+	 * @var Money
 	 */
 	protected Money $volume;
 
@@ -46,15 +45,15 @@ class Order
 	public function setVolume(Money $volume): void {
 		$this->volume = $volume;
 	}
-	
+
 	public function getVolume(): Money {
 		return $this->volume;
 	}
-	
+
 	public function __construct() {
-		
+
 	}
-	
+
 	public function isActive(): bool {
 		return $this->status->isActive();
 	}

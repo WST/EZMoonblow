@@ -32,7 +32,7 @@ enum MarketTypeEnum: string {
 	public function isInverseFutures(): false {
 		return false; // Currently, no support for inverse futures markets.
 	}
-	
+
 	public function toString(): string {
 		return $this->value;
 	}

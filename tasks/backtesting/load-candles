@@ -4,7 +4,7 @@
 use Izzy\RealApplications\Backtester;
 
 // EZMoonblow core file.
-require dirname(__DIR__, 2). '/lib/common.php';
+require dirname(__DIR__, 2).'/lib/common.php';
 
 $backtester = Backtester::getInstance();
 $backtester->run();

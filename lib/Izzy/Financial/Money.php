@@ -4,18 +4,18 @@ namespace Izzy\Financial;
 
 use Izzy\Enums\PositionDirectionEnum;
 
-class Money
-{
+class Money {
 	private float $amount;
 	private string $currency;
 
 	public function __construct(string|int|float $amount, string $currency = 'USDT') {
-		$this->amount = (float) $amount;
+		$this->amount = (float)$amount;
 		$this->currency = $currency;
 	}
-	
+
 	public static function from(string|int|float|null $amount, string $currency = 'USDT'): ?Money {
-		if (is_null($amount)) return null;
+		if (is_null($amount))
+			return null;
 		return new self($amount, $currency);
 	}
 
@@ -29,7 +29,8 @@ class Money
 
 	public function format($format = '%.2f', bool $appendCurrency = true): string {
 		$result = sprintf($format, $this->amount);
-		if ($appendCurrency) $result .= " $this->currency";
+		if ($appendCurrency)
+			$result .= " $this->currency";
 		return $result;
 	}
 
@@ -64,7 +65,7 @@ class Money
 		$newAmount += $change;
 		return new Money($newAmount, $this->currency);
 	}
-	
+
 	public function modifyByPercentWithDirection(float $percent, PositionDirectionEnum $direction): Money {
 		return $this->modifyByPercent($direction->getMultiplier() * $percent);
 	}

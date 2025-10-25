@@ -7,8 +7,7 @@ use Izzy\Enums\TableViewerColumnTypeEnum;
 /**
  * Base class for table display.
  */
-class TableViewer
-{
+class TableViewer {
 	protected array $columns = [];
 	protected array $data = [];
 	protected string $caption = '';
@@ -113,15 +112,15 @@ class TableViewer
 	}
 
 	public function render(): string {
-		$html = '<table class="' . $this->getTableClass() . '">';
+		$html = '<table class="'.$this->getTableClass().'">';
 
 		if (!empty($this->caption)) {
-			$html .= '<caption>' . htmlspecialchars($this->caption) . '</caption>';
+			$html .= '<caption>'.htmlspecialchars($this->caption).'</caption>';
 		}
 
 		$html .= '<thead><tr>';
 		foreach ($this->columns as $column) {
-			$html .= '<th class="' . $column['class'] . '" style="text-align: ' . $column['align'] . '; width: ' . $column['width'] . ';">';
+			$html .= '<th class="'.$column['class'].'" style="text-align: '.$column['align'].'; width: '.$column['width'].';">';
 			$html .= htmlspecialchars($column['title']);
 			$html .= '</th>';
 		}
@@ -130,13 +129,13 @@ class TableViewer
 		$html .= '<tbody>';
 		foreach ($this->data as $index => $row) {
 			$rowClass = $this->getRowClass($index);
-			$html .= '<tr class="' . $rowClass . '">';
+			$html .= '<tr class="'.$rowClass.'">';
 
 			foreach ($this->columns as $key => $column) {
 				$value = $row[$key] ?? '';
 				$formattedValue = $this->formatValue($value, $column);
 
-				$html .= '<td class="' . $column['class'] . '" style="text-align: ' . $column['align'] . ';">';
+				$html .= '<td class="'.$column['class'].'" style="text-align: '.$column['align'].';">';
 				if ($column['type']->isHtml()) {
 					$html .= $formattedValue;
 				} else {
@@ -210,11 +209,11 @@ class TableViewer
 
 	protected function formatMoneyValue($value): string {
 		if ($value instanceof \Izzy\Financial\Money) {
-			return number_format($value->getAmount(), 2) . ' ' . $value->getCurrency();
+			return number_format($value->getAmount(), 2).' '.$value->getCurrency();
 		}
 
 		if (is_numeric($value)) {
-			return number_format($value, 2) . ' USDT';
+			return number_format($value, 2).' USDT';
 		}
 
 		return '<span class="error">Invalid money format</span>';
@@ -222,7 +221,7 @@ class TableViewer
 
 	protected function formatPercentValue($value): string {
 		if (is_numeric($value)) {
-			return number_format($value, 2) . '%';
+			return number_format($value, 2).'%';
 		}
 
 		return '<span class="error">Invalid percent format</span>';
@@ -253,6 +252,6 @@ class TableViewer
 	}
 
 	protected function formatTextValue($value): string {
-		return (string) $value;
+		return (string)$value;
 	}
 }

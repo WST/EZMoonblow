@@ -2,11 +2,14 @@
 
 This is a (very) simple (and still under construction) crypto trading bot project.
 
-> **⚠️ WARNING:** Crypto trading  can lead to losses. Please do not attempt to use this code unless you know very well what you are doing. The author assumes no responsibility for any possible consequences related to the use of this code. 
+> **⚠️ WARNING:** Crypto trading can lead to losses. Please do not attempt to use this code unless you know very well
+> what you are doing. The author assumes no responsibility for any possible consequences related to the use of this code.
 
 ## For Developers and AI Assistants
 
-**📋 Important**: If you're contributing to this project or working with AI assistance, please read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project structure, and architectural patterns that must be followed.
+**📋 Important**: If you're contributing to this project or working with AI assistance, please
+read [CONTRIBUTING.md](CONTRIBUTING.md) first. This file contains essential guidelines for code style, project
+structure, and architectural patterns that must be followed.
 
 ### Recommended development environment
 
@@ -17,6 +20,7 @@ This is a (very) simple (and still under construction) crypto trading bot projec
 ## Features
 
 ### Core Trading System
+
 - 🤖 Automated cryptocurrency trading strategies (DCA, Long/Short)
 - 🏢 Multi-exchange support (Bybit, Gate, KuCoin)
 - 📈 Spot and futures market trading
@@ -28,6 +32,7 @@ This is a (very) simple (and still under construction) crypto trading bot projec
 - 📊 RRD-based chart generation and data storage
 
 ### Telegram Integration
+
 - 📊 Interactive candlestick chart building for any trading pairs
 - 🏢 Multi-exchange support with easy switching
 - 📈 Spot and futures market analysis
@@ -100,11 +105,11 @@ The notifier application (`./notifier.php`) provides both notification and inter
 Use `/menu` for the most convenient experience:
 
 1. **📊 Build Chart** - Step-by-step chart building:
-   - Select exchange (Bybit, Gate, KuCoin)
-   - Choose market type (Spot/Futures)
-   - Pick trading pair
-   - Select timeframe
-   - Get instant chart
+    - Select exchange (Bybit, Gate, KuCoin)
+    - Choose market type (Spot/Futures)
+    - Pick trading pair
+    - Select timeframe
+    - Get instant chart
 
 2. **❓ Help** - Get assistance
 
@@ -115,6 +120,7 @@ Use `/menu` for the most convenient experience:
 - `/menu` — Interactive menu with buttons
 
 ### Test system
+
 * `./tasks/dev/run-tests` performs quick system check-up.
 
 ## TODO

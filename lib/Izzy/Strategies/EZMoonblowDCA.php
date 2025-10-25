@@ -6,10 +6,9 @@ use Izzy\Financial\Money;
 use Izzy\Indicators\RSI;
 use Izzy\System\Logger;
 
-class EZMoonblowDCA extends AbstractDCAStrategy
-{
+class EZMoonblowDCA extends AbstractDCAStrategy {
 	const float DEFAULT_ENTRY_VOLUME = 50;
-	
+
 	public function useIndicators(): array {
 		return [RSI::class];
 	}
@@ -21,7 +20,7 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 	protected function getEntryVolume(): Money {
 		$entryVolume = $this->getParam('entryVolume');
 		if (!$entryVolume) {
-			Logger::getLogger()->debug("Entry volume is not set, defaulting to 50.00 USDT");
+			Logger::getLogger()->debug("Entry volume is not set, defaulting to ".self::DEFAULT_ENTRY_VOLUME." USDT");
 			$entryVolume = self::DEFAULT_ENTRY_VOLUME;
 		}
 		return Money::from($entryVolume);
@@ -32,10 +31,10 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 	 * @return bool
 	 */
 	public function shouldLong(): bool {
-		// Get RSI signal
+		// Get RSI signal.
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
-		
-		// Buy when RSI shows oversold condition
+
+		// Buy when RSI shows oversold condition.
 		return $rsiSignal === 'oversold';
 	}
 }

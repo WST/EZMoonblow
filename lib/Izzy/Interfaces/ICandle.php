@@ -5,8 +5,7 @@ namespace Izzy\Interfaces;
 /**
  * Интерфейс свечи
  */
-interface ICandle
-{
+interface ICandle {
 	// Получить предыдущую свечу (или null для первой)
 	public function previousCandle(): ?ICandle;
 
@@ -51,7 +50,7 @@ interface ICandle
 
 	// Установить рынок, из которого эта свеча
 	public function setMarket(IMarket $market): void;
-	
+
 	// Показывает, что свеча является «бычьей»
 	public function isBullish(): bool;
 

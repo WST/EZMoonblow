@@ -2,7 +2,6 @@
 
 namespace Izzy\Interfaces;
 
-interface IDatabaseEntityWithSurrogatePK extends IDatabaseEntity
-{
-	
+interface IDatabaseEntityWithSurrogatePK extends IDatabaseEntity {
+
 }

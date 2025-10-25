@@ -5,17 +5,16 @@ namespace Izzy\System\Database\ORM;
 use Izzy\Interfaces\IDatabaseEntityWithSurrogatePK;
 use Izzy\System\Database\Database;
 
-abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IDatabaseEntityWithSurrogatePK
-{
+abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IDatabaseEntityWithSurrogatePK {
 	/**
 	 * Primary key column name.
-	 * @var string 
+	 * @var string
 	 */
 	protected string $pkField = '';
 
 	/**
 	 * Primary key value.
-	 * @var int|null 
+	 * @var int|null
 	 */
 	protected ?int $pkValue = NULL;
 
@@ -26,8 +25,8 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IData
 		$fresh = !isset($row[$pk_field]);
 		parent::__construct($database, $row, [$pk_field], $fresh);
 		$this->pkField = $pk_field;
-		if(isset($row[$pk_field])) {
-			$this->pkValue = (int) $row[$pk_field];
+		if (isset($row[$pk_field])) {
+			$this->pkValue = (int)$row[$pk_field];
 		} else {
 			$this->pkValue = NULL;
 		}
@@ -50,10 +49,11 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IData
 		$table_columns = array_flip($this->database->getFieldList(static::getTableName()));
 		$row = array_intersect_key($this->row, $table_columns);
 
-		if($this->isFresh) {
+		if ($this->isFresh) {
 			// Write the data.
 			$success = $this->database->insert(static::getTableName(), $row);
-			if (!$success) return false;
+			if (!$success)
+				return false;
 			$this->pkValue = $this->database->lastInsertId(); // Note: we are not handling a possible false here.
 			$this->row[$this->pkField] = $this->pkValue;
 
@@ -76,10 +76,11 @@ abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IData
 	 */
 	public function remove(): bool {
 		// It’s impossible to remove something that isn’t in the table yet.
-		if($this->isFresh) return false;
+		if ($this->isFresh)
+			return false;
 
 		// Deleting.
-		if(is_int($this->pkValue)) {
+		if (is_int($this->pkValue)) {
 			return $this->database->delete(static::getTableName(), [$this->pkField => $this->pkValue]);
 		}
 	}

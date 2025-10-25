@@ -4,7 +4,8 @@ This directory contains technical indicators for the EZMoonblow trading system.
 
 ## Overview
 
-Technical indicators are mathematical calculations based on price, volume, or other market data that help traders identify potential trading opportunities. The indicators system is designed to be extensible and easy to use.
+Technical indicators are mathematical calculations based on price, volume, or other market data that help traders
+identify potential trading opportunities. The indicators system is designed to be extensible and easy to use.
 
 ## Architecture
 
@@ -79,8 +80,8 @@ To create a new indicator:
 
 1. Create a new class extending `AbstractIndicator`
 2. Implement the required methods:
-   - `getName()` - Return indicator name
-   - `calculate(IMarket $market)` - Calculate indicator values
+    - `getName()` - Return indicator name
+    - `calculate(IMarket $market)` - Calculate indicator values
 3. Register the indicator in `IndicatorFactory`
 
 ### Example: Simple Moving Average

@@ -13,8 +13,7 @@ use Twig\Loader\FilesystemLoader;
 /**
  * Base class for all web applications.
  */
-abstract class WebApplication extends IzzyApplication
-{
+abstract class WebApplication extends IzzyApplication {
 	protected App $slimApp;
 
 	protected Configuration $configuration;
@@ -22,9 +21,9 @@ abstract class WebApplication extends IzzyApplication
 	protected Database $database;
 
 	protected Environment $twig;
-	
+
 	protected FilesystemLoader $twigLoader;
-	
+
 	public function __construct() {
 		$this->slimApp = AppFactory::create();
 		$this->twigLoader = new FilesystemLoader(IZZY_TEMPLATES);
@@ -32,7 +31,7 @@ abstract class WebApplication extends IzzyApplication
 		parent::__construct();
 		session_start();
 	}
-	
+
 	public function run(): void {
 		$this->slimApp->run();
 	}

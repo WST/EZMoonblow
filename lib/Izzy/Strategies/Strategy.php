@@ -5,8 +5,7 @@ namespace Izzy\Strategies;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
 
-abstract class Strategy implements IStrategy
-{
+abstract class Strategy implements IStrategy {
 	protected ?IMarket $market;
 	protected array $params;
 
@@ -30,20 +29,20 @@ abstract class Strategy implements IStrategy
 	public function getParams(): array {
 		return $this->params;
 	}
-	
+
 	public function getParam(string $name): ?string {
 		return $this->params[$name] ?? null;
 	}
 
 	/**
 	 * Set strategy parameters.
-	 * 
+	 *
 	 * @param array $params Strategy parameters.
 	 */
 	public function setParams(array $params): void {
 		$this->params = $params;
 	}
-	
+
 	/**
 	 * @inheritDoc
 	 */
