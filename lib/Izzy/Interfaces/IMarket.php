@@ -53,9 +53,9 @@ interface IMarket
 	public function hasOrder(string $orderIdOnExchange): bool;
 
 	/**
-	 * @return void
+	 * @return string
 	 */
-	public function drawChart(): void;
+	public function drawChart(): string;
 
 	/**
 	 * @param Money $volume

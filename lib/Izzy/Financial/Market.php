@@ -557,7 +557,7 @@ class Market implements IMarket
 		$currentPosition->save();
 	}
 
-	public function hasOrder(string $orderIdOnExchange) {
+	public function hasOrder(string $orderIdOnExchange): bool {
 		return $this->exchange->hasActiveOrder($this, $orderIdOnExchange);
 	}
 

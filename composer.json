@@ -3,7 +3,6 @@
     "ext-pdo": "*",
     "ext-pcntl": "*",
     "goodmagma/bybit-php-api": "^0.7.0",
-    "kucoin/kucoin-php-sdk": "~1.1.0",
     "ext-dom": "*",
     "ext-gd": "*",
     "ext-ctype": "*",
@@ -12,10 +11,9 @@
     "ext-raphf": "*",
     "irazasyed/telegram-bot-sdk": "^3.15",
     "twig/twig": "^3.0",
-    "slim/psr7": "^1.7",
-    "kucoin/kucoin-futures-php-sdk": "^1.0"
+    "slim/psr7": "^1.7"
   },
   "autoload": {
-    "psr-4": {"Izzy\\": "lib/Izzy/", "GateApi\\": "SDK/GateApi/"}
+    "psr-4": {"Izzy\\": "lib/Izzy/"}
   }
 }
