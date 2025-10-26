@@ -3,7 +3,9 @@
 namespace Izzy\Exchanges\Bybit;
 
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
+use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPositionOnExchange;
 use Izzy\Interfaces\IStoredPosition;
@@ -57,14 +59,31 @@ class PositionOnBybit implements IPositionOnExchange {
 	}
 
 	public function getUnrealizedPnLPercent(): float {
-		$avgPrice = $this->getAverageEntryPrice()->getAmount();
-		$markPrice = $this->getCurrentPrice()->getAmount();
+		$avgPrice = $this->getAverageEntryPrice();
+		$markPrice = $this->getCurrentPrice();
 		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
-		$pnlPercent = (($markPrice - $avgPrice) / $avgPrice) * 100 * $direction;
+		$pnlPercent = $avgPrice->getPercentDifference($markPrice) * $direction;
 		return round($pnlPercent, 4);
 	}
 
 	public function store(): IStoredPosition {
-		// TODO: Implement store() method.
+		// Create StoredPosition from current position data.
+		$storedPosition = StoredPosition::create(
+			$this->market,
+			$this->getVolume(),
+			$this->getDirection(),
+			$this->getEntryPrice(),
+			$this->getCurrentPrice(),
+			PositionStatusEnum::OPEN,
+			$this->info['positionIdx'] ?? 'unknown'
+		);
+
+		// Set additional data that’s available from Bybit position.
+		$storedPosition->setAverageEntryPrice($this->getAverageEntryPrice());
+		
+		// Save to database.
+		$storedPosition->save();
+
+		return $storedPosition;
 	}
 }

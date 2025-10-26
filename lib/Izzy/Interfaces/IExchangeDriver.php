@@ -4,6 +4,9 @@ namespace Izzy\Interfaces;
 
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
+use Izzy\System\Database\Database;
+use Izzy\System\Logger;
+use Izzy\Configuration\ExchangeConfiguration;
 
 /**
  * Crypto exchange driver interface.
@@ -125,4 +128,20 @@ interface IExchangeDriver {
 	public function removeLimitOrders(IMarket $market): bool;
 
 	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool;
+
+	public function getDatabase(): Database;
+
+	public function getLogger(): Logger;
+
+	public function getName(): string;
+
+	public function getExchangeConfiguration(): ExchangeConfiguration;
+
+	/**
+	 * Check if an order is still active on the exchange.
+	 * @param IMarket $market
+	 * @param string $orderIdOnExchange
+	 * @return bool
+	 */
+	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool;
 }

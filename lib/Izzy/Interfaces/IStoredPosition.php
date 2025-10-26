@@ -55,4 +55,8 @@ interface IStoredPosition extends IPosition {
 	public function getExpectedProfitPercent(): float;
 
 	public function updateTakeProfit(): void;
+
+	public function save(): bool;
+
+	public function updateInfo(): bool;
 }

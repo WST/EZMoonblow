@@ -20,6 +20,6 @@ $amount = Money::from(20);
 $direction = PositionDirectionEnum::SHORT;
 $takeProfitPercent = 2.0;
 
-$position = $market->openShortPosition($amount, $takeProfitPercent);
+$position = $market->openPosition($amount, $direction, $takeProfitPercent);
 
 var_dump($position);

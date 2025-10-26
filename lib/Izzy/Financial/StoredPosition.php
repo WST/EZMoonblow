@@ -108,7 +108,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	): static {
 		$now = time();
 		$row = [
-			self::FExchangeName => $market->getExchangeName(),
+			self::FExchangeName => $market->getExchange()->getName(),
 			self::FTicker => $market->getTicker(),
 			self::FMarketType => $market->getMarketType()->toString(),
 			self::FDirection => $direction->toString(),
@@ -240,7 +240,11 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	public function getUnrealizedPnLPercent(): float {
-		// TODO: Implement getUnrealizedPnLPercent() method.
+		$entryPrice = $this->getEntryPrice();
+		$currentPrice = $this->getCurrentPrice();
+		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
+		$pnlPercent = $entryPrice->getPercentDifference($currentPrice) * $direction;
+		return round($pnlPercent, 4);
 	}
 
 	public function close(): void {
@@ -259,7 +263,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	public function getMarketType(): MarketTypeEnum {
-		// TODO: Implement getMarketType() method.
+		return MarketTypeEnum::from($this->row[self::FMarketType]);
 	}
 
 	/**
@@ -283,16 +287,21 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		/**
 		 * Spot market. Positions are emulated.
 		 */
-		if ($market->getMarketType()->isSpot()) {
+		if ($this->getMarketType()->isSpot()) {
 			$baseCurrency = $market->getPair()->getBaseCurrency();
 			$currentAmountOfBaseCurrency = $exchange->getSpotBalanceByCurrency($baseCurrency);
 
-			// If the status is pending, check the presence of a “buy” limit order on the exchange.
+			// Always update current price for spot markets.
+			$this->setCurrentPrice($currentPrice);
+
+			// If the status is pending, check the presence of a "buy" limit order on the exchange.
 			if ($currentStatus->isPending()) {
 				$orderIdOnExchange = $this->getEntryOrderIdOnExchange();
 				$orderExists = $this->getMarket()->hasOrder($orderIdOnExchange);
 				if (!$orderExists) {
 					$this->setStatus(PositionStatusEnum::OPEN);
+					// When position becomes open, update average entry price to current price.
+					$this->setAverageEntryPrice($currentPrice);
 				}
 			}
 
@@ -302,6 +311,27 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 				if ($currentAmountOfBaseCurrency->isLessThan($positionVolume)) {
 					// The whole amount of the base currency was sold.
 					$this->setStatus(PositionStatusEnum::FINISHED);
+					$this->setFinishedAt(time());
+				} else {
+					// Position is still open, update average entry price based on current holdings.
+					// This handles DCA scenarios where additional purchases change the average price.
+					$currentHoldings = $currentAmountOfBaseCurrency->getAmount();
+					$originalVolume = $positionVolume->getAmount();
+					
+					if ($currentHoldings > $originalVolume) {
+						// Additional purchases made (DCA), recalculate average entry price.
+						// This is a simplified calculation - in reality, we'd need to track individual purchases.
+						$entryPrice = $this->getEntryPrice()->getAmount();
+						$currentPriceAmount = $currentPrice->getAmount();
+						$additionalAmount = $currentHoldings - $originalVolume;
+						
+						// Weighted average: (original * entry + additional * current) / total
+						$totalVolume = $currentHoldings;
+						$weightedAveragePrice = (($originalVolume * $entryPrice) + ($additionalAmount * $currentPriceAmount)) / $totalVolume;
+						
+						$this->setAverageEntryPrice(Money::from($weightedAveragePrice, $currentPrice->getCurrency()));
+						$this->setVolume(Money::from($currentHoldings, $positionVolume->getCurrency()));
+					}
 				}
 			}
 		}
@@ -309,22 +339,33 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		/**
 		 * Futures. Positions are real.
 		 */
-		if ($market->getMarketType()->isFutures()) {
+		if ($this->getMarketType()->isFutures()) {
+			// Always update current price for futures markets.
+			$this->setCurrentPrice($currentPrice);
+
 			if ($currentStatus->isPending()) {
 				// To turn Pending into Open, we need to ensure that the entry order was executed.
-				if (!$market->getExchange()->hasActiveOrder($market, $this->getEntryOrderIdOnExchange())) {
+				if (!$exchange->hasActiveOrder($market, $this->getEntryOrderIdOnExchange())) {
 					Logger::getLogger()->debug("Entry order not found for $market, turning the position OPEN");
 					$this->setStatus(PositionStatusEnum::OPEN);
+					
+					// Get the actual position from exchange to update our stored data.
+					$positionOnExchange = $exchange->getCurrentFuturesPosition($market);
+					if ($positionOnExchange) {
+						$this->setAverageEntryPrice($positionOnExchange->getAverageEntryPrice());
+						$this->setVolume($positionOnExchange->getVolume());
+					}
 				} else {
 					/**
 					 * If the price went away too far, cancel the position entry.
 					 * NOTE: there is a possibility of the price changing so quick that the DCA order gets executed
-					 * instead of the entry order. We don’t handle such case, but it should be fixed some day.
+					 * instead of the entry order. We don't handle such case, but it should be fixed some day.
 					 */
 					$priceDifference = abs($this->getEntryPrice()->getPercentDifference($currentPrice));
 					if ($priceDifference > 0.5) {
 						if ($market->removeLimitOrders()) {
 							$this->setStatus(PositionStatusEnum::CANCELED);
+							$this->setFinishedAt(time());
 						} else {
 							Logger::getLogger()->error("Failed to cancel limit orders for $market");
 						}
@@ -334,7 +375,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 
 			if ($currentStatus->isOpen()) {
 				// To turn Open into Finished, we need to ensure that the position on the Exchange is finished.
-				$positionOnExchange = $market->getExchange()->getCurrentFuturesPosition($market);
+				$positionOnExchange = $exchange->getCurrentFuturesPosition($market);
 				if (!$positionOnExchange) {
 					if ($market->removeLimitOrders()) {
 						$this->setStatus(PositionStatusEnum::FINISHED);
@@ -343,6 +384,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 						Logger::getLogger()->error("Failed to cancel limit orders for $market");
 					}
 				} else {
+					// Position still exists on exchange, update all relevant data.
 					$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
 					$this->setAverageEntryPrice($positionOnExchange->getAverageEntryPrice());
 					$this->setVolume($positionOnExchange->getVolume());

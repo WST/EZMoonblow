@@ -195,9 +195,8 @@ class Market implements IMarket {
 				if ($positionFromExchange) {
 					// NOTE: we don’t have info about entry order here.
 					$this->exchange->getLogger()->debug("Found position on the exchange for $this");
-					$storedPosition = $positionFromExchange->store(); // TODO
-					$storedPosition->save();
-					return $positionFromExchange;
+					$storedPosition = $positionFromExchange->store();
+					return $storedPosition;
 				}
 			}
 		}
@@ -631,10 +630,10 @@ class Market implements IMarket {
 		/**
 		 * This is the entry order.
 		 */
-		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $direction, $takeProfitPercent);
+		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, $direction, $takeProfitPercent);
 
 		foreach ($orderMap as $level) {
-			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
+			$orderPrice = $entryPrice->modifyByPercentWithDirection(abs($level['offset']), $direction);
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
 			$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
 		}

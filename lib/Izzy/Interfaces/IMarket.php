@@ -2,6 +2,7 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\System\Database\Database;
@@ -88,4 +89,22 @@ interface IMarket {
 	 * @return bool
 	 */
 	public function setTakeProfit(Money $expectedTPPrice): bool;
+
+	/**
+	 * Get the trading pair for this market.
+	 * @return IPair
+	 */
+	public function getPair(): IPair;
+
+	/**
+	 * Get the exchange driver for this market.
+	 * @return IExchangeDriver
+	 */
+	public function getExchange(): IExchangeDriver;
+
+	/**
+	 * Get the market type for this market.
+	 * @return MarketTypeEnum
+	 */
+	public function getMarketType(): MarketTypeEnum;
 }
