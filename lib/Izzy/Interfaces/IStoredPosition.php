@@ -56,7 +56,7 @@ interface IStoredPosition extends IPosition {
 
 	public function updateTakeProfit(): void;
 
-	public function save(): bool;
+	public function save(): bool|int;
 
 	public function updateInfo(): bool;
 }
