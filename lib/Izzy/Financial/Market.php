@@ -85,30 +85,65 @@ class Market implements IMarket {
 		return $this->candles;
 	}
 
+	/**
+	 * Get the first candle.
+	 *
+	 * @return ICandle First candle.
+	 */
 	public function firstCandle(): ICandle {
 		return reset($this->candles);
 	}
 
+	/**
+	 * Get the last candle.
+	 *
+	 * @return ICandle Last candle.
+	 */
 	public function lastCandle(): ICandle {
 		return end($this->candles);
 	}
 
+	/**
+	 * Get the trading pair ticker.
+	 *
+	 * @return string Trading pair ticker.
+	 */
 	public function getTicker(): string {
 		return $this->pair->getTicker();
 	}
 
+	/**
+	 * Get the timeframe for this market.
+	 *
+	 * @return TimeFrameEnum Market timeframe.
+	 */
 	public function getTimeframe(): TimeFrameEnum {
 		return $this->pair->getTimeframe();
 	}
 
+	/**
+	 * Get the exchange driver.
+	 *
+	 * @return IExchangeDriver Exchange driver instance.
+	 */
 	public function getExchange(): IExchangeDriver {
 		return $this->exchange;
 	}
 
+	/**
+	 * Get the market type.
+	 *
+	 * @return MarketTypeEnum Market type.
+	 */
 	public function getMarketType(): MarketTypeEnum {
 		return $this->marketType;
 	}
 
+	/**
+	 * Get the minimum price from all candles.
+	 *
+	 * @return float Minimum price.
+	 */
 	public function getMinPrice(): float {
 		if (empty($this->candles)) {
 			return 0.0;
@@ -118,6 +153,11 @@ class Market implements IMarket {
 		}, PHP_FLOAT_MAX);
 	}
 
+	/**
+	 * Get the maximum price from all candles.
+	 *
+	 * @return float Maximum price.
+	 */
 	public function getMaxPrice(): float {
 		if (empty($this->candles)) {
 			return 0.0;
@@ -127,6 +167,11 @@ class Market implements IMarket {
 		}, PHP_FLOAT_MIN);
 	}
 
+	/**
+	 * Get the price range (max - min).
+	 *
+	 * @return float Price range.
+	 */
 	public function getPriceRange(): float {
 		return $this->getMaxPrice() - $this->getMinPrice();
 	}
@@ -163,10 +208,16 @@ class Market implements IMarket {
 		}
 	}
 
+	/**
+	 * Set candles data for this market.
+	 *
+	 * @param array $candlesData Array of candle data.
+	 * @return void
+	 */
 	public function setCandles(array $candlesData): void {
 		$this->candles = $candlesData;
 
-		// Устанавливаем текущий рынок для каждой свечи
+		// Set the current market for each candle.
 		foreach ($this->candles as $candle) {
 			$candle->setMarket($this);
 		}
@@ -204,6 +255,11 @@ class Market implements IMarket {
 		return false;
 	}
 
+	/**
+	 * Initialize all indicators for this market.
+	 *
+	 * @return void
+	 */
 	public function initializeIndicators(): void {
 		// Initialize indicators from configuration first, so they handle their settings.
 		$this->initializeConfiguredIndicators();
@@ -238,6 +294,11 @@ class Market implements IMarket {
 		QueueTask::updateChart($this);
 	}
 
+	/**
+	 * Get the trading pair.
+	 *
+	 * @return Pair Trading pair instance.
+	 */
 	public function getPair(): Pair {
 		return $this->pair;
 	}
@@ -369,15 +430,33 @@ class Market implements IMarket {
 		return $this->getDescription();
 	}
 
+	/**
+	 * Open a new position.
+	 *
+	 * @param Money $volume Position volume.
+	 * @param PositionDirectionEnum $direction Position direction.
+	 * @param float $takeProfitPercent Take profit percentage.
+	 * @return IStoredPosition|false Created position or false on failure.
+	 */
 	public function openPosition(Money $volume, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
 		$success = $this->exchange->openPosition($this, $direction, $volume, null, $takeProfitPercent);
 		return $success ? $this->getCurrentPosition() : false;
 	}
 
+	/**
+	 * Get exchange name.
+	 *
+	 * @return string Exchange name.
+	 */
 	public function getExchangeName(): string {
 		return $this->exchange->getName();
 	}
 
+	/**
+	 * Get database instance.
+	 *
+	 * @return Database Database instance.
+	 */
 	public function getDatabase(): Database {
 		return $this->database;
 	}
@@ -536,14 +615,21 @@ class Market implements IMarket {
 		}
 	}
 
+	/**
+	 * Get current market price.
+	 *
+	 * @return Money Current price.
+	 */
 	public function getCurrentPrice(): Money {
 		return $this->getExchange()->getCurrentPrice($this);
 	}
 
 	/**
-	 * @param IStoredPosition $currentPosition
-	 * @return void
+	 * Update position information.
 	 * Called only on an existent and active position.
+	 *
+	 * @param IStoredPosition $currentPosition Current position to update.
+	 * @return void
 	 */
 	private function updatePosition(IStoredPosition $currentPosition): void {
 		if (!method_exists($this->strategy, 'updatePosition')) {
@@ -558,22 +644,29 @@ class Market implements IMarket {
 		$currentPosition->save();
 	}
 
+	/**
+	 * Check if order exists on exchange.
+	 *
+	 * @param string $orderIdOnExchange Order ID on exchange.
+	 * @return bool True if order exists, false otherwise.
+	 */
 	public function hasOrder(string $orderIdOnExchange): bool {
 		return $this->exchange->hasActiveOrder($this, $orderIdOnExchange);
 	}
 
 	/**
+	 * Send notifications about new position intent.
 	 *
 	 * @return void
 	 */
 	private function sendNewPositionIntentNotifications(): void {
-		// Check for long entry signal
+		// Check for long entry signal.
 		if ($this->strategy->shouldLong()) {
 			QueueTask::addTelegramNotification_newPosition($this, PositionDirectionEnum::LONG);
 			return;
 		}
 
-		// Check for short entry signal (only for futures)
+		// Check for short entry signal (only for futures).
 		if ($this->isFutures() && $this->strategy->shouldShort()) {
 			QueueTask::addTelegramNotification_newPosition($this, PositionDirectionEnum::SHORT);
 			return;
@@ -611,17 +704,26 @@ class Market implements IMarket {
 	}
 
 	/**
+	 * Place a limit order.
 	 *
 	 * @param Money $volume Volume in USDT (quote currency).
-	 * @param Money $price
-	 * @param PositionDirectionEnum $direction
-	 * @param float|null $takeProfitPercent
-	 * @return string|false
+	 * @param Money $price Order price.
+	 * @param PositionDirectionEnum $direction Order direction.
+	 * @param float|null $takeProfitPercent Take profit percentage.
+	 * @return string|false Order ID or false on failure.
 	 */
 	public function placeLimitOrder(Money $volume, Money $price, PositionDirectionEnum $direction, ?float $takeProfitPercent = null): string|false {
 		return $this->exchange->placeLimitOrder($this, $volume, $price, $direction, $takeProfitPercent);
 	}
 
+	/**
+	 * Open position using limit order map.
+	 *
+	 * @param array $orderMap Order map with levels.
+	 * @param PositionDirectionEnum $direction Position direction.
+	 * @param float $takeProfitPercent Take profit percentage.
+	 * @return IStoredPosition|false Created position or false on failure.
+	 */
 	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
@@ -664,10 +766,21 @@ class Market implements IMarket {
 		return $position;
 	}
 
+	/**
+	 * Remove all limit orders for this market.
+	 *
+	 * @return bool True if successful, false otherwise.
+	 */
 	public function removeLimitOrders(): bool {
 		return $this->exchange->removeLimitOrders($this);
 	}
 
+	/**
+	 * Set take profit price.
+	 *
+	 * @param Money $expectedTPPrice Expected take profit price.
+	 * @return bool True if successful, false otherwise.
+	 */
 	public function setTakeProfit(Money $expectedTPPrice): bool {
 		$this->exchange->getLogger()->debug("Updating TP on $this, setting to $expectedTPPrice");
 		return $this->exchange->setTakeProfit($this, $expectedTPPrice);
