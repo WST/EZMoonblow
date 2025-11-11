@@ -69,6 +69,31 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
+	 * Check if an exception represents an API key authentication error.
+	 * @param Exception $e Exception to check.
+	 * @return bool True if the exception is related to invalid API credentials, false otherwise.
+	 */
+	private function isApiKeyError(Exception $e): bool {
+		$errorMessage = $e->getMessage();
+		$lowerErrorMessage = strtolower($errorMessage);
+
+		// Check for explicit "API key is invalid" or similar messages.
+		if (stripos($errorMessage, 'API key') !== false &&
+		    (stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'is invalid') !== false)) {
+			return true;
+		}
+
+		// Check for other authentication-related errors.
+		if (stripos($lowerErrorMessage, 'authentication') !== false ||
+		    stripos($lowerErrorMessage, 'unauthorized') !== false ||
+		    stripos($lowerErrorMessage, 'api key invalid') !== false) {
+			return true;
+		}
+
+		return false;
+	}
+
+	/**
 	 * Refresh total account balance information.
 	 * NOTE: Earn API is not implemented in the SDK.
 	 */
@@ -84,6 +109,10 @@ class Bybit extends AbstractExchangeDriver {
 			$this->saveBalance($totalBalance);
 		} catch (Exception $e) {
 			$this->logger->error("Unexpected error while updating balance on $this->exchangeName: ".$e->getMessage());
+
+			if ($this->isApiKeyError($e)) {
+				$this->logger->fatal("Invalid API credentials for {$this->exchangeName}. Terminating process to prevent API abuse.");
+			}
 		}
 	}
 
