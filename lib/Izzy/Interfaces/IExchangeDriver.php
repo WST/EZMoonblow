@@ -4,6 +4,7 @@ namespace Izzy\Interfaces;
 
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
+use Izzy\Financial\Order;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 use Izzy\Configuration\ExchangeConfiguration;
@@ -22,11 +23,11 @@ interface IExchangeDriver {
 	 * Update the total balance from the exchange.
 	 * @return void
 	 */
-	function updateBalance(): void;
+	public function updateBalance(): void;
 
 	/**
-	 * Connect to the exchange.
-	 * @return bool
+	 * Connect to the exchange API.
+	 * @return bool True if connection successful, false otherwise.
 	 */
 	public function connect(): bool;
 
@@ -97,10 +98,28 @@ interface IExchangeDriver {
 	 */
 	public function createMarket(IPair $pair): ?IMarket;
 
+	/**
+	 * Convert a trading pair to exchange-specific ticker format.
+	 *
+	 * @param IPair $pair Trading pair.
+	 * @return string Exchange-specific ticker (e.g., "BTCUSDT" for Bybit).
+	 */
 	public function pairToTicker(IPair $pair): string;
 
+	/**
+	 * Get spot wallet balance for a specific currency.
+	 *
+	 * @param string $coin Currency symbol (e.g., "BTC", "USDT").
+	 * @return Money Balance amount.
+	 */
 	public function getSpotBalanceByCurrency(string $coin): Money;
 
+	/**
+	 * Get current futures position for a market.
+	 *
+	 * @param IMarket $market Market to check.
+	 * @return IPositionOnExchange|false Position data or false if no position exists.
+	 */
 	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false;
 
 	/**
@@ -127,21 +146,76 @@ interface IExchangeDriver {
 	 */
 	public function removeLimitOrders(IMarket $market): bool;
 
+	/**
+	 * Set or update take profit order for a position.
+	 *
+	 * @param IMarket $market Market with the position.
+	 * @param Money $expectedPrice Target take profit price.
+	 * @return bool True on success, false on failure.
+	 */
 	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool;
 
+	/**
+	 * Get the database instance used by this exchange driver.
+	 * @return Database Database instance.
+	 */
 	public function getDatabase(): Database;
 
+	/**
+	 * Get the logger instance used by this exchange driver.
+	 * @return Logger Logger instance.
+	 */
 	public function getLogger(): Logger;
 
+	/**
+	 * Get the exchange name (e.g., "Bybit", "Gate").
+	 * @return string Exchange name.
+	 */
 	public function getName(): string;
 
+	/**
+	 * Get the exchange configuration.
+	 * @return ExchangeConfiguration Exchange configuration instance.
+	 */
 	public function getExchangeConfiguration(): ExchangeConfiguration;
 
 	/**
 	 * Check if an order is still active on the exchange.
-	 * @param IMarket $market
-	 * @param string $orderIdOnExchange
-	 * @return bool
+	 *
+	 * @param IMarket $market Market the order belongs to.
+	 * @param string $orderIdOnExchange Order ID on the exchange.
+	 * @return bool True if order is active, false otherwise.
 	 */
 	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool;
+
+	/**
+	 * Get order information by its exchange ID.
+	 *
+	 * @param IMarket $market Market the order belongs to.
+	 * @param string $orderIdOnExchange Order ID on the exchange.
+	 * @return Order|false Order object or false if not found.
+	 */
+	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false;
+
+	/**
+	 * Get the minimum quantity step for an instrument.
+	 *
+	 * Used for rounding order quantities to exchange requirements.
+	 * Each exchange has specific precision requirements for order sizes.
+	 *
+	 * @param IMarket $market Market to get qty step for.
+	 * @return string Quantity step (e.g., "0.001" for BTC).
+	 */
+	public function getQtyStep(IMarket $market): string;
+
+	/**
+	 * Get the minimum price tick size for an instrument.
+	 *
+	 * Used for rounding prices to exchange requirements.
+	 * Each exchange has specific precision requirements for prices.
+	 *
+	 * @param IMarket $market Market to get tick size for.
+	 * @return string Tick size (e.g., "0.01" for USDT pairs).
+	 */
+	public function getTickSize(IMarket $market): string;
 }

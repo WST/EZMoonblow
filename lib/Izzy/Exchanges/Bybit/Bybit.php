@@ -44,9 +44,7 @@ class Bybit extends AbstractExchangeDriver {
 	protected array $tickSizes = [];
 
 	/**
-	 * Connect to the Bybit exchange using API credentials.
-	 *
-	 * @return bool True if connection successful, false otherwise.
+	 * @inheritDoc
 	 */
 	public function connect(): bool {
 		try {
@@ -61,7 +59,8 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
-	 * Disconnect from the exchange.
+	 * @inheritDoc
+	 *
 	 * TODO: Implement disconnect() method.
 	 */
 	public function disconnect(): void {
@@ -94,7 +93,8 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
-	 * Refresh total account balance information.
+	 * @inheritDoc
+	 *
 	 * NOTE: Earn API is not implemented in the SDK.
 	 */
 	public function updateBalance(): void {
@@ -264,11 +264,11 @@ class Bybit extends AbstractExchangeDriver {
 		// If the price is not null, we want a limit order.
 		if (!is_null($price)) {
 			$orderIdOnExchange = $this->placeLimitOrder(
-				$market,
-				$amount,
-				$price,
-				$direction,
-				$takeProfitPercent
+				market: $market,
+				amount: $amount,
+				price: $price,
+				direction: $direction,
+				takeProfitPercent: $takeProfitPercent
 			);
 			if ($orderIdOnExchange) {
 				/**
@@ -276,13 +276,13 @@ class Bybit extends AbstractExchangeDriver {
 				 * So, we use a StoredPosition instead of PositionOnBybit here.
 				 */
 				$position = StoredPosition::create(
-					$market,
-					$amount,
-					$direction,
-					$currentPrice,
-					$currentPrice,
-					PositionStatusEnum::OPEN,
-					$orderIdOnExchange
+					market: $market,
+					volume: $amount,
+					direction: $direction,
+					entryPrice: $currentPrice,
+					currentPrice: $currentPrice,
+					status: PositionStatusEnum::OPEN,
+					exchangePositionId: $orderIdOnExchange
 				);
 
 				// If we have a TP defined.
@@ -361,13 +361,13 @@ class Bybit extends AbstractExchangeDriver {
 			 * So, we use a StoredPosition instead of PositionOnBybit here.
 			 */
 			$position = StoredPosition::create(
-				$market,
-				$amount,
-				PositionDirectionEnum::LONG,
-				$currentPrice,
-				$currentPrice,
-				PositionStatusEnum::OPEN,
-				$response[BybitParam::OrderId]
+				market: $market,
+				volume: $amount,
+				direction: PositionDirectionEnum::LONG,
+				entryPrice: $currentPrice,
+				currentPrice: $currentPrice,
+				status: PositionStatusEnum::OPEN,
+				exchangePositionId: $response[BybitParam::OrderId]
 			);
 			$position->setAverageEntryPrice($currentPrice);
 
@@ -411,14 +411,17 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
+	 * @inheritDoc
+	 *
 	 * Bybit uses tickers like "BTCUSDT" for pairs.
-	 * @param IPair $pair
-	 * @return string
 	 */
 	public function pairToTicker(IPair $pair): string {
 		return $pair->getBaseCurrency().$pair->getQuoteCurrency();
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false {
 		$pair = $market->getPair();
 		$params = [
@@ -442,9 +445,7 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
-	 * @param IMarket $market
-	 * @param string $orderIdOnExchange
-	 * @return bool
+	 * @inheritDoc
 	 */
 	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool {
 		$order = $this->getOrderById($market, $orderIdOnExchange);
@@ -478,6 +479,9 @@ class Bybit extends AbstractExchangeDriver {
 		};
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getSpotBalanceByCurrency(string $coin): Money {
 		$params = [BybitParam::AccountType => 'UNIFIED', BybitParam::Coin => $coin];
 		$response = $this->api->assetApi()->getSingleCoinBalance($params);
@@ -485,6 +489,9 @@ class Bybit extends AbstractExchangeDriver {
 		return Money::from($balanceInfo[BybitParam::WalletBalance], $coin);
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false {
 		$pair = $market->getPair();
 		$marketType = $market->getMarketType();
@@ -516,13 +523,9 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
+	 * @inheritDoc
+	 *
 	 * NOTE: We cannot detect TP order Id at this point.
-	 * @param IMarket $market
-	 * @param Money $amount
-	 * @param Money $price
-	 * @param PositionDirectionEnum $direction
-	 * @param float|null $takeProfitPercent
-	 * @return string|false
 	 */
 	public function placeLimitOrder(
 		IMarket $market,
@@ -566,9 +569,9 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
-	 * TODO: fetch instrument info when initializing Market.
-	 * @param IMarket $market
-	 * @return string
+	 * @inheritDoc
+	 *
+	 * TODO: Fetch instrument info when initializing Market for better performance.
 	 */
 	public function getQtyStep(IMarket $market): string {
 		$pair = $market->getPair();
@@ -590,9 +593,9 @@ class Bybit extends AbstractExchangeDriver {
 	}
 
 	/**
-	 * TODO: fetch instrument info when initializing Market.
-	 * @param IMarket $market
-	 * @return string
+	 * @inheritDoc
+	 *
+	 * TODO: Fetch instrument info when initializing Market for better performance.
 	 */
 	public function getTickSize(IMarket $market): string {
 		$pair = $market->getPair();
@@ -612,6 +615,9 @@ class Bybit extends AbstractExchangeDriver {
 		return $tickSize;
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function removeLimitOrders(IMarket $market): bool {
 		$pair = $market->getPair();
 		try {
@@ -626,6 +632,9 @@ class Bybit extends AbstractExchangeDriver {
 		}
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
 		$pair = $market->getPair();
 		try {

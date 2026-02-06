@@ -792,13 +792,13 @@ class Market implements IMarket {
 		 * Position to be saved into the database.
 		 */
 		$position = StoredPosition::create(
-			$this,
-			$entryVolume,
-			$direction,
-			$entryPrice,
-			$entryPrice,
-			PositionStatusEnum::PENDING,
-			$orderIdOnExchange
+			market: $this,
+			volume: $entryVolume,
+			direction: $direction,
+			entryPrice: $entryPrice,
+			currentPrice: $entryPrice,
+			status: PositionStatusEnum::PENDING,
+			exchangePositionId: $orderIdOnExchange
 		);
 
 		/**
