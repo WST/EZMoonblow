@@ -3,57 +3,109 @@
 namespace Izzy\Interfaces;
 
 /**
- * Интерфейс свечи
+ * Interface for a candlestick (OHLCV data).
  */
 interface ICandle {
-	// Получить предыдущую свечу (или null для первой)
+	/**
+	 * Get the previous candle (or null for the first candle).
+	 * @return ICandle|null
+	 */
 	public function previousCandle(): ?ICandle;
 
-	// Получить следующую свечу (или null для последней)
+	/**
+	 * Get the next candle (or null for the last candle).
+	 * @return ICandle|null
+	 */
 	public function nextCandle(): ?ICandle;
 
-	// Получить время открытия свечи
+	/**
+	 * Get the candle open time (Unix timestamp in milliseconds).
+	 * @return int
+	 */
 	public function getOpenTime(): int;
 
-	// Получить время закрытия свечи
+	/**
+	 * Get the candle close time (Unix timestamp in milliseconds).
+	 * @return int
+	 */
 	public function getCloseTime(): int;
 
-	// Получить цену открытия свечи
+	/**
+	 * Get the candle open price.
+	 * @return float
+	 */
 	public function getOpenPrice(): float;
 
-	// Получить цену закрытия свечи
+	/**
+	 * Get the candle close price.
+	 * @return float
+	 */
 	public function getClosePrice(): float;
 
-	// Получить высокую цену свечи
+	/**
+	 * Get the candle high price.
+	 * @return float
+	 */
 	public function getHighPrice(): float;
 
-	// Получить низкую цену свечи
+	/**
+	 * Get the candle low price.
+	 * @return float
+	 */
 	public function getLowPrice(): float;
 
-	// Получить объем торгов свечи
+	/**
+	 * Get the candle trading volume.
+	 * @return float
+	 */
 	public function getVolume(): float;
 
-	// Получить размер свечи (разницу между ценами открытия и закрытия)
+	/**
+	 * Get the candle body size (difference between open and close prices).
+	 * @return float
+	 */
 	public function getSize(): float;
 
-	// Получить объём открытого интереса на фьючерсном рынке на момент начала свечи
+	/**
+	 * Get the open interest at the candle open time (futures market only).
+	 * @return float
+	 */
 	public function getOpenInterest(): float;
 
-	// Получить изменение объёма открытого интереса на фьючерсном рынке за время данной свечи
+	/**
+	 * Get the open interest change during this candle (futures market only).
+	 * @return float
+	 */
 	public function getOpenInterestChange(): float;
 
-	// Получить связанный со свечой имбаланс (если он есть)
+	/**
+	 * Get the fair value gap (FVG/imbalance) associated with this candle, if any.
+	 * @return IFVG|null
+	 */
 	public function getFVG(): ?IFVG;
 
-	// Получить рынок, из которого эта свеча
+	/**
+	 * Get the market this candle belongs to.
+	 * @return IMarket
+	 */
 	public function getMarket(): IMarket;
 
-	// Установить рынок, из которого эта свеча
+	/**
+	 * Set the market this candle belongs to.
+	 * @param IMarket $market
+	 * @return void
+	 */
 	public function setMarket(IMarket $market): void;
 
-	// Показывает, что свеча является «бычьей»
+	/**
+	 * Check if the candle is bullish (close > open).
+	 * @return bool
+	 */
 	public function isBullish(): bool;
 
-	// Показывает, что свеча является «медвежьей»
+	/**
+	 * Check if the candle is bearish (close < open).
+	 * @return bool
+	 */
 	public function isBearish(): bool;
 }

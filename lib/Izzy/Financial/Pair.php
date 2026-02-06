@@ -317,7 +317,8 @@ class Pair implements IPair {
 	}
 
 	/**
-	 * @inheritDoc
+	 * Get the ticker formatted for use in filenames (underscore-separated).
+	 * @return string Filename-safe ticker (e.g., “BTC_USDT”).
 	 */
 	public function getFilenameTicker(): string {
 		return $this->baseCurrency.'_'.$this->quoteCurrency;
@@ -337,6 +338,9 @@ class Pair implements IPair {
 		return $this->quoteCurrency;
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function __toString(): string {
 		return $this->getBaseCurrency().'/'.$this->getQuoteCurrency();
 	}

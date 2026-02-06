@@ -11,26 +11,55 @@ use Izzy\Interfaces\IPositionOnExchange;
 use Izzy\Interfaces\IStoredPosition;
 
 /**
- * NOTE: only USDT supported as the quote currency.
+ * Represents a position on Bybit exchange.
+ *
+ * NOTE: Only USDT is supported as the quote currency.
  */
 class PositionOnBybit implements IPositionOnExchange {
+	/**
+	 * Market this position belongs to.
+	 * @var IMarket
+	 */
 	private IMarket $market;
 
+	/**
+	 * Raw position info from Bybit API.
+	 * @var array
+	 */
 	private array $info = [];
 
+	/**
+	 * Create a new Bybit position instance.
+	 *
+	 * @param IMarket $market Market the position belongs to.
+	 * @param array $positionInfo Raw position data from Bybit API.
+	 */
 	public function __construct(IMarket $market, array $positionInfo) {
 		$this->market = $market;
 		$this->info = $positionInfo;
 	}
 
+	/**
+	 * Static factory method to create a position instance.
+	 *
+	 * @param IMarket $market Market the position belongs to.
+	 * @param array $positionInfo Raw position data from Bybit API.
+	 * @return static New position instance.
+	 */
 	public static function create(IMarket $market, mixed $positionInfo): static {
 		return new self($market, $positionInfo);
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getVolume(): Money {
 		return Money::from($this->info['size'], $this->market->getPair()->getBaseCurrency());
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getDirection(): PositionDirectionEnum {
 		return match ($this->info['side']) {
 			'Buy' => PositionDirectionEnum::LONG,
@@ -38,26 +67,40 @@ class PositionOnBybit implements IPositionOnExchange {
 		};
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getAverageEntryPrice(): Money {
 		return Money::from($this->info['avgPrice'], $this->market->getPair()->getQuoteCurrency());
 	}
 
-	/*
-	 * NOTE: There is no way to get the first “entry” price for the position.
-	 * Instead, we are returning the average entry price here.
+	/**
+	 * @inheritDoc
+	 *
+	 * NOTE: There is no way to get the first “entry” price from Bybit.
+	 * Returns the average entry price instead.
 	 */
 	public function getEntryPrice(): Money {
 		return $this->getAverageEntryPrice();
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getUnrealizedPnL(): Money {
 		return Money::from($this->info['unrealisedPnl'], $this->market->getPair()->getQuoteCurrency());
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getCurrentPrice(): Money {
 		return Money::from($this->info['markPrice'], $this->market->getPair()->getQuoteCurrency());
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function getUnrealizedPnLPercent(): float {
 		$avgPrice = $this->getAverageEntryPrice();
 		$markPrice = $this->getCurrentPrice();
@@ -66,6 +109,9 @@ class PositionOnBybit implements IPositionOnExchange {
 		return round($pnlPercent, 4);
 	}
 
+	/**
+	 * @inheritDoc
+	 */
 	public function store(): IStoredPosition {
 		// Create StoredPosition from current position data.
 		$storedPosition = StoredPosition::create(
