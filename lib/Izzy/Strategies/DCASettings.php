@@ -2,6 +2,7 @@
 
 namespace Izzy\Strategies;
 
+use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 
@@ -10,10 +11,16 @@ use Izzy\Financial\Money;
  */
 class DCASettings {
 	/**
-	 * Map of DCA orders.
-	 * @var array
+	 * Order grid for Long trades.
+	 * @var DCAOrderGrid
 	 */
-	private array $orderMap = [];
+	private DCAOrderGrid $longGrid;
+
+	/**
+	 * Order grid for Short trades.
+	 * @var DCAOrderGrid
+	 */
+	private DCAOrderGrid $shortGrid;
 
 	/**
 	 * Number of DCA levels, including position entry.
@@ -61,6 +68,12 @@ class DCASettings {
 	private bool $useLimitOrders;
 
 	/**
+	 * Offset calculation mode for the order grid.
+	 * @var DCAOffsetModeEnum
+	 */
+	private DCAOffsetModeEnum $offsetMode;
+
+	/**
 	 * Builds a DCASettings instance.
 	 * @param bool $useLimitOrders Use limit orders instead of market.
 	 * @param int $numberOfLevels Number of DCA levels, including position entry.
@@ -69,6 +82,13 @@ class DCASettings {
 	 * @param float $priceDeviation The distance between the entry and the first averaging.
 	 * @param float $priceDeviationMultiplier How much further (in percent) should be the next order from the entry price.
 	 * @param float $expectedProfit Expected profit in percents of the position size.
+	 * @param int $numberOfLevelsShort Number of DCA levels for short trades.
+	 * @param Money|null $entryVolumeShort Initial position volume for short trades.
+	 * @param float $volumeMultiplierShort Volume multiplier for short trades.
+	 * @param float $priceDeviationShort Price deviation for short trades.
+	 * @param float $priceDeviationMultiplierShort Price deviation multiplier for short trades.
+	 * @param float $expectedProfitShort Expected profit for short trades.
+	 * @param DCAOffsetModeEnum $offsetMode How price offsets should be calculated.
 	 */
 	public function __construct(
 		bool $useLimitOrders,
@@ -83,37 +103,36 @@ class DCASettings {
 		float $volumeMultiplierShort = 0.0,
 		float $priceDeviationShort = 0.0,
 		float $priceDeviationMultiplierShort = 0.0,
-		float $expectedProfitShort = 0.0
+		float $expectedProfitShort = 0.0,
+		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY
 	) {
-		// Initialize the order map.
-		$this->orderMap[PositionDirectionEnum::LONG->value] = [];
-		$this->orderMap[PositionDirectionEnum::SHORT->value] = [];
+		$this->offsetMode = $offsetMode;
 
-		// First, build the order map for Long trades.
-		$volume = $entryVolume->getAmount();
-		$totalOffset = 0;
-		$currentDeviation = $priceDeviation;
-		for ($level = 0; $level < $numberOfLevels; $level++) {
-			$this->orderMap[PositionDirectionEnum::LONG->value][$level] = ['volume' => $volume, 'offset' => -$totalOffset];
-			$volume *= $volumeMultiplier;
-			$totalOffset += $currentDeviation;
-			$currentDeviation = $priceDeviationMultiplier * $currentDeviation;
+		// Build the order grid for Long trades.
+		$this->longGrid = DCAOrderGrid::fromParameters(
+			$numberOfLevels,
+			$entryVolume->getAmount(),
+			$volumeMultiplier,
+			$priceDeviation,
+			$priceDeviationMultiplier,
+			$offsetMode
+		);
+
+		// Build the order grid for Short trades.
+		if ($entryVolumeShort && $numberOfLevelsShort > 0) {
+			$this->shortGrid = DCAOrderGrid::fromParameters(
+				$numberOfLevelsShort,
+				$entryVolumeShort->getAmount(),
+				$volumeMultiplierShort,
+				$priceDeviationShort,
+				$priceDeviationMultiplierShort,
+				$offsetMode
+			);
+		} else {
+			$this->shortGrid = new DCAOrderGrid($offsetMode);
 		}
 
-		// Then, build the order map for Short trades.
-		if ($entryVolumeShort) {
-			$volume = $entryVolumeShort->getAmount();
-			$totalOffset = 0;
-			$currentDeviation = $priceDeviationShort;
-			for ($level = 0; $level < $numberOfLevelsShort; $level++) {
-				$this->orderMap[PositionDirectionEnum::SHORT->value][$level] = ['volume' => $volume, 'offset' => $totalOffset];
-				$volume *= $volumeMultiplierShort;
-				$totalOffset += $currentDeviation;
-				$currentDeviation = $priceDeviationMultiplierShort * $currentDeviation;
-			}
-		}
-
-		/** Settings of the Long trades */
+		// Store settings for Long trades.
 		$this->numberOfLevels = $numberOfLevels;
 		$this->entryVolume = $entryVolume;
 		$this->volumeMultiplier = $volumeMultiplier;
@@ -121,9 +140,9 @@ class DCASettings {
 		$this->priceDeviationMultiplier = $priceDeviationMultiplier;
 		$this->expectedProfit = $expectedProfit;
 
-		/** Settings of the Short trades */
+		// Store settings for Short trades.
 		$this->numberOfLevelsShort = $numberOfLevelsShort;
-		$this->entryVolumeShort = $entryVolumeShort;
+		$this->entryVolumeShort = $entryVolumeShort ?? Money::from(0);
 		$this->volumeMultiplierShort = $volumeMultiplierShort;
 		$this->priceDeviationShort = $priceDeviationShort;
 		$this->priceDeviationMultiplierShort = $priceDeviationMultiplierShort;
@@ -131,40 +150,54 @@ class DCASettings {
 		$this->useLimitOrders = $useLimitOrders;
 	}
 
+	/**
+	 * Get the order map for both Long and Short trades.
+	 * This method maintains backward compatibility with existing code.
+	 *
+	 * @return array Order map with PositionDirectionEnum values as keys.
+	 */
 	public function getOrderMap(): array {
-		return $this->orderMap;
+		return [
+			PositionDirectionEnum::LONG->value => $this->longGrid->buildOrderMap(PositionDirectionEnum::LONG),
+			PositionDirectionEnum::SHORT->value => $this->shortGrid->buildOrderMap(PositionDirectionEnum::SHORT),
+		];
+	}
+
+	/**
+	 * Get the Long order grid.
+	 * @return DCAOrderGrid
+	 */
+	public function getLongGrid(): DCAOrderGrid {
+		return $this->longGrid;
+	}
+
+	/**
+	 * Get the Short order grid.
+	 * @return DCAOrderGrid
+	 */
+	public function getShortGrid(): DCAOrderGrid {
+		return $this->shortGrid;
+	}
+
+	/**
+	 * Get the offset calculation mode.
+	 * @return DCAOffsetModeEnum
+	 */
+	public function getOffsetMode(): DCAOffsetModeEnum {
+		return $this->offsetMode;
 	}
 
 	public function getMaxTotalPositionVolume(): Money {
-		$totalVolume = 0.0;
-
-		// Volumes for Long trades.
-		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
-			$totalVolume += $level['volume'];
-		}
-
-		// Volumes for Short trades.
-		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {
-			$totalVolume += $level['volume'];
-		}
-
+		$totalVolume = $this->longGrid->getTotalVolume() + $this->shortGrid->getTotalVolume();
 		return Money::from($totalVolume);
 	}
 
 	public function getMaxLongPositionVolume(): Money {
-		$totalVolume = 0.0;
-		foreach ($this->orderMap[PositionDirectionEnum::LONG->value] as $level) {
-			$totalVolume += $level['volume'];
-		}
-		return Money::from($totalVolume);
+		return Money::from($this->longGrid->getTotalVolume());
 	}
 
 	public function getMaxShortPositionVolume(): Money {
-		$totalVolume = 0.0;
-		foreach ($this->orderMap[PositionDirectionEnum::SHORT->value] as $level) {
-			$totalVolume += $level['volume'];
-		}
-		return Money::from($totalVolume);
+		return Money::from($this->shortGrid->getTotalVolume());
 	}
 
 	public function getNumberOfLevels(): int {

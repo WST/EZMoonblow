@@ -2,6 +2,7 @@
 
 namespace Izzy\Strategies;
 
+use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
@@ -41,6 +42,10 @@ abstract class AbstractDCAStrategy extends Strategy {
 		$priceDeviationMultiplierShort = $this->params['priceDeviationMultiplierShort'] ?? 2;
 		$expectedProfitShort = $this->params['expectedProfitShort'] ?? 2;
 
+		/** Offset calculation mode */
+		$offsetModeParam = $this->params['offsetMode'] ?? DCAOffsetModeEnum::FROM_ENTRY->value;
+		$offsetMode = DCAOffsetModeEnum::tryFrom($offsetModeParam) ?? DCAOffsetModeEnum::FROM_ENTRY;
+
 		// Remove % sign if present and convert to float
 		$priceDeviation = (float)str_replace('%', '', $priceDeviation);
 		$expectedProfit = (float)str_replace('%', '', $expectedProfit);
@@ -60,7 +65,8 @@ abstract class AbstractDCAStrategy extends Strategy {
 			$volumeMultiplierShort,
 			$priceDeviationShort,
 			$priceDeviationMultiplierShort,
-			$expectedProfitShort
+			$expectedProfitShort,
+			$offsetMode
 		);
 	}
 
@@ -223,6 +229,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 			'priceDeviationMultiplier' => 'Price deviation multiplier for subsequent orders',
 			'expectedProfit' => 'Expected profit percentage',
 			'UseLimitOrders' => 'Use limit orders instead of market orders',
+			'offsetMode' => 'Price offset calculation mode (FROM_ENTRY or FROM_PREVIOUS)',
 			'numberOfLevelsShort' => 'Number of short DCA orders including the entry order',
 			'entryVolumeShort' => 'Initial short entry volume (USDT)',
 			'volumeMultiplierShort' => 'Short volume multiplier for each subsequent order',

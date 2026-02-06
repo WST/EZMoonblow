@@ -19,7 +19,7 @@
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
 			<spot>
-				<pair ticker="BTC/USDT" timeframe="15m" monitor="yes" trade="no">
+				<pair ticker="BTC/USDT" timeframe="4h" monitor="yes" trade="no">
 					<strategy name="EZMoonblowDCA">
 						<!--
 							1st buy: 40 USDT @ entry,
@@ -42,6 +42,7 @@
                         <param name="priceDeviationMultiplierShort" value="2" />
                         <param name="expectedProfitShort" value="2%" />
                         <param name="UseLimitOrders" value="yes" />
+						<param name="offsetMode" value="FROM_ENTRY" />
 					</strategy>
 					<indicators>
 						<indicator type="RSI" period="14" overbought="70" oversold="30" />
