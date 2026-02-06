@@ -2,17 +2,28 @@
 
 namespace Izzy\System;
 
+/**
+ * Logger class for application-wide logging.
+ * Supports both console (CLI) and web application logging modes.
+ */
 final class Logger {
+	/** @var bool Whether the application is running as a web application. */
 	private bool $isWebApp = false;
+
+	/** @var string Path to the log file for web applications. */
 	private string $logFile = '';
 
+	/**
+	 * Initialize the logger.
+	 * Determines if the application is running as a web application and sets up logging accordingly.
+	 */
 	public function __construct() {
-		// Определяем, запущено ли приложение как веб-приложение
+		// Determine if the application is running as a web application.
 		$this->isWebApp = php_sapi_name() !== 'cli' || isset($_SERVER['HTTP_HOST']);
 
 		if ($this->isWebApp) {
-			// Для веб-приложений логируем в файл
-			$this->logFile = IZZY_ROOT.'/logs/web.log';
+			// For web applications, log to a file.
+			$this->logFile = IZZY_ROOT . '/logs/web.log';
 			$logDir = dirname($this->logFile);
 			if (!is_dir($logDir)) {
 				mkdir($logDir, 0755, true);
@@ -20,6 +31,11 @@ final class Logger {
 		}
 	}
 
+	/**
+	 * Log an informational message.
+	 * @param string $message Message to log.
+	 * @return void
+	 */
 	public function info(string $message): void {
 		$timestamp = date('Y-m-d H:i:s');
 		$logMessage = "$timestamp Info: $message";
@@ -31,6 +47,11 @@ final class Logger {
 		}
 	}
 
+	/**
+	 * Log a warning message.
+	 * @param string $message Warning message to log.
+	 * @return void
+	 */
 	public function warning(string $message): void {
 		$timestamp = date('Y-m-d H:i:s');
 		$logMessage = "$timestamp Warning: $message";
@@ -42,6 +63,11 @@ final class Logger {
 		}
 	}
 
+	/**
+	 * Log an error message.
+	 * @param string $message Error message to log.
+	 * @return void
+	 */
 	public function error(string $message): void {
 		$timestamp = date('Y-m-d H:i:s');
 		$logMessage = "$timestamp Error: $message";
@@ -53,6 +79,30 @@ final class Logger {
 		}
 	}
 
+	/**
+	 * Log a fatal error and terminate the process.
+	 * @param string $message Fatal error message.
+	 * @param int $exitCode Exit code to use when terminating (default: 1).
+	 * @return void
+	 */
+	public function fatal(string $message, int $exitCode = 1): void {
+		$timestamp = date('Y-m-d H:i:s');
+		$logMessage = "$timestamp Fatal: $message";
+
+		if ($this->isWebApp) {
+			$this->writeToFile($logMessage);
+		} else {
+			echo "\033[31m$logMessage\033[0m\n";
+		}
+
+		die($exitCode);
+	}
+
+	/**
+	 * Log a debug message.
+	 * @param string $message Debug message to log.
+	 * @return void
+	 */
 	public function debug(string $message): void {
 		$timestamp = date('Y-m-d H:i:s');
 		$logMessage = "$timestamp Debug: $message";
@@ -64,12 +114,21 @@ final class Logger {
 		}
 	}
 
+	/**
+	 * Write a log message to the log file.
+	 * @param string $message Message to write to the file.
+	 * @return void
+	 */
 	private function writeToFile(string $message): void {
 		if ($this->logFile) {
 			file_put_contents($this->logFile, $message."\n", FILE_APPEND | LOCK_EX);
 		}
 	}
 
+	/**
+	 * Get the singleton logger instance.
+	 * @return self Logger instance.
+	 */
 	public static function getLogger(): self {
 		static $logger;
 		if (!is_null($logger)) {
