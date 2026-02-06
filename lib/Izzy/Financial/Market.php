@@ -63,6 +63,21 @@ class Market implements IMarket {
 	 */
 	private Database $database;
 
+	/**
+	 * Cached current price.
+	 */
+	private ?Money $cachedPrice = null;
+
+	/**
+	 * Timestamp when price was cached.
+	 */
+	private ?int $cachedPriceTimestamp = null;
+
+	/**
+	 * Price cache TTL in seconds.
+	 */
+	private const PRICE_CACHE_TTL = 10;
+
 	public function __construct(
 		IExchangeDriver $exchange,
 		Pair $pair,
@@ -615,8 +630,27 @@ class Market implements IMarket {
 	 *
 	 * @return Money Current price.
 	 */
-	public function getCurrentPrice(): Money {
-		return $this->getExchange()->getCurrentPrice($this);
+	/**
+	 * Get the current price of the market.
+	 *
+	 * @param bool $cached If true, returns cached price if available and not expired.
+	 * @return Money Current price.
+	 */
+	public function getCurrentPrice(bool $cached = true): Money {
+		$now = time();
+
+		// Return cached price if valid
+		if ($cached && $this->cachedPrice !== null
+			&& ($now - $this->cachedPriceTimestamp) < self::PRICE_CACHE_TTL) {
+			return $this->cachedPrice;
+		}
+
+		// Fetch fresh price from exchange and update cache
+		$price = $this->getExchange()->getCurrentPrice($this);
+		$this->cachedPrice = $price;
+		$this->cachedPriceTimestamp = $now;
+
+		return $price;
 	}
 
 	/**
@@ -624,6 +658,7 @@ class Market implements IMarket {
 	 *
 	 * This method provides runtime context (balance, margin, price) needed
 	 * for resolving dynamic volume modes like percentage of balance.
+	 * Uses cached price to avoid excessive API calls.
 	 *
 	 * @return TradingContext
 	 */
@@ -632,7 +667,7 @@ class Market implements IMarket {
 		// For margin, we use balance with 1x leverage for now.
 		// This can be enhanced later to get actual available margin from exchange.
 		$margin = $balance;
-		$currentPrice = $this->getExchange()->getCurrentPrice($this)?->getAmount() ?? 0.0;
+		$currentPrice = $this->getCurrentPrice();
 
 		return new TradingContext($balance, $margin, $currentPrice);
 	}

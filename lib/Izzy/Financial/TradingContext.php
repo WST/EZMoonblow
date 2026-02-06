@@ -14,12 +14,12 @@ class TradingContext {
 	 *
 	 * @param float $balance Current account balance in quote currency.
 	 * @param float $margin Available margin in quote currency.
-	 * @param float $currentPrice Current price of base currency.
+	 * @param Money $currentPrice Current price of base currency.
 	 */
 	public function __construct(
 		private float $balance,
 		private float $margin,
-		private float $currentPrice
+		private Money $currentPrice
 	) {}
 
 	/**
@@ -40,9 +40,9 @@ class TradingContext {
 
 	/**
 	 * Get the current price of base currency.
-	 * @return float Price in quote currency.
+	 * @return Money Price in quote currency.
 	 */
-	public function getCurrentPrice(): float {
+	public function getCurrentPrice(): Money {
 		return $this->currentPrice;
 	}
 
@@ -51,7 +51,7 @@ class TradingContext {
 	 * @return self
 	 */
 	public static function empty(): self {
-		return new self(0.0, 0.0, 0.0);
+		return new self(0.0, 0.0, new Money(0.0));
 	}
 
 	/**
@@ -59,6 +59,6 @@ class TradingContext {
 	 * @return bool
 	 */
 	public function isValid(): bool {
-		return $this->balance > 0 || $this->margin > 0 || $this->currentPrice > 0;
+		return $this->balance > 0 || $this->margin > 0 || $this->currentPrice->getAmount() > 0;
 	}
 }
