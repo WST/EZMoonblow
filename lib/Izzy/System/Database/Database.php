@@ -425,9 +425,9 @@ class Database {
 		if (is_null($totalBalance))
 			return false;
 		$exchangeNameQuoted = $this->quote($exchangeName);
-		$totalBalanceQuoted = $this->quote($totalBalance->format());
+		$totalBalanceValue = $totalBalance->getAmount();
 		$now = time();
-		$this->exec("REPLACE INTO exchanges (exchange_name, exchange_balance, exchange_updated_at) VALUES ($exchangeNameQuoted, $totalBalanceQuoted, $now)");
+		$this->exec("REPLACE INTO exchanges (exchange_name, exchange_balance, exchange_updated_at) VALUES ($exchangeNameQuoted, $totalBalanceValue, $now)");
 		return true;
 	}
 

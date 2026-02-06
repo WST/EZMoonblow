@@ -19,30 +19,25 @@
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
 			<spot>
-				<pair ticker="BTC/USDT" timeframe="4h" monitor="yes" trade="no">
-					<strategy name="EZMoonblowDCA">
-						<!--
-							1st buy: 40 USDT @ entry,
-							2nd: 80 USDT @ -5% of entry price,
-							3rd: 160 USDT @ -10% of entry price,
-							4th: 320 USDT @ -20% of entry price,
-							5th: 640 USDT @ -40% of entry price,
-							6th: 1280 USDT @ -80% of entry price,
-							Max total position size: ~2520 USDT TODO: calculate and output max total to the console
-						-->
-						<param name="numberOfLevels" value="6" />
-   						<param name="entryVolume" value="40" />
-                        <param name="volumeMultiplier" value="2" />
-                        <param name="priceDeviationMultiplier" value="2" />
-                        <param name="expectedProfit" value="2%" />
-                        <param name="numberOfLevelsShort" value="6" />
-                        <param name="entryVolumeShort" value="40" />
-                        <param name="priceDeviationShort" value="5%" />
-                        <param name="volumeMultiplierShort" value="2" />
-                        <param name="priceDeviationMultiplierShort" value="2" />
-                        <param name="expectedProfitShort" value="2%" />
-                        <param name="UseLimitOrders" value="yes" />
-						<param name="offsetMode" value="FROM_ENTRY" />
+				<pair ticker="SOL/USDT" timeframe="4h" monitor="yes" trade="no">
+					<strategy name="EZMoonblowDCAWithShorts">
+						<!-- Long -->
+						<param name="numberOfLevels" value="6"/>
+						<param name="entryVolume" value="140"/>
+						<param name="priceDeviation" value="10%"/>
+						<param name="volumeMultiplier" value="1.45"/>
+						<param name="priceDeviationMultiplier" value="1.7"/>
+						<param name="expectedProfit" value="5%"/>
+						<!-- Short -->
+						<param name="numberOfLevelsShort" value="6" />
+						<param name="entryVolumeShort" value="40" />
+						<param name="priceDeviationShort" value="10%" />
+						<param name="volumeMultiplierShort" value="2" />
+						<param name="priceDeviationMultiplierShort" value="2" />
+						<param name="expectedProfitShort" value="2%" />
+						<!-- Common -->
+						<param name="UseLimitOrders" value="yes"/>
+						<param name="offsetMode" value="FROM_PREVIOUS"/>
 					</strategy>
 					<indicators>
 						<indicator type="RSI" period="14" overbought="70" oversold="30" />

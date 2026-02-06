@@ -69,16 +69,17 @@ class DCAOrderGrid {
 		$grid = new self($offsetMode);
 
 		$volume = $entryVolume;
-		$currentDeviation = 0.0; // Entry level has no offset
+		$currentDeviation = $priceDeviation; // Initial deviation for first averaging
 
 		for ($level = 0; $level < $numberOfLevels; $level++) {
-			$grid->addLevel($volume, $currentDeviation);
+			// Entry level (0) has no offset, subsequent levels use currentDeviation
+			$levelOffset = ($level === 0) ? 0.0 : $currentDeviation;
+			$grid->addLevel($volume, $levelOffset);
+
 			$volume *= $volumeMultiplier;
 
-			// Calculate next deviation
-			if ($level === 0) {
-				$currentDeviation = $priceDeviation;
-			} else {
+			// Apply multiplier for next level (only after first averaging)
+			if ($level > 0) {
 				$currentDeviation *= $priceDeviationMultiplier;
 			}
 		}
@@ -126,30 +127,47 @@ class DCAOrderGrid {
 			$totalOffset = 0.0;
 
 			foreach ($this->levels as $index => $level) {
+				// First accumulate the offset, then record it
+				$totalOffset += $level->getOffsetPercent();
 				$orderMap[$index] = [
 					'volume' => $level->getVolume(),
 					'offset' => $sign * $totalOffset,
 				];
-				$totalOffset += $level->getOffsetPercent();
 			}
 		} else {
 			// FROM_PREVIOUS mode: each offset is relative to the previous order's price
 			// We need to convert these relative offsets to absolute offsets from entry
-			$absoluteOffset = 0.0;
+			// The calculation differs based on direction:
+			// - LONG: price goes DOWN, each step reduces price by stepPercent%
+			// - SHORT: price goes UP, each step increases price by stepPercent%
+			$currentPriceRatio = 1.0; // Start at entry price (100%)
 
 			foreach ($this->levels as $index => $level) {
+				$stepPercent = $level->getOffsetPercent();
+
+				if ($stepPercent > 0) {
+					if ($direction->isLong()) {
+						// Long: price drops by stepPercent% from current level
+						// newPrice = currentPrice * (1 - step/100)
+						$currentPriceRatio *= (1 - $stepPercent / 100);
+					} else {
+						// Short: price rises by stepPercent% from current level
+						// newPrice = currentPrice * (1 + step/100)
+						$currentPriceRatio *= (1 + $stepPercent / 100);
+					}
+				}
+
+				// Calculate absolute offset from entry price
+				// For Long: offset = (1 - priceRatio) * 100, negative (price below entry)
+				// For Short: offset = (priceRatio - 1) * 100, positive (price above entry)
+				$absoluteOffset = $direction->isLong()
+					? (1 - $currentPriceRatio) * 100
+					: ($currentPriceRatio - 1) * 100;
+
 				$orderMap[$index] = [
 					'volume' => $level->getVolume(),
 					'offset' => $sign * $absoluteOffset,
 				];
-
-				// Calculate the next absolute offset
-				// If current price is at (100 - absoluteOffset)% of entry,
-				// and we want to go down by offsetPercent% from current,
-				// new price = currentPrice * (1 - offsetPercent/100)
-				// new absolute offset = 100 - (100 - absoluteOffset) * (1 - offsetPercent/100)
-				$relativeMultiplier = (100 - $absoluteOffset) / 100;
-				$absoluteOffset += $level->getOffsetPercent() * $relativeMultiplier;
 			}
 		}
 

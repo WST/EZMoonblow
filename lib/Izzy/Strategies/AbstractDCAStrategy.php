@@ -53,20 +53,20 @@ abstract class AbstractDCAStrategy extends Strategy {
 		$expectedProfitShort = (float)str_replace('%', '', $expectedProfitShort);
 
 		$this->dcaSettings = new DCASettings(
-			$useLimitOrders,
-			$numberOfLevels,
-			Money::from($entryVolume),
-			$volumeMultiplier,
-			$priceDeviation,
-			$priceDeviationMultiplier,
-			$expectedProfit,
-			$numberOfLevelsShort,
-			Money::from($entryVolumeShort),
-			$volumeMultiplierShort,
-			$priceDeviationShort,
-			$priceDeviationMultiplierShort,
-			$expectedProfitShort,
-			$offsetMode
+			useLimitOrders: $useLimitOrders,
+			numberOfLevels: $numberOfLevels,
+			entryVolume: Money::from($entryVolume),
+			volumeMultiplier: $volumeMultiplier,
+			priceDeviation: $priceDeviation,
+			priceDeviationMultiplier: $priceDeviationMultiplier,
+			expectedProfit: $expectedProfit,
+			numberOfLevelsShort: $numberOfLevelsShort,
+			entryVolumeShort: Money::from($entryVolumeShort),
+			volumeMultiplierShort: $volumeMultiplierShort,
+			priceDeviationShort: $priceDeviationShort,
+			priceDeviationMultiplierShort: $priceDeviationMultiplierShort,
+			expectedProfitShort: $expectedProfitShort,
+			offsetMode: $offsetMode
 		);
 	}
 
@@ -229,7 +229,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 			'priceDeviationMultiplier' => 'Price deviation multiplier for subsequent orders',
 			'expectedProfit' => 'Expected profit percentage',
 			'UseLimitOrders' => 'Use limit orders instead of market orders',
-			'offsetMode' => 'Price offset calculation mode (FROM_ENTRY or FROM_PREVIOUS)',
+			'offsetMode' => 'Price offset calculation mode',
 			'numberOfLevelsShort' => 'Number of short DCA orders including the entry order',
 			'entryVolumeShort' => 'Initial short entry volume (USDT)',
 			'volumeMultiplierShort' => 'Short volume multiplier for each subsequent order',
