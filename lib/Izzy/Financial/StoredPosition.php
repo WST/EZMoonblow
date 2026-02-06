@@ -245,7 +245,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @return void
 	 */
 	public function setStatus(PositionStatusEnum $status): void {
-		$this->row[self::FStatus]] = $status->value;
+		$this->row[self::FStatus] = $status->value;
 	}
 
 	/**
