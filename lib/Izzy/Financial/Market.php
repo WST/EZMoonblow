@@ -58,11 +58,6 @@ class Market implements IMarket {
 	private ?IStrategy $strategy = null;
 
 	/**
-	 * Indicator factory for creating indicators.
-	 */
-	private ?IndicatorFactory $indicatorFactory = null;
-
-	/**
 	 * Link with the database.
 	 * @var Database
 	 */

@@ -142,15 +142,15 @@ class Bybit extends AbstractExchangeDriver {
 			}
 
 			$candles = array_map(
-				fn($item) => new Candle(
-					(int)($item[0] / 1000), // timestamp (convert from milliseconds to seconds).
-					(float)$item[1], // open.
-					(float)$item[2], // high.
-					(float)$item[3], // low.
-					(float)$item[4], // close.
-					(float)$item[5]  // volume.
+				callback: fn($item) => new Candle(
+					timestamp: (int)($item[0] / 1000), // convert from milliseconds to seconds.
+					open: (float)$item[1],
+					high: (float)$item[2],
+					low: (float)$item[3],
+					close: (float)$item[4],
+					volume: (float)$item[5]
 				),
-				$response[BybitParam::List]
+				array: $response[BybitParam::List]
 			);
 
 			// Sort candles by time (oldest to newest).
@@ -283,7 +283,7 @@ class Bybit extends AbstractExchangeDriver {
 			BybitParam::Category => $this->getBybitCategory($pair),
 			BybitParam::Symbol => $ticker,
 			BybitParam::Side => $direction->getBuySell(),
-			BybitParam::OrderType => 'Market',
+			BybitParam::OrderType => OrderTypeEnum::MARKET->value,
 		];
 
 		if ($market->isSpot()) {
@@ -325,7 +325,7 @@ class Bybit extends AbstractExchangeDriver {
 			}
 
 			// Inform the user.
-			$this->logger->warning("Successfully opened long position on Bybit for $market: $properAmount");
+			$this->logger->warning("Successfully opened long position on Bybit for $market: $properVolume");
 
 			/**
 			 * Create and save the position. For the spot market, positions are emulated.
@@ -509,7 +509,7 @@ class Bybit extends AbstractExchangeDriver {
 				BybitParam::Category => $this->getBybitCategory($pair),
 				BybitParam::Symbol => $ticker,
 				BybitParam::Side => $direction->getBuySell(),
-				BybitParam::OrderType => 'Limit',
+				BybitParam::OrderType => OrderTypeEnum::LIMIT->value,
 				BybitParam::Qty => $amount->formatForOrder($this->getQtyStep($market)),
 				BybitParam::Price => $price->formatForOrder($this->getTickSize($market)),
 				BybitParam::PositionIdx => $this->getPositionIdxByDirection($direction),

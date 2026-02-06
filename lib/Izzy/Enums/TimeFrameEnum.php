@@ -26,19 +26,19 @@ enum TimeFrameEnum: string {
 
 	public function toSeconds(): int {
 		return match ($this) {
-			'1m' => 60,
-			'3m' => 3 * 60,
-			'5m' => 5 * 60,
-			'15m' => 15 * 60,
-			'30m' => 30 * 60,
-			'1h' => 60 * 60,
-			'2h' => 2 * 60 * 60,
-			'4h' => 4 * 60 * 60,
-			'6h' => 6 * 60 * 60,
-			'12h' => 12 * 60 * 60,
-			'1d' => 24 * 60 * 60,
-			'1w' => 7 * 24 * 60 * 60,
-			'1M' => 30 * 24 * 60 * 60,
+			self::TF_1MINUTE => 60,
+			self::TF_3MINUTES => 3 * 60,
+			self::TF_5MINUTES => 5 * 60,
+			self::TF_15MINUTES => 15 * 60,
+			self::TF_30MINUTES => 30 * 60,
+			self::TF_1HOUR => 60 * 60,
+			self::TF_2HOURS => 2 * 60 * 60,
+			self::TF_4HOURS => 4 * 60 * 60,
+			self::TF_6HOURS => 6 * 60 * 60,
+			self::TF_12HOURS => 12 * 60 * 60,
+			self::TF_1DAY => 24 * 60 * 60,
+			self::TF_1WEEK => 7 * 24 * 60 * 60,
+			self::TF_1MONTH => 30 * 24 * 60 * 60,
 			default => 0,
 		};
 	}
