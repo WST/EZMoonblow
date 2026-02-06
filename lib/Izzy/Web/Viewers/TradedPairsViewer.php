@@ -127,7 +127,8 @@ class TradedPairsViewer extends PageViewer {
 		// If this is a DCA strategy, add order information
 		if ($strategy instanceof AbstractDCAStrategy) {
 			$dcaSettings = $strategy->getDCASettings();
-			$orderMap = $dcaSettings->getOrderMap();
+			$context = $strategy->getMarket()->getTradingContext();
+			$orderMap = $dcaSettings->getOrderMap($context);
 
 			// Don't format volumes and offsets here - let TableViewer handle formatting
 			// foreach ($orderMap as $direction => &$levels) {
@@ -140,11 +141,13 @@ class TradedPairsViewer extends PageViewer {
 			$data['dcaInfo'] = [
 				'orderMap' => $orderMap,
 				'maxLongVolume' => [
-					'amount' => number_format($dcaSettings->getMaxLongPositionVolume()->getAmount(), 2)
+					'amount' => number_format($dcaSettings->getMaxLongPositionVolume($context)->getAmount(), 2)
 				],
 				'maxShortVolume' => [
-					'amount' => number_format($dcaSettings->getMaxShortPositionVolume()->getAmount(), 2)
+					'amount' => number_format($dcaSettings->getMaxShortPositionVolume($context)->getAmount(), 2)
 				],
+				'expectedProfitLong' => $dcaSettings->getExpectedProfit(),
+				'expectedProfitShort' => $dcaSettings->getExpectedProfitShort(),
 				'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
 			];
 		}
@@ -189,7 +192,7 @@ class TradedPairsViewer extends PageViewer {
 		return $viewer->setCaption($direction.' positions')
 			->insertTextColumn('level', 'Level', ['align' => 'center'])
 			->insertMoneyColumn('volume', 'Volume (USDT)', ['align' => 'right'])
-			->insertPercentColumn('offset', 'Price deviation (%)', ['align' => 'right'])
+			->insertPercentColumn('offset', 'Price change (%)', ['align' => 'right'])
 			->setData($tableData)
 			->render();
 	}

@@ -5,6 +5,7 @@ namespace Izzy\Interfaces;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
+use Izzy\Financial\TradingContext;
 use Izzy\System\Database\Database;
 
 interface IMarket {
@@ -107,4 +108,10 @@ interface IMarket {
 	 * @return MarketTypeEnum
 	 */
 	public function getMarketType(): MarketTypeEnum;
+
+	/**
+	 * Get the current trading context for volume calculations.
+	 * @return TradingContext
+	 */
+	public function getTradingContext(): TradingContext;
 }

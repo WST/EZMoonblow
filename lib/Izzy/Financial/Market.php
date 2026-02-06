@@ -620,6 +620,24 @@ class Market implements IMarket {
 	}
 
 	/**
+	 * Get the current trading context for volume calculations.
+	 *
+	 * This method provides runtime context (balance, margin, price) needed
+	 * for resolving dynamic volume modes like percentage of balance.
+	 *
+	 * @return TradingContext
+	 */
+	public function getTradingContext(): TradingContext {
+		$balance = $this->getDatabase()->getTotalBalance()->getAmount();
+		// For margin, we use balance with 1x leverage for now.
+		// This can be enhanced later to get actual available margin from exchange.
+		$margin = $balance;
+		$currentPrice = $this->getExchange()->getCurrentPrice($this)?->getAmount() ?? 0.0;
+
+		return new TradingContext($balance, $margin, $currentPrice);
+	}
+
+	/**
 	 * Update position information.
 	 * Called only on an existent and active position.
 	 *

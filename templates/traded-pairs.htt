@@ -40,48 +40,55 @@
                                 <span class="market-type">{{ pair.marketType }}</span>
                             </div>
 
-                            <!-- Chart and strategy parameters -->
-                            <div class="chart-and-strategy">
+                            <!-- Chart and DCA grid -->
+                            <div class="chart-and-dca">
                                 <!-- Pair chart -->
                                 <div class="pair-chart">
                                     <img src="/charts/{{ pair.chartKey }}.png"
                                          alt="Chart {{ pair.ticker }}"/>
                                 </div>
 
-                                <div class="strategy-info">
-                                    {{ pair.strategyParamsHtml | raw }}
-                                </div>
+                                {% if pair.dcaTables is defined %}
+                                    <div class="dca-info">
+                                        <h3>DCA Grid</h3>
+
+                                        <div class="dca-tables-container">
+                                            {% if pair.dcaTables.long is defined %}
+                                                <div class="dca-section">
+                                                    {{ pair.dcaTables.long | raw }}
+                                                    <p class="total-volume">
+                                                        Maximum volume: {{ pair.dcaInfo.maxLongVolume.amount }} USDT
+                                                    </p>
+                                                    <p class="take-profit">
+                                                        Take profit: {{ pair.dcaInfo.expectedProfitLong }}%
+                                                    </p>
+                                                </div>
+                                            {% endif %}
+
+                                            {% if pair.dcaTables.short is defined %}
+                                                <div class="dca-section">
+                                                    {{ pair.dcaTables.short | raw }}
+                                                    <p class="total-volume">
+                                                        Maximum volume: {{ pair.dcaInfo.maxShortVolume.amount }} USDT
+                                                    </p>
+                                                    <p class="take-profit">
+                                                        Take profit: {{ pair.dcaInfo.expectedProfitShort }}%
+                                                    </p>
+                                                </div>
+                                            {% endif %}
+                                        </div>
+
+                                        <div class="dca-settings">
+                                            <p>Order type: {{ pair.dcaInfo.useLimitOrders ? 'Limit' : 'Market' }}</p>
+                                        </div>
+                                    </div>
+                                {% endif %}
                             </div>
 
-                            {% if pair.dcaTables is defined %}
-                                <div class="dca-info">
-                                    <h3>DCA Grid</h3>
-
-                                    <div class="dca-tables-container">
-                                        {% if pair.dcaTables.long is defined %}
-                                            <div class="dca-section">
-                                                {{ pair.dcaTables.long | raw }}
-                                                <p class="total-volume">
-                                                    Maximum volume: {{ pair.dcaInfo.maxLongVolume.amount }} USDT
-                                                </p>
-                                            </div>
-                                        {% endif %}
-
-                                        {% if pair.dcaTables.short is defined %}
-                                            <div class="dca-section">
-                                                {{ pair.dcaTables.short | raw }}
-                                                <p class="total-volume">
-                                                    Maximum volume: {{ pair.dcaInfo.maxShortVolume.amount }} USDT
-                                                </p>
-                                            </div>
-                                        {% endif %}
-                                    </div>
-
-                                    <div class="dca-settings">
-                                        <p>Order type: {{ pair.dcaInfo.useLimitOrders ? 'Limit' : 'Market' }}</p>
-                                    </div>
-                                </div>
-                            {% endif %}
+                            <!-- Strategy parameters -->
+                            <div class="strategy-info">
+                                {{ pair.strategyParamsHtml | raw }}
+                            </div>
                         </div>
                     {% endfor %}
                 </div>

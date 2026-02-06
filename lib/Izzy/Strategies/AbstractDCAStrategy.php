@@ -26,17 +26,17 @@ abstract class AbstractDCAStrategy extends Strategy {
 		/** Use limit orders */
 		$useLimitOrders = ($this->params['UseLimitOrders'] == 'yes');
 
-		/** Long */
+		/** Long parameters */
 		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;
-		$entryVolume = $this->params['entryVolume'] ?? 40;
+		$entryVolumeRaw = $this->params['entryVolume'] ?? 40;
 		$volumeMultiplier = $this->params['volumeMultiplier'] ?? 2;
 		$priceDeviation = $this->params['priceDeviation'] ?? 5;
 		$priceDeviationMultiplier = $this->params['priceDeviationMultiplier'] ?? 2;
 		$expectedProfit = $this->params['expectedProfit'] ?? 2;
 
-		/** Short */
-		$numberOfLevelsShort = $this->params['numberOfLevelsShort'] ?? 5;
-		$entryVolumeShort = $this->params['entryVolumeShort'] ?? 40;
+		/** Short parameters */
+		$numberOfLevelsShort = $this->params['numberOfLevelsShort'] ?? 0;
+		$entryVolumeShortRaw = $this->params['entryVolumeShort'] ?? 0;
 		$volumeMultiplierShort = $this->params['volumeMultiplierShort'] ?? 2;
 		$priceDeviationShort = $this->params['priceDeviationShort'] ?? 5;
 		$priceDeviationMultiplierShort = $this->params['priceDeviationMultiplierShort'] ?? 2;
@@ -46,7 +46,17 @@ abstract class AbstractDCAStrategy extends Strategy {
 		$offsetModeParam = $this->params['offsetMode'] ?? DCAOffsetModeEnum::FROM_ENTRY->value;
 		$offsetMode = DCAOffsetModeEnum::tryFrom($offsetModeParam) ?? DCAOffsetModeEnum::FROM_ENTRY;
 
-		// Remove % sign if present and convert to float
+		// Parse entry volume for Long (supports: "140", "5%", "5%M", "0.002 BTC")
+		$parsedVolume = EntryVolumeParser::parse($entryVolumeRaw);
+		$entryVolume = $parsedVolume->getValue();
+		$volumeMode = $parsedVolume->getMode();
+
+		// Parse entry volume for Short
+		$parsedVolumeShort = EntryVolumeParser::parse($entryVolumeShortRaw);
+		$entryVolumeShort = $parsedVolumeShort->getValue();
+		$volumeModeShort = $parsedVolumeShort->getMode();
+
+		// Remove % sign if present and convert to float for price deviations
 		$priceDeviation = (float)str_replace('%', '', $priceDeviation);
 		$expectedProfit = (float)str_replace('%', '', $expectedProfit);
 		$priceDeviationShort = (float)str_replace('%', '', $priceDeviationShort);
@@ -55,17 +65,19 @@ abstract class AbstractDCAStrategy extends Strategy {
 		$this->dcaSettings = new DCASettings(
 			useLimitOrders: $useLimitOrders,
 			numberOfLevels: $numberOfLevels,
-			entryVolume: Money::from($entryVolume),
+			entryVolume: $entryVolume,
 			volumeMultiplier: $volumeMultiplier,
 			priceDeviation: $priceDeviation,
 			priceDeviationMultiplier: $priceDeviationMultiplier,
 			expectedProfit: $expectedProfit,
+			volumeMode: $volumeMode,
 			numberOfLevelsShort: $numberOfLevelsShort,
-			entryVolumeShort: Money::from($entryVolumeShort),
+			entryVolumeShort: $entryVolumeShort,
 			volumeMultiplierShort: $volumeMultiplierShort,
 			priceDeviationShort: $priceDeviationShort,
 			priceDeviationMultiplierShort: $priceDeviationMultiplierShort,
 			expectedProfitShort: $expectedProfitShort,
+			volumeModeShort: $volumeModeShort,
 			offsetMode: $offsetMode
 		);
 	}
@@ -91,8 +103,11 @@ abstract class AbstractDCAStrategy extends Strategy {
 	 */
 	public function handleLong(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
+			$context = $market->getTradingContext();
+			$orderMap = $this->dcaSettings->getOrderMap($context);
+
 			$newPosition = $market->openPositionByLimitOrderMap(
-				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::LONG->value],
+				$orderMap[PositionDirectionEnum::LONG->value],
 				PositionDirectionEnum::LONG,
 				$this->dcaSettings->getExpectedProfit()
 			);
@@ -116,8 +131,11 @@ abstract class AbstractDCAStrategy extends Strategy {
 	 */
 	public function handleShort(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
+			$context = $market->getTradingContext();
+			$orderMap = $this->dcaSettings->getOrderMap($context);
+
 			return $market->openPositionByLimitOrderMap(
-				$this->dcaSettings->getOrderMap()[PositionDirectionEnum::SHORT->value],
+				$orderMap[PositionDirectionEnum::SHORT->value],
 				PositionDirectionEnum::SHORT,
 				$this->dcaSettings->getExpectedProfit()
 			);
@@ -146,7 +164,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 			return;
 		}
 
-		// Complete DCA map.
+		// Complete DCA map with runtime context.
 		$dcaLevels = $this->getDCALevels();
 
 		// Separate maps for Long and Short positions.
@@ -199,11 +217,12 @@ abstract class AbstractDCAStrategy extends Strategy {
 	}
 
 	/**
-	 * Get DCA levels from DCASettings.
+	 * Get DCA levels from DCASettings with runtime context.
 	 * @return array
 	 */
 	public function getDCALevels(): array {
-		return $this->dcaSettings->getOrderMap();
+		$context = $this->market->getTradingContext();
+		return $this->dcaSettings->getOrderMap($context);
 	}
 
 	/**
@@ -223,7 +242,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 	public static function formatParameterName(string $paramName): string {
 		$formattedNames = [
 			'numberOfLevels' => 'Number of DCA orders including the entry order',
-			'entryVolume' => 'Initial entry volume (USDT)',
+			'entryVolume' => 'Initial entry volume (USDT, %, %M, or base currency)',
 			'volumeMultiplier' => 'Volume multiplier for each subsequent order',
 			'priceDeviation' => 'Price deviation for first averaging (%)',
 			'priceDeviationMultiplier' => 'Price deviation multiplier for subsequent orders',
@@ -231,7 +250,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 			'UseLimitOrders' => 'Use limit orders instead of market orders',
 			'offsetMode' => 'Price offset calculation mode',
 			'numberOfLevelsShort' => 'Number of short DCA orders including the entry order',
-			'entryVolumeShort' => 'Initial short entry volume (USDT)',
+			'entryVolumeShort' => 'Initial short entry volume (USDT, %, %M, or base currency)',
 			'volumeMultiplierShort' => 'Short volume multiplier for each subsequent order',
 			'priceDeviationShort' => 'Short price deviation for first averaging (%)',
 			'priceDeviationMultiplierShort' => 'Short price deviation multiplier for subsequent orders',

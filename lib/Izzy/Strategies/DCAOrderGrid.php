@@ -3,7 +3,9 @@
 namespace Izzy\Strategies;
 
 use Izzy\Enums\DCAOffsetModeEnum;
+use Izzy\Enums\EntryVolumeModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Financial\TradingContext;
 
 /**
  * Represents a DCA order grid with support for different offset calculation modes.
@@ -33,12 +35,17 @@ class DCAOrderGrid {
 	/**
 	 * Add a level to the grid.
 	 *
-	 * @param float $volume Order volume.
+	 * @param float $volume Order volume (raw value, interpretation depends on volumeMode).
 	 * @param float $offsetPercent Price offset percentage.
+	 * @param EntryVolumeModeEnum $volumeMode How volume should be interpreted.
 	 * @return self Fluent interface.
 	 */
-	public function addLevel(float $volume, float $offsetPercent): self {
-		$this->levels[] = new DCAOrderLevel($volume, $offsetPercent);
+	public function addLevel(
+		float $volume,
+		float $offsetPercent,
+		EntryVolumeModeEnum $volumeMode = EntryVolumeModeEnum::ABSOLUTE_QUOTE
+	): self {
+		$this->levels[] = new DCAOrderLevel($volume, $offsetPercent, $volumeMode);
 		return $this;
 	}
 
@@ -51,11 +58,12 @@ class DCAOrderGrid {
 	 * - Price deviation with multiplier
 	 *
 	 * @param int $numberOfLevels Number of DCA levels including entry.
-	 * @param float $entryVolume Initial entry volume.
+	 * @param float $entryVolume Initial entry volume (raw value).
 	 * @param float $volumeMultiplier Multiplier for each subsequent order volume.
 	 * @param float $priceDeviation Initial price deviation percentage.
 	 * @param float $priceDeviationMultiplier Multiplier for each subsequent deviation.
 	 * @param DCAOffsetModeEnum $offsetMode Offset calculation mode.
+	 * @param EntryVolumeModeEnum $volumeMode Volume interpretation mode.
 	 * @return self
 	 */
 	public static function fromParameters(
@@ -64,7 +72,8 @@ class DCAOrderGrid {
 		float $volumeMultiplier,
 		float $priceDeviation,
 		float $priceDeviationMultiplier,
-		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY
+		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY,
+		EntryVolumeModeEnum $volumeMode = EntryVolumeModeEnum::ABSOLUTE_QUOTE
 	): self {
 		$grid = new self($offsetMode);
 
@@ -74,7 +83,7 @@ class DCAOrderGrid {
 		for ($level = 0; $level < $numberOfLevels; $level++) {
 			// Entry level (0) has no offset, subsequent levels use currentDeviation
 			$levelOffset = ($level === 0) ? 0.0 : $currentDeviation;
-			$grid->addLevel($volume, $levelOffset);
+			$grid->addLevel($volume, $levelOffset, $volumeMode);
 
 			$volume *= $volumeMultiplier;
 
@@ -116,9 +125,10 @@ class DCAOrderGrid {
 	 * regardless of the offset mode. The mode affects how the offsets are calculated.
 	 *
 	 * @param PositionDirectionEnum $direction Position direction (LONG or SHORT).
+	 * @param TradingContext $context Runtime trading context for volume resolution.
 	 * @return array Array of ['volume' => float, 'offset' => float] entries.
 	 */
-	public function buildOrderMap(PositionDirectionEnum $direction): array {
+	public function buildOrderMap(PositionDirectionEnum $direction, TradingContext $context): array {
 		$orderMap = [];
 		$sign = $direction->isLong() ? -1 : 1;
 
@@ -129,8 +139,12 @@ class DCAOrderGrid {
 			foreach ($this->levels as $index => $level) {
 				// First accumulate the offset, then record it
 				$totalOffset += $level->getOffsetPercent();
+
+				// Resolve volume based on mode
+				$resolvedVolume = $level->resolveVolume($context);
+
 				$orderMap[$index] = [
-					'volume' => $level->getVolume(),
+					'volume' => $resolvedVolume,
 					'offset' => $sign * $totalOffset,
 				];
 			}
@@ -164,8 +178,11 @@ class DCAOrderGrid {
 					? (1 - $currentPriceRatio) * 100
 					: ($currentPriceRatio - 1) * 100;
 
+				// Resolve volume based on mode
+				$resolvedVolume = $level->resolveVolume($context);
+
 				$orderMap[$index] = [
-					'volume' => $level->getVolume(),
+					'volume' => $resolvedVolume,
 					'offset' => $sign * $absoluteOffset,
 				];
 			}
@@ -191,15 +208,43 @@ class DCAOrderGrid {
 	}
 
 	/**
-	 * Get the total volume of all orders in the grid.
+	 * Get the total volume of all orders in the grid (resolved to quote currency).
+	 *
+	 * @param TradingContext $context Runtime trading context for volume resolution.
+	 * @return float Total volume in quote currency.
+	 */
+	public function getTotalVolume(TradingContext $context): float {
+		$total = 0.0;
+		foreach ($this->levels as $level) {
+			$total += $level->resolveVolume($context);
+		}
+		return $total;
+	}
+
+	/**
+	 * Get the raw total volume (without resolving modes).
+	 * Useful for display when context is not available.
 	 * @return float
 	 */
-	public function getTotalVolume(): float {
+	public function getRawTotalVolume(): float {
 		$total = 0.0;
 		foreach ($this->levels as $level) {
 			$total += $level->getVolume();
 		}
 		return $total;
+	}
+
+	/**
+	 * Check if any level requires runtime calculation.
+	 * @return bool
+	 */
+	public function requiresRuntimeCalculation(): bool {
+		foreach ($this->levels as $level) {
+			if ($level->getVolumeMode()->requiresRuntimeCalculation()) {
+				return true;
+			}
+		}
+		return false;
 	}
 
 	/**

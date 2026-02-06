@@ -1,6 +1,6 @@
 body {
     margin: 0;
-    font-family: "Verdana", sans-serif;
+    font-family: "Tahoma", "Arial", sans-serif;
     background-color: #f4f4f4;
     color: #333;
 }
@@ -289,7 +289,7 @@ footer {
     font-weight: bold;
 }
 
-.chart-and-strategy {
+.chart-and-dca {
     display: flex;
     flex-direction: column;
     gap: 20px;
@@ -331,7 +331,7 @@ footer {
 
 .detail-viewer-table .param-name {
     background-color: #e8f4fd;
-    color: #003366;
+    color: #313437;
     font-weight: bold;
     /* width: 40%; */
     white-space: nowrap;
@@ -461,7 +461,6 @@ footer {
 .dca-tables-container {
     display: flex;
     gap: 20px;
-    margin-bottom: 15px;
 }
 
 .dca-tables-container .dca-section {
@@ -541,6 +540,12 @@ footer {
 .total-volume {
     margin: 10px 0 0 0;
     font-weight: bold;
+    color: #003366;
+    font-size: 14px;
+}
+
+.take-profit {
+    margin: 5px 0 0 0;
     color: #003366;
     font-size: 14px;
 }
