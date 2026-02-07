@@ -551,6 +551,16 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	/**
+	 * Mark the position as finished (e.g. when TP is hit in backtest).
+	 *
+	 * @param int $finishedAt Unix timestamp when the position was closed.
+	 */
+	public function markFinished(int $finishedAt): void {
+		$this->setStatus(PositionStatusEnum::FINISHED);
+		$this->row[self::FFinishedAt] = $finishedAt;
+	}
+
+	/**
 	 * @inheritDoc
 	 */
 	public function setExpectedProfitPercent(float $expectedProfitPercent): void {

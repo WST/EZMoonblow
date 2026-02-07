@@ -140,6 +140,30 @@ class Configuration
 	}
 
 	/**
+	 * Get pairs configured for backtesting (have backtest_days on strategy) from connected exchanges.
+	 *
+	 * @param array<string, IExchangeDriver> $exchanges Connected exchange drivers keyed by exchange name.
+	 * @return array<int, array{exchange: IExchangeDriver, pair: Pair}> List of exchange and pair entries.
+	 */
+	public function getPairsForBacktest(array $exchanges): array {
+		$result = [];
+		foreach ($exchanges as $exchangeName => $driver) {
+			$exchangeConfig = $this->getExchangeConfiguration($exchangeName);
+			if (!$exchangeConfig) {
+				continue;
+			}
+			$spotPairs = $exchangeConfig->getSpotPairs($driver);
+			$futuresPairs = $exchangeConfig->getFuturesPairs($driver);
+			foreach (array_merge($spotPairs, $futuresPairs) as $pair) {
+				if ($pair->getBacktestDays() !== null) {
+					$result[] = ['exchange' => $driver, 'pair' => $pair];
+				}
+			}
+		}
+		return $result;
+	}
+
+	/**
 	 * Get database host from configuration.
 	 * @return string Database host.
 	 */

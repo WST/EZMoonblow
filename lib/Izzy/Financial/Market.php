@@ -65,6 +65,12 @@ class Market implements IMarket
 	private Database $database;
 
 	/**
+	 * Class name for stored position records (StoredPosition or BacktestStoredPosition).
+	 * @var string
+	 */
+	protected string $positionRecordClass = StoredPosition::class;
+
+	/**
 	 * Cached current price.
 	 */
 	private ?Money $cachedPrice = null;
@@ -482,7 +488,16 @@ class Market implements IMarket
 			StoredPosition::FMarketType => $this->getMarketType()->value,
 			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 		];
-		return $this->database->selectOneObject(StoredPosition::class, $where, $this);
+		return $this->database->selectOneObject($this->positionRecordClass, $where, $this);
+	}
+
+	/**
+	 * Set the class to use for loading/saving stored positions (e.g. for backtesting).
+	 *
+	 * @param string $class Fully qualified class name (must extend StoredPosition).
+	 */
+	public function setPositionRecordClass(string $class): void {
+		$this->positionRecordClass = $class;
 	}
 
 	/**
@@ -663,7 +678,9 @@ class Market implements IMarket
 	 * @return TradingContext
 	 */
 	public function getTradingContext(): TradingContext {
-		$balance = $this->getDatabase()->getTotalBalance()->getAmount();
+		$balance = method_exists($this->exchange, 'getVirtualBalance')
+			? $this->exchange->getVirtualBalance()->getAmount()
+			: $this->getDatabase()->getTotalBalance()->getAmount();
 		// For margin, we use balance with 1x leverage for now.
 		// This can be enhanced later to get actual available margin from exchange.
 		$margin = $balance;
@@ -794,7 +811,8 @@ class Market implements IMarket
 		/**
 		 * Position to be saved into the database.
 		 */
-		$position = StoredPosition::create(
+		$positionClass = $this->positionRecordClass;
+		$position = $positionClass::create(
 			market: $this,
 			volume: $entryVolume,
 			direction: $direction,

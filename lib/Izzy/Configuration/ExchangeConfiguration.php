@@ -82,6 +82,7 @@ class ExchangeConfiguration
 			if ($strategyConfig) {
 				$pair->setStrategyName($strategyConfig['name']);
 				$pair->setStrategyParams($strategyConfig['params']);
+				$pair->setBacktestDays($strategyConfig['backtest_days'] ?? null);
 			}
 
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
@@ -118,6 +119,7 @@ class ExchangeConfiguration
 			if ($strategyConfig) {
 				$pair->setStrategyName($strategyConfig['name']);
 				$pair->setStrategyParams($strategyConfig['params']);
+				$pair->setBacktestDays($strategyConfig['backtest_days'] ?? null);
 			}
 
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
@@ -169,9 +171,13 @@ class ExchangeConfiguration
 			$params[$name] = $this->parseParameterValue($value);
 		}
 
+		$backtestDaysAttr = $strategyElement->getAttribute('backtest_days');
+		$backtestDays = $backtestDaysAttr !== '' && ctype_digit($backtestDaysAttr) ? (int)$backtestDaysAttr : null;
+
 		return [
 			'name' => $strategyName,
-			'params' => $params
+			'params' => $params,
+			'backtest_days' => $backtestDays,
 		];
 	}
 

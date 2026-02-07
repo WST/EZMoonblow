@@ -66,6 +66,12 @@ class Pair implements IPair
 	private array $strategyParams = [];
 
 	/**
+	 * Number of days of history to load for backtesting; null if backtest not configured.
+	 * @var int|null
+	 */
+	private ?int $backtestDays = null;
+
+	/**
 	 * Constructor for creating a new trading pair.
 	 *
 	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT"), including “/” is important.
@@ -308,6 +314,24 @@ class Pair implements IPair
 	 */
 	public function setStrategyParams(array $params): void {
 		$this->strategyParams = $params;
+	}
+
+	/**
+	 * Get the number of days of history for backtesting, or null if not set.
+	 *
+	 * @return int|null Backtest days or null.
+	 */
+	public function getBacktestDays(): ?int {
+		return $this->backtestDays;
+	}
+
+	/**
+	 * Set the number of days of history for backtesting.
+	 *
+	 * @param int|null $days Backtest days or null to disable.
+	 */
+	public function setBacktestDays(?int $days): void {
+		$this->backtestDays = $days;
 	}
 
 	/**
