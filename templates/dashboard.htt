@@ -2,7 +2,7 @@
 
 {% block content %}
     <div class="dashboard">
-        <h1>Total assets balance</h1>
+        <h1>Total Assets Balance</h1>
 
         <div class="dashboard-layout">
             <!-- Sidebar with time range selection -->

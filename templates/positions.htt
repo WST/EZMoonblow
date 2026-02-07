@@ -80,6 +80,9 @@
         width: 100%;
         border-collapse: collapse;
         background-color: white;
+        border-radius: 8px;
+        overflow: hidden;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .positions-table th,
@@ -255,7 +258,7 @@
                     <th>Pair</th>
                     <th>Volume</th>
                     <th>Entry Price</th>
-                    <th>Avg Price</th>
+                    <th>Avg Entry Price</th>
                     <th>Current Price</th>
                     <th>PnL %</th>
                     <th>PnL</th>

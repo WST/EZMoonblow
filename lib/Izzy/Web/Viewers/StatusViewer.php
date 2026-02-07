@@ -145,6 +145,7 @@ class StatusViewer extends PageViewer {
 
 			$tasks[] = [
 				'id' => $row['task_id'],
+				'sender' => $row['task_sender'] ?? null,
 				'recipient' => $row['task_recipient'],
 				'type' => $row['task_type'],
 				'status' => $row['task_status'],

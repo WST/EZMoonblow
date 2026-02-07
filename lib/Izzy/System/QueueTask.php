@@ -15,6 +15,7 @@ use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 class QueueTask extends SurrogatePKDatabaseRecord {
 	const FId = 'task_id';
 	const FRecipient = 'task_recipient';
+	const FSender = 'task_sender';
 	const FType = 'task_type';
 	const FStatus = 'task_status';
 	const FCreatedAt = 'task_created_at';
@@ -50,6 +51,7 @@ class QueueTask extends SurrogatePKDatabaseRecord {
 			self::FCreatedAt => time(),
 			self::FAttributes => json_encode($attributes),
 			self::FRecipient => $appName,
+			self::FSender => TaskRecipientEnum::TRADER->value,
 			self::FType => TaskTypeEnum::TELEGRAM_WANT_NEW_POSITION->value,
 			self::FStatus => TaskStatusEnum::PENDING->value,
 		];
@@ -79,6 +81,7 @@ class QueueTask extends SurrogatePKDatabaseRecord {
 			self::FCreatedAt => time(),
 			self::FAttributes => json_encode($attributes),
 			self::FRecipient => $appName,
+			self::FSender => TaskRecipientEnum::TRADER->value,
 			self::FType => TaskTypeEnum::DRAW_CANDLESTICK_CHART->value,
 			self::FStatus => TaskStatusEnum::PENDING->value,
 		];
@@ -127,6 +130,11 @@ class QueueTask extends SurrogatePKDatabaseRecord {
 
 	public function getRecipient(): TaskRecipientEnum {
 		return TaskRecipientEnum::from($this->row[self::FRecipient]);
+	}
+
+	public function getSender(): ?TaskRecipientEnum {
+		$value = $this->row[self::FSender] ?? null;
+		return $value ? TaskRecipientEnum::from($value) : null;
 	}
 
 	public function getType(): TaskTypeEnum {

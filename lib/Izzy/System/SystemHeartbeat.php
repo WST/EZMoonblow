@@ -27,6 +27,14 @@ class SystemHeartbeat {
 	/** Table name for heartbeat records. */
 	private const TABLE_NAME = 'system_heartbeats';
 
+	/** Column names. */
+	const FComponentName = 'heartbeat_component_name';
+	const FLastHeartbeat = 'heartbeat_last_heartbeat';
+	const FStatus = 'heartbeat_status';
+	const FPid = 'heartbeat_pid';
+	const FStartedAt = 'heartbeat_started_at';
+	const FExtraInfo = 'heartbeat_extra_info';
+
 	/** Status constants. */
 	public const STATUS_RUNNING = 'Running';
 	public const STATUS_STOPPED = 'Stopped';
@@ -57,25 +65,25 @@ class SystemHeartbeat {
 		$existingRecord = $this->database->selectOneRow(
 			self::TABLE_NAME,
 			'*',
-			['component_name' => $this->componentName]
+			[self::FComponentName => $this->componentName]
 		);
 
 		$data = [
-			'last_heartbeat' => time(),
-			'status' => self::STATUS_RUNNING,
-			'pid' => $this->pid,
-			'started_at' => $this->startedAt,
-			'extra_info' => null,
+			self::FLastHeartbeat => time(),
+			self::FStatus => self::STATUS_RUNNING,
+			self::FPid => $this->pid,
+			self::FStartedAt => $this->startedAt,
+			self::FExtraInfo => null,
 		];
 
 		if ($existingRecord) {
 			$this->database->update(
 				self::TABLE_NAME,
 				$data,
-				['component_name' => $this->componentName]
+				[self::FComponentName => $this->componentName]
 			);
 		} else {
-			$data['component_name'] = $this->componentName;
+			$data[self::FComponentName] = $this->componentName;
 			$this->database->insert(self::TABLE_NAME, $data);
 		}
 	}
@@ -88,18 +96,18 @@ class SystemHeartbeat {
 	 */
 	public function beat(?array $extraInfo = null): void {
 		$data = [
-			'last_heartbeat' => time(),
-			'status' => self::STATUS_RUNNING,
+			self::FLastHeartbeat => time(),
+			self::FStatus => self::STATUS_RUNNING,
 		];
 
 		if ($extraInfo !== null) {
-			$data['extra_info'] = json_encode($extraInfo);
+			$data[self::FExtraInfo] = json_encode($extraInfo);
 		}
 
 		$this->database->update(
 			self::TABLE_NAME,
 			$data,
-			['component_name' => $this->componentName]
+			[self::FComponentName => $this->componentName]
 		);
 	}
 
@@ -111,10 +119,10 @@ class SystemHeartbeat {
 		$this->database->update(
 			self::TABLE_NAME,
 			[
-				'status' => self::STATUS_STOPPED,
-				'pid' => null,
+				self::FStatus => self::STATUS_STOPPED,
+				self::FPid => null,
 			],
-			['component_name' => $this->componentName]
+			[self::FComponentName => $this->componentName]
 		);
 	}
 
@@ -125,18 +133,18 @@ class SystemHeartbeat {
 	 */
 	public function error(?string $errorMessage = null): void {
 		$data = [
-			'last_heartbeat' => time(),
-			'status' => self::STATUS_ERROR,
+			self::FLastHeartbeat => time(),
+			self::FStatus => self::STATUS_ERROR,
 		];
 
 		if ($errorMessage !== null) {
-			$data['extra_info'] = json_encode(['error' => $errorMessage]);
+			$data[self::FExtraInfo] = json_encode(['error' => $errorMessage]);
 		}
 
 		$this->database->update(
 			self::TABLE_NAME,
 			$data,
-			['component_name' => $this->componentName]
+			[self::FComponentName => $this->componentName]
 		);
 	}
 
@@ -151,7 +159,7 @@ class SystemHeartbeat {
 		$row = $database->selectOneRow(
 			self::TABLE_NAME,
 			'*',
-			['component_name' => $componentName]
+			[self::FComponentName => $componentName]
 		);
 
 		if (!$row) {
@@ -179,34 +187,34 @@ class SystemHeartbeat {
 	 * @return array Enriched status data.
 	 */
 	private static function enrichStatusData(array $row): array {
-		$lastHeartbeat = $row['last_heartbeat'] ? (int)$row['last_heartbeat'] : null;
-		$startedAt = $row['started_at'] ? (int)$row['started_at'] : null;
+		$lastHeartbeat = $row[self::FLastHeartbeat] ? (int)$row[self::FLastHeartbeat] : null;
+		$startedAt = $row[self::FStartedAt] ? (int)$row[self::FStartedAt] : null;
 		$now = time();
 
 		// Calculate seconds since last heartbeat
 		$secondsSinceHeartbeat = $lastHeartbeat ? ($now - $lastHeartbeat) : null;
 
 		// Determine health status
-		$health = self::calculateHealth($row['status'], $secondsSinceHeartbeat);
+		$health = self::calculateHealth($row[self::FStatus], $secondsSinceHeartbeat);
 
 		// Calculate uptime
 		$uptime = null;
-		if ($startedAt && $row['status'] === self::STATUS_RUNNING) {
+		if ($startedAt && $row[self::FStatus] === self::STATUS_RUNNING) {
 			$uptime = $now - $startedAt;
 		}
 
 		// Parse extra info
 		$extraInfo = null;
-		if (!empty($row['extra_info'])) {
-			$extraInfo = json_decode($row['extra_info'], true);
+		if (!empty($row[self::FExtraInfo])) {
+			$extraInfo = json_decode($row[self::FExtraInfo], true);
 		}
 
 		return [
-			'component_name' => $row['component_name'],
-			'status' => $row['status'],
+			'component_name' => $row[self::FComponentName],
+			'status' => $row[self::FStatus],
 			'last_heartbeat' => $lastHeartbeat,
 			'last_heartbeat_ago' => $secondsSinceHeartbeat,
-			'pid' => $row['pid'] ? (int)$row['pid'] : null,
+			'pid' => $row[self::FPid] ? (int)$row[self::FPid] : null,
 			'started_at' => $startedAt,
 			'uptime' => $uptime,
 			'health' => $health,

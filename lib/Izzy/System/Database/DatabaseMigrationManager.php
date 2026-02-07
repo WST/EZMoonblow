@@ -292,7 +292,7 @@ class DatabaseMigrationManager {
 		$success = !($this->db->exec($sql) === false);
 		$this->migrationHasPerformedActions = true;
 		$this->updateCurrentStatus($success);
-		$this->logDatabaseOperationWithStatus("Modifying column “{$columnName}” of table “{$table}”...", $success);
+		$this->logDatabaseOperationWithStatus("Renaming column “{$columnName}” of table “{$table}” to “{$newColumnName}”...", $success);
 	}
 
 	/**

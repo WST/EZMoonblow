@@ -81,7 +81,17 @@ footer {
     text-align: center;
     font-size: 12px;
     padding: 10px;
-    color: #777;
+    color: #888;
+    line-height: 18px;
+}
+
+footer a {
+    color: #888;
+    text-decoration: underline;
+}
+
+footer a:hover {
+    color: #333;
 }
 
 .login-box {

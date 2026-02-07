@@ -22,7 +22,7 @@
         {% endblock %}
     </main>
     <footer>
-        EZMoonblow © {{ "now"|date("Y") }} Ilya Averkov<br/>
+        EZMoonblow&nbsp;— crypto trading toolbox<br/>© {{ "now"|date("Y") }} Ilya Averkov<br/>
         <a href="https://github.com/WST/EZMoonblow">Github</a>
     </footer>
 {% endblock %}
