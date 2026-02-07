@@ -54,7 +54,7 @@ interface IStoredPosition extends IPosition {
 	public function isOpen(): bool;
 
 	/**
-	 * Get EZMoonblow's internal position identifier.
+	 * Get EZMoonblow’s internal position identifier.
 	 * @return int Position ID in the local database.
 	 */
 	public function getPositionId(): int;

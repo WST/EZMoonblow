@@ -3,19 +3,16 @@
 namespace Izzy\Exchanges\Bybit;
 
 use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Enums\PositionStatusEnum;
-use Izzy\Exchanges\PositionOnExchange;
+use Izzy\Exchanges\AbstractPositionOnExchange;
 use Izzy\Financial\Money;
-use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IStoredPosition;
 
 /**
  * Represents a position on Bybit exchange.
  *
  * NOTE: Only USDT is supported as the quote currency.
  */
-class PositionOnBybit extends PositionOnExchange {
+class PositionOnBybit extends AbstractPositionOnExchange {
 	/**
 	 * Raw position info from Bybit API.
 	 * @var array

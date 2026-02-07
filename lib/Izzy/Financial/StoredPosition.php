@@ -11,11 +11,14 @@ use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 use Izzy\System\Logger;
+use Izzy\Traits\PositionTrait;
 
 /**
- * Base implementation of position interface.
+ * Stored position in the local database.
  */
 class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition {
+	use PositionTrait;
+
 	/** Position attributes */
 	const string FId = 'position_id';
 	const string FExchangeName = 'position_exchange_name';
@@ -106,9 +109,12 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	/**
-	 * Default ORDER BY clause for loading positions.
+	 * Get default ORDER BY clause for loading positions.
+	 * @return string ORDER BY clause.
 	 */
-	private const DEFAULT_ORDER = "FIELD(position_status, 'OPEN', 'PENDING', 'FINISHED', 'CANCELED', 'ERROR'), position_updated_at DESC";
+	private static function getDefaultOrder(): string {
+		return PositionStatusEnum::getSqlSortOrder(self::FStatus) . ', ' . self::FUpdatedAt . ' DESC';
+	}
 
 	/**
 	 * Load all positions from database.
@@ -118,7 +124,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @return static[] Array of StoredPosition objects.
 	 */
 	public static function loadAll(Database $database, ?string $orderBy = null): array {
-		return $database->selectAllObjects(self::class, [], $orderBy ?? self::DEFAULT_ORDER);
+		return $database->selectAllObjects(self::class, [], $orderBy ?? self::getDefaultOrder());
 	}
 
 	/**
@@ -211,20 +217,6 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	/**
-	 * Get the reference price for PnL calculation.
-	 * Uses average entry price if available, otherwise initial entry price.
-	 *
-	 * @return Money Reference price for PnL calculation.
-	 */
-	public function getPriceForPnL(): Money {
-		$avgPrice = $this->getAverageEntryPrice();
-		if ($avgPrice->getAmount() > 0) {
-			return $avgPrice;
-		}
-		return $this->getEntryPrice();
-	}
-
-	/**
 	 * @inheritDoc
 	 */
 	public function getStatus(): PositionStatusEnum {
@@ -295,18 +287,6 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 */
 	public function setStatus(PositionStatusEnum $status): void {
 		$this->row[self::FStatus] = $status->value;
-	}
-
-	/**
-	 * @param int $precision
-	 * @inheritDoc
-	 */
-	public function getUnrealizedPnLPercent(int $precision = 4): float {
-		$referencePrice = $this->getPriceForPnL();
-		$currentPrice = $this->getCurrentPrice();
-		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
-		$pnlPercent = $referencePrice->getPercentDifference($currentPrice) * $direction;
-		return round($pnlPercent, $precision);
 	}
 
 	/**

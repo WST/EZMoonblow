@@ -5,6 +5,7 @@ namespace Izzy\Exchanges;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\StoredPosition;
+use Izzy\Traits\PositionTrait;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPositionOnExchange;
 use Izzy\Interfaces\IStoredPosition;
@@ -16,7 +17,9 @@ use Izzy\Interfaces\IStoredPosition;
  * Exchange-specific position classes (PositionOnBybit, PositionOnGate, etc.)
  * should extend this class.
  */
-abstract class PositionOnExchange implements IPositionOnExchange {
+abstract class AbstractPositionOnExchange implements IPositionOnExchange {
+	use PositionTrait;
+
 	/**
 	 * Market this position belongs to.
 	 * @var IMarket
@@ -76,15 +79,12 @@ abstract class PositionOnExchange implements IPositionOnExchange {
 	}
 
 	/**
-	 * @inheritDoc
+	 * Get exchange-specific position ID.
+	 * Must be implemented by subclasses.
+	 *
+	 * @return string Position ID on the exchange.
 	 */
-	public function getUnrealizedPnLPercent($precision = 4): float {
-		$avgPrice = $this->getAverageEntryPrice();
-		$currentPrice = $this->getCurrentPrice();
-		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
-		$pnlPercent = $avgPrice->getPercentDifference($currentPrice) * $direction;
-		return round($pnlPercent, $precision);
-	}
+	abstract public function getExchangePositionId(): string;
 
 	/**
 	 * @inheritDoc
@@ -101,7 +101,7 @@ abstract class PositionOnExchange implements IPositionOnExchange {
 			$this->getExchangePositionId()
 		);
 
-		// Set additional data that’s available from Exchange-specific position.
+		// Set additional data that’s available from exchange position.
 		$storedPosition->setAverageEntryPrice($this->getAverageEntryPrice());
 
 		// Save to the database.

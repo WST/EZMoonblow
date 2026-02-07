@@ -52,4 +52,19 @@ enum PositionStatusEnum: string {
 	public function toString(): string {
 		return $this->value;
 	}
+
+	/**
+	 * Get SQL FIELD expression for sorting positions by status priority.
+	 * Order: OPEN, PENDING, FINISHED, CANCELED, ERROR.
+	 *
+	 * @param string $columnName Column name containing the status.
+	 * @return string SQL FIELD expression.
+	 */
+	public static function getSqlSortOrder(string $columnName = 'position_status'): string {
+		$values = implode(', ', array_map(
+			fn(self $case) => "'{$case->value}'",
+			[self::OPEN, self::PENDING, self::FINISHED, self::CANCELED, self::ERROR]
+		));
+		return "FIELD($columnName, $values)";
+	}
 }
