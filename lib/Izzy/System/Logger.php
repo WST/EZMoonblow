@@ -6,7 +6,8 @@ namespace Izzy\System;
  * Logger class for application-wide logging.
  * Supports both console (CLI) and web application logging modes.
  */
-final class Logger {
+final class Logger
+{
 	/** @var bool Whether the application is running as a web application. */
 	private bool $isWebApp = false;
 

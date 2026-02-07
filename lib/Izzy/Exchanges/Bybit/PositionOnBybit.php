@@ -12,7 +12,8 @@ use Izzy\Interfaces\IMarket;
  *
  * NOTE: Only USDT is supported as the quote currency.
  */
-class PositionOnBybit extends AbstractPositionOnExchange {
+class PositionOnBybit extends AbstractPositionOnExchange
+{
 	/**
 	 * Raw position info from Bybit API.
 	 * @var array

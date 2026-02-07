@@ -15,7 +15,8 @@ use Izzy\System\Database\Database;
  * A market represents a specific trading pair on a specific exchange
  * with associated candle data, indicators, and trading capabilities.
  */
-interface IMarket {
+interface IMarket
+{
 	/**
 	 * Get all candles for this market.
 	 *

@@ -7,7 +7,6 @@ use Izzy\Traits\SingletonTrait;
 use Izzy\Web\Middleware\AuthMiddleware;
 use Izzy\Web\Viewers\AuthPage;
 use Izzy\Web\Viewers\DashboardViewer;
-use Izzy\Web\Viewers\PageViewer;
 use Izzy\Web\Viewers\PositionsViewer;
 use Izzy\Web\Viewers\StatusViewer;
 use Izzy\Web\Viewers\TradedPairsViewer;
@@ -15,7 +14,8 @@ use Izzy\Web\Viewers\WatchedPairsViewer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-final class IzzyWeb extends WebApplication {
+final class IzzyWeb extends WebApplication
+{
 	use SingletonTrait;
 
 	public function __construct() {

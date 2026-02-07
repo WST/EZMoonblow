@@ -26,7 +26,8 @@ use Throwable;
 /**
  * Driver for working with Bybit exchange.
  */
-class Bybit extends AbstractExchangeDriver {
+class Bybit extends AbstractExchangeDriver
+{
 	/** @var string Exchange name identifier. */
 	protected string $exchangeName = 'Bybit';
 

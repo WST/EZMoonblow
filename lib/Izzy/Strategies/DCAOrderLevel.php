@@ -8,7 +8,8 @@ use Izzy\Financial\TradingContext;
 /**
  * Represents a single level in a DCA order grid.
  */
-class DCAOrderLevel {
+class DCAOrderLevel
+{
 	/**
 	 * Raw volume value at this level.
 	 * Interpretation depends on volumeMode.

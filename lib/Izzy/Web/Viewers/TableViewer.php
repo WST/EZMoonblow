@@ -7,7 +7,8 @@ use Izzy\Enums\TableViewerColumnTypeEnum;
 /**
  * Base class for table display.
  */
-class TableViewer {
+class TableViewer
+{
 	protected array $columns = [];
 	protected array $data = [];
 	protected string $caption = '';

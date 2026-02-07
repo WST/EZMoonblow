@@ -11,7 +11,8 @@ use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
 
-class ExchangeConfiguration {
+class ExchangeConfiguration
+{
 	private DOMElement $exchangeElement;
 
 	public function __construct(DOMElement $exchangeElement) {

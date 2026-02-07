@@ -8,7 +8,8 @@ use Izzy\Interfaces\IStrategy;
 /**
  * Base class for all trading strategies.
  */
-abstract class Strategy implements IStrategy {
+abstract class Strategy implements IStrategy
+{
 	/**
 	 * Market this strategy operates on.
 	 * @var IMarket|null

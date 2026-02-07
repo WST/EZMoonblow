@@ -4,7 +4,8 @@ namespace Izzy\Traits;
 
 use Izzy\Enums\MarketTypeEnum;
 
-trait HasMarketTypeTrait {
+trait HasMarketTypeTrait
+{
 	protected MarketTypeEnum $marketType;
 
 	/**

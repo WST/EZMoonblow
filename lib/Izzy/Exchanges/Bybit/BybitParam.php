@@ -2,7 +2,8 @@
 
 namespace Izzy\Exchanges\Bybit;
 
-class BybitParam {
+class BybitParam
+{
 	const string Category = 'category';
 
 	const string Symbol = 'symbol';

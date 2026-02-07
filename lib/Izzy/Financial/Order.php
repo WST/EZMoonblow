@@ -5,7 +5,8 @@ namespace Izzy\Financial;
 use Izzy\Enums\OrderStatusEnum;
 use Izzy\Enums\OrderTypeEnum;
 
-class Order {
+class Order
+{
 	/**
 	 * Order status.
 	 * @var OrderStatusEnum

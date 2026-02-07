@@ -10,7 +10,8 @@ use Izzy\Interfaces\IIndicatorVisualizer;
  * Factory for creating indicator visualizers.
  * Provides a centralized way to instantiate visualizers by indicator type.
  */
-class IndicatorVisualizerFactory {
+class IndicatorVisualizerFactory
+{
 	/**
 	 * Available visualizers mapping.
 	 * @var array

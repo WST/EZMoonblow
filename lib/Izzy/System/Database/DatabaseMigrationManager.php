@@ -5,7 +5,8 @@ namespace Izzy\System\Database;
 use Exception;
 use Izzy\System\Logger;
 
-class DatabaseMigrationManager {
+class DatabaseMigrationManager
+{
 	private Database $db;
 	private Logger $logger;
 

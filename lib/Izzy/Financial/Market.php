@@ -21,7 +21,8 @@ use Izzy\System\Database\Database;
 use Izzy\System\QueueTask;
 use Izzy\Traits\HasMarketTypeTrait;
 
-class Market implements IMarket {
+class Market implements IMarket
+{
 	use HasMarketTypeTrait;
 
 	/**

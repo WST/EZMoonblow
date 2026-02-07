@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum PositionFinishReasonEnum: string {
+enum PositionFinishReasonEnum: string
+{
 	/**
 	 * The position was closed by a limit Take Profit order.
 	 */

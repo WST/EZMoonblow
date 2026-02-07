@@ -6,7 +6,8 @@ use Izzy\Financial\Money;
 use Izzy\Indicators\RSI;
 use Izzy\System\Logger;
 
-class EZMoonblowDCA extends AbstractDCAStrategy {
+class EZMoonblowDCA extends AbstractDCAStrategy
+{
 	const float DEFAULT_ENTRY_VOLUME = 50;
 
 	public function useIndicators(): array {

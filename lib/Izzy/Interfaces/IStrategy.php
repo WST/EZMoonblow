@@ -2,7 +2,8 @@
 
 namespace Izzy\Interfaces;
 
-interface IStrategy {
+interface IStrategy
+{
 	/**
 	 * This method should return true to indicate that the strategy “wants” to go long
 	 * or buy the resource on the spot.

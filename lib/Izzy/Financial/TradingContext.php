@@ -8,7 +8,8 @@ namespace Izzy\Financial;
  * This DTO encapsulates market conditions needed to resolve
  * dynamic volume modes (percentage of balance, margin, or base currency).
  */
-class TradingContext {
+class TradingContext
+{
 	/**
 	 * Creates a new trading context.
 	 *

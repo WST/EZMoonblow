@@ -5,7 +5,8 @@ namespace Izzy\Enums;
 /**
  * Defines how entry volume is specified in DCA configuration.
  */
-enum EntryVolumeModeEnum: string {
+enum EntryVolumeModeEnum: string
+{
 	/**
 	 * Absolute value in quote currency (e.g., 140 USDT).
 	 * This is the default mode for backward compatibility.

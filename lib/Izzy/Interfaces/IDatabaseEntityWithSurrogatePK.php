@@ -8,7 +8,8 @@ namespace Izzy\Interfaces;
  * Extends IDatabaseEntity for entities that use an auto-generated numeric
  * primary key instead of a natural key.
  */
-interface IDatabaseEntityWithSurrogatePK extends IDatabaseEntity {
+interface IDatabaseEntityWithSurrogatePK extends IDatabaseEntity
+{
 	/**
 	 * Get the entity’s primary key value.
 	 * @return int|null The ID, or null if not yet persisted.

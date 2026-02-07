@@ -5,7 +5,8 @@ namespace Izzy\Interfaces;
 /**
  * Interface for a candlestick (OHLCV data).
  */
-interface ICandle {
+interface ICandle
+{
 	/**
 	 * Get the previous candle (or null for the first candle).
 	 * @return ICandle|null

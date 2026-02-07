@@ -16,7 +16,8 @@ use Izzy\Traits\PositionTrait;
 /**
  * Stored position in the local database.
  */
-class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition {
+class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition
+{
 	use PositionTrait;
 
 	/** Position attributes */

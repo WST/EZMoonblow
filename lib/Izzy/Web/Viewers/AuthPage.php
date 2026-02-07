@@ -5,7 +5,8 @@ namespace Izzy\Web\Viewers;
 use Izzy\AbstractApplications\WebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class AuthPage {
+class AuthPage
+{
 	protected WebApplication $webApp;
 
 	public function __construct(WebApplication $webApp) {

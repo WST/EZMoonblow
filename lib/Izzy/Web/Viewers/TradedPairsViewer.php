@@ -11,7 +11,8 @@ use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class TradedPairsViewer extends PageViewer {
+class TradedPairsViewer extends PageViewer
+{
 	public function __construct(WebApplication $webApp) {
 		parent::__construct($webApp);
 	}

@@ -3,9 +3,9 @@
 namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
-use Izzy\Configuration\Configuration;
 
-class Backtester extends ConsoleApplication {
+class Backtester extends ConsoleApplication
+{
 	public function __construct() {
 		parent::__construct();
 	}

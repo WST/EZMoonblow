@@ -11,7 +11,8 @@ use Izzy\Interfaces\IStoredPosition;
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
  */
-abstract class AbstractDCAStrategy extends Strategy {
+abstract class AbstractDCAStrategy extends Strategy
+{
 	protected DCASettings $dcaSettings;
 
 	public function __construct(IMarket $market, array $params = []) {

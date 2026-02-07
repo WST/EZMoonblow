@@ -1,0 +1,22 @@
+---
+description: Core project guidelines and coding standards
+alwaysApply: true
+---
+
+# EZMoonblow Project Rules
+
+**Always follow the guidelines in `CONTRIBUTING.md`** before making any changes.
+
+Key rules:
+- Use **tabs** for indentation.
+- Opening brace on same line for functions/methods/loops, new line for classes/enums/interfaces.
+- All comments in **English only**.
+- Use typographic quotes (“curly”) and apostrophes’ in comments. End the comments with a period.
+- End files with one empty line, no closing `?>`.
+- Always use **type hints** and **Money class** for monetary values.
+- Use enums instead of string literals.
+- Database column names must have table prefix (e.g., `task_sender`, `heartbeat_status`).
+- To add a migration, run: `tasks/db/create-migration`.
+- The project uses custom migration system. Don’t try to guess the syntax, always check the existing migrations.
+
+Read `CONTRIBUTING.md` for complete details.

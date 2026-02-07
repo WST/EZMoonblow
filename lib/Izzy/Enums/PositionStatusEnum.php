@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum PositionStatusEnum: string {
+enum PositionStatusEnum: string
+{
 	/**
 	 * The position has placed a limit order, but it wasn't executed yet.
 	 */

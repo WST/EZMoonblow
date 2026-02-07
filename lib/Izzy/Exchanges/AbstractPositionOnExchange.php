@@ -17,7 +17,8 @@ use Izzy\Interfaces\IStoredPosition;
  * Exchange-specific position classes (PositionOnBybit, PositionOnGate, etc.)
  * should extend this class.
  */
-abstract class AbstractPositionOnExchange implements IPositionOnExchange {
+abstract class AbstractPositionOnExchange implements IPositionOnExchange
+{
 	use PositionTrait;
 
 	/**

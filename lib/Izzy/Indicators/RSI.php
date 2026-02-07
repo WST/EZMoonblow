@@ -9,7 +9,8 @@ use Izzy\Interfaces\IMarket;
  * Relative Strength Index (RSI) indicator.
  * Measures the speed and magnitude of price changes to identify overbought or oversold conditions.
  */
-class RSI extends AbstractIndicator {
+class RSI extends AbstractIndicator
+{
 	/**
 	 * Default RSI period.
 	 */

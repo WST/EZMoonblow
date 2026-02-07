@@ -12,7 +12,8 @@ use Izzy\Financial\Pair;
 use Izzy\System\QueueTask;
 use Telegram\Bot\Api as TelegramApi;
 
-class Notifier extends ConsoleApplication {
+class Notifier extends ConsoleApplication
+{
 	private string $telegramToken;
 	private int $telegramChatId;
 	private TelegramApi $telegram;

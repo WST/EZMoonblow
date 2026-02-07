@@ -9,7 +9,8 @@ use Izzy\Interfaces\IExchangeDriver;
  * Main class of the Trader application.
  * This application is responsible for the actual trading process.
  */
-class Trader extends ConsoleApplication {
+class Trader extends ConsoleApplication
+{
 	/**
 	 * @var IExchangeDriver[]
 	 */

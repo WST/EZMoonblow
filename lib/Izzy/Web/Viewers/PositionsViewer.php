@@ -10,7 +10,8 @@ use Psr\Http\Message\ResponseInterface as Response;
  * Viewer for the Open Positions page.
  * Displays trading positions from the database.
  */
-class PositionsViewer extends PageViewer {
+class PositionsViewer extends PageViewer
+{
 	public function __construct(WebApplication $webApp) {
 		parent::__construct($webApp);
 	}

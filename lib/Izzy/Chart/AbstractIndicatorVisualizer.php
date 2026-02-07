@@ -8,7 +8,8 @@ use Izzy\Interfaces\IIndicatorVisualizer;
  * Abstract base class for indicator visualizers.
  * Provides common functionality and helper methods for drawing indicators on charts.
  */
-abstract class AbstractIndicatorVisualizer implements IIndicatorVisualizer {
+abstract class AbstractIndicatorVisualizer implements IIndicatorVisualizer
+{
 	/**
 	 * Default colors for indicator visualization.
 	 */

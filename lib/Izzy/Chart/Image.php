@@ -4,7 +4,8 @@ namespace Izzy\Chart;
 
 use GdImage;
 
-class Image {
+class Image
+{
 	/**
 	 * Width of the image.
 	 */

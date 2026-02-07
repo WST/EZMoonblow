@@ -13,7 +13,8 @@ use Izzy\Interfaces\IPair;
  * Provides common functionality and enforces the contract for indicator implementations.
  * All indicators should extend this class and implement the calculate() method.
  */
-abstract class AbstractIndicator implements IIndicator {
+abstract class AbstractIndicator implements IIndicator
+{
 	/**
 	 * @var array Configuration parameters for the indicator
 	 */

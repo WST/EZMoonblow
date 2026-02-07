@@ -5,7 +5,8 @@ namespace Izzy\Web\Viewers;
 use Izzy\AbstractApplications\WebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class DashboardViewer extends PageViewer {
+class DashboardViewer extends PageViewer
+{
 	private array $timeRanges = [
 		'day' => 'Day',
 		'month' => 'Month',

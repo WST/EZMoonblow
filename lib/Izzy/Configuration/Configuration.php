@@ -17,7 +17,8 @@ use Izzy\System\Database\Database;
  * Handles loading and parsing the XML configuration file,
  * providing access to database, exchange, and other settings.
  */
-class Configuration {
+class Configuration
+{
 	private DOMDocument $document;
 	private DOMXpath $xpath;
 

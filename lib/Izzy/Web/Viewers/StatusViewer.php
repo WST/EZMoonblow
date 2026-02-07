@@ -11,7 +11,8 @@ use Psr\Http\Message\ResponseInterface as Response;
  * Viewer for the System Status page.
  * Displays health status of system components and task queue statistics.
  */
-class StatusViewer extends PageViewer {
+class StatusViewer extends PageViewer
+{
 	/** @var array Expected system components. */
 	private const EXPECTED_COMPONENTS = ['Trader', 'Analyzer', 'Notifier'];
 

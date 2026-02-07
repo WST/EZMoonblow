@@ -9,7 +9,8 @@ use Izzy\Financial\Money;
 /**
  * Base interface for all positions.
  */
-interface IPosition {
+interface IPosition
+{
 	/**
 	 * Get exchange name for this position.
 	 * @return string Exchange name.

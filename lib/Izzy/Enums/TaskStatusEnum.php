@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum TaskStatusEnum: string {
+enum TaskStatusEnum: string
+{
 	case PENDING = 'Pending';
 	case INPROGRESS = 'InProgress';
 	case COMPLETED = 'Completed';

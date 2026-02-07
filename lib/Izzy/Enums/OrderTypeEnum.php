@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum OrderTypeEnum: string {
+enum OrderTypeEnum: string
+{
 	case LIMIT = 'Limit';
 	case MARKET = 'Market';
 

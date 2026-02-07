@@ -10,7 +10,8 @@ use Izzy\Interfaces\IStrategy;
  * Factory for creating trading strategies.
  * Provides a centralized way to instantiate strategies by name.
  */
-class StrategyFactory {
+class StrategyFactory
+{
 	/**
 	 * Available strategies mapping.
 	 * @var array

@@ -11,14 +11,14 @@ use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPair;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
-use Izzy\System\QueueTask;
 use Izzy\System\SystemHeartbeat;
 
 /**
  * Abstract cryptocurrency exchange driver class.
  * Contains common logic for all cryptocurrency exchanges.
  */
-abstract class AbstractExchangeDriver implements IExchangeDriver {
+abstract class AbstractExchangeDriver implements IExchangeDriver
+{
 	/** @var ExchangeConfiguration Configuration settings for the exchange. */
 	protected ExchangeConfiguration $config;
 

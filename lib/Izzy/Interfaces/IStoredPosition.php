@@ -11,7 +11,8 @@ use Izzy\Financial\Money;
  * This interface extends IPosition with persistence and management capabilities
  * specific to positions tracked by EZMoonblow.
  */
-interface IStoredPosition extends IPosition {
+interface IStoredPosition extends IPosition
+{
 	/**
 	 * Get position creation timestamp.
 	 * @return int Unix timestamp.

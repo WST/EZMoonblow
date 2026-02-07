@@ -15,7 +15,8 @@ use Izzy\Financial\Money;
  * - getCurrentPrice(): Money
  * - getDirection(): PositionDirectionEnum
  */
-trait PositionTrait {
+trait PositionTrait
+{
 	/**
 	 * Get unrealized profit/loss in percent.
 	 *

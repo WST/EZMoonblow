@@ -5,7 +5,8 @@ namespace Izzy\Web\Viewers;
 use Izzy\AbstractApplications\WebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class PageViewer {
+class PageViewer
+{
 	protected WebApplication $webApp;
 
 	protected array $menu = [

@@ -10,7 +10,8 @@ use Izzy\Interfaces\IMarket;
  * Factory for creating technical indicators.
  * Provides a centralized way to instantiate indicators by name.
  */
-class IndicatorFactory {
+class IndicatorFactory
+{
 	/**
 	 * Available indicators mapping.
 	 * @var array

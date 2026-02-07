@@ -4,7 +4,8 @@ namespace Izzy\Financial;
 
 use Izzy\Enums\PositionDirectionEnum;
 
-class Money {
+class Money
+{
 	private float $amount;
 	private string $currency;
 

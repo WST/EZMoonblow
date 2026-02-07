@@ -7,7 +7,8 @@ use Izzy\Enums\TableViewerColumnTypeEnum;
 /**
  * Class for displaying detailed information as key-value table.
  */
-class DetailViewer extends TableViewer {
+class DetailViewer extends TableViewer
+{
 	private string $keyColumn = 'key';
 	private string $valueColumn = 'value';
 	private bool $showHeader = true;

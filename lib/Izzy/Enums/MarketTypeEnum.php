@@ -5,7 +5,8 @@ namespace Izzy\Enums;
 /**
  * Market type. Only “spot” and “futures” will probably be ever supported.
  */
-enum MarketTypeEnum: string {
+enum MarketTypeEnum: string
+{
 	case SPOT = 'spot';
 	case FUTURES = 'futures';
 

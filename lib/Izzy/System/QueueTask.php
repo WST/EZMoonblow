@@ -12,7 +12,8 @@ use Izzy\RealApplications\Notifier;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 
-class QueueTask extends SurrogatePKDatabaseRecord {
+class QueueTask extends SurrogatePKDatabaseRecord
+{
 	const FId = 'task_id';
 	const FRecipient = 'task_recipient';
 	const FSender = 'task_sender';

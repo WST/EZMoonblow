@@ -11,7 +11,8 @@ use Izzy\Financial\TradingContext;
 /**
  * Represents a DCA strategy settings.
  */
-class DCASettings {
+class DCASettings
+{
 	/**
 	 * Order grid for Long trades.
 	 * @var DCAOrderGrid

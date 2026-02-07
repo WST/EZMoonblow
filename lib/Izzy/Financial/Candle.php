@@ -9,7 +9,8 @@ use Izzy\Interfaces\IFVG;
 /**
  * Represents a candlestick (OHLCV data point).
  */
-class Candle implements ICandle {
+class Candle implements ICandle
+{
 	protected int $timestamp;
 	protected float $open;
 	protected float $high;

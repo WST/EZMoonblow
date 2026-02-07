@@ -13,7 +13,8 @@ use Izzy\Traits\HasMarketTypeTrait;
  * Trading pair representation.
  * Contains information about a specific trading pair including ticker, timeframe, exchange, and market type.
  */
-class Pair implements IPair {
+class Pair implements IPair
+{
 	use HasMarketTypeTrait;
 
 	/**

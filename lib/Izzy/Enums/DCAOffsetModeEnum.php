@@ -5,7 +5,8 @@ namespace Izzy\Enums;
 /**
  * Defines how price offsets are calculated in a DCA order grid.
  */
-enum DCAOffsetModeEnum: string {
+enum DCAOffsetModeEnum: string
+{
 	/**
 	 * Each order's offset is calculated relative to the entry price.
 	 * Example: entry=100, step=5% → levels at 100, 95, 90, 85...

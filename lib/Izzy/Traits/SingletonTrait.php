@@ -2,7 +2,8 @@
 
 namespace Izzy\Traits;
 
-trait SingletonTrait {
+trait SingletonTrait
+{
 	private static array $instances = [];
 
 	public static function getInstance(?string $className = null): object {

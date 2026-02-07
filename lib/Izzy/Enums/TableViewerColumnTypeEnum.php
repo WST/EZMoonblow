@@ -5,7 +5,8 @@ namespace Izzy\Enums;
 /**
  * Column types for TableViewer.
  */
-enum TableViewerColumnTypeEnum: string {
+enum TableViewerColumnTypeEnum: string
+{
 	case TEXT = 'text';
 	case MONEY = 'money';
 	case PERCENT = 'percent';

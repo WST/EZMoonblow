@@ -10,7 +10,8 @@ use Izzy\Financial\TradingContext;
 /**
  * Represents a DCA order grid with support for different offset calculation modes.
  */
-class DCAOrderGrid {
+class DCAOrderGrid
+{
 	/**
 	 * Order levels in the grid.
 	 * @var DCAOrderLevel[]

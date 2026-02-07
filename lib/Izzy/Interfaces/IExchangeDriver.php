@@ -12,7 +12,8 @@ use Izzy\Configuration\ExchangeConfiguration;
 /**
  * Crypto exchange driver interface.
  */
-interface IExchangeDriver {
+interface IExchangeDriver
+{
 	/**
 	 * Update the exchange state.
 	 * @return int time to sleep before the next update in seconds.

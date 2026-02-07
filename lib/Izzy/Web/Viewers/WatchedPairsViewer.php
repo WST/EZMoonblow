@@ -9,7 +9,8 @@ use Izzy\Financial\Pair;
 use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class WatchedPairsViewer extends PageViewer {
+class WatchedPairsViewer extends PageViewer
+{
 	public function __construct(WebApplication $webApp) {
 		parent::__construct($webApp);
 	}

@@ -8,7 +8,8 @@ use Izzy\Financial\IndicatorResult;
  * Interface for technical indicators.
  * All technical indicators must implement this interface.
  */
-interface IIndicator {
+interface IIndicator
+{
 	/**
 	 * Calculate indicator values for the given market.
 	 *

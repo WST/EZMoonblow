@@ -11,7 +11,8 @@ use Izzy\System\Database\Database;
  * to indicate they are running. The web interface can then check
  * heartbeat timestamps to determine component health status.
  */
-class SystemHeartbeat {
+class SystemHeartbeat
+{
 	/** @var Database Database connection instance. */
 	private Database $database;
 

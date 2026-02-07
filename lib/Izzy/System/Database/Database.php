@@ -14,7 +14,8 @@ use PDOException;
  * Supports prepared statements for security and provides convenient methods
  * for common database operations like select, insert, update, and delete.
  */
-class Database {
+class Database
+{
 	/** @var PDO Database connection instance */
 	private PDO $pdo;
 

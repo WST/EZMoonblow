@@ -5,7 +5,8 @@ namespace Izzy\Interfaces;
 /**
  * Interface for a trading pair (e.g., BTC/USDT).
  */
-interface IPair {
+interface IPair
+{
 	/**
 	 * Get the pair ticker in the format “BASE/QUOTE”.
 	 * @return string Ticker (e.g., “BTC/USDT”).

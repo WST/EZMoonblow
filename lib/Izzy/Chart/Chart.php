@@ -9,7 +9,8 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IIndicatorVisualizer;
 use Izzy\Strategies\DCASettings;
 
-class Chart extends Image {
+class Chart extends Image
+{
 	/**
 	 * Related Market instance.
 	 */

@@ -9,7 +9,8 @@ use Izzy\Financial\IndicatorResult;
  * Interface for indicator visualizers.
  * Defines the contract for all indicator visualization implementations.
  */
-interface IIndicatorVisualizer {
+interface IIndicatorVisualizer
+{
 	/**
 	 * Check if this visualizer can handle the given indicator.
 	 *

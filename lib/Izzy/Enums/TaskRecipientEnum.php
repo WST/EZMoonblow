@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum TaskRecipientEnum: string {
+enum TaskRecipientEnum: string
+{
 	case ANALYZER = 'Analyzer';
 	case TRADER = 'Trader';
 	case NOTIFIER = 'Notifier';

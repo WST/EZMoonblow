@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum OrderStatusEnum: string {
+enum OrderStatusEnum: string
+{
 	case NewOrder = 'New';
 	case PartiallyFilled = 'PartiallyFilled';
 	case Filled = 'Filled';

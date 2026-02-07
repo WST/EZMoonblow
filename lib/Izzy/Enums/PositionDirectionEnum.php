@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum PositionDirectionEnum: string {
+enum PositionDirectionEnum: string
+{
 	case LONG = 'LONG';
 	case SHORT = 'SHORT';
 

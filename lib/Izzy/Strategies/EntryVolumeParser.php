@@ -13,7 +13,8 @@ use Izzy\Enums\EntryVolumeModeEnum;
  * - "5%M" or "5% margin" → PERCENT_MARGIN, 5
  * - "0.002 BTC" or "2 SOL" → ABSOLUTE_BASE, 0.002/2
  */
-class EntryVolumeParser {
+class EntryVolumeParser
+{
 	/**
 	 * Parsed numeric value.
 	 * @var float

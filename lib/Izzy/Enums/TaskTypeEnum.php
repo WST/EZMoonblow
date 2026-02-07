@@ -2,7 +2,8 @@
 
 namespace Izzy\Enums;
 
-enum TaskTypeEnum: string {
+enum TaskTypeEnum: string
+{
 	case DRAW_CANDLESTICK_CHART = 'Draw Candlestick Chart';
 
 	case TELEGRAM_WANT_NEW_POSITION = 'Want New Position';
