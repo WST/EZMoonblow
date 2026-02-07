@@ -321,23 +321,17 @@ class Bybit extends AbstractExchangeDriver {
 			BybitParam::OrderType => OrderTypeEnum::MARKET->value,
 		];
 
-		if ($market->isSpot()) {
-			// Adding to the params for the API call.
-			$params[BybitParam::Qty] = $amount->formatForOrder($this->getTickSize($market));
+		// Amount is always in quote currency (e.g., USDT).
+		// We need to convert it to base currency (e.g., BTC, SOL) for the API call.
+		$entryVolume = $market->calculateQuantity(Money::from($amount), $currentPrice);
 
-			// NOTE: we cannot assign TP here.
-		}
+		// Amount should be adjusted using QtyStep.
+		$properVolume = $entryVolume->formatForOrder($this->getQtyStep($market));
+
+		// Adding to the params for the API call.
+		$params[BybitParam::Qty] = $properVolume;
 
 		if ($market->isFutures()) {
-			// For spot, the amount should be in the quote currency, for futures in the base currency.
-			$entryVolume = $market->calculateQuantity(Money::from($amount), $currentPrice);
-
-			// Amount should be adjusted using QtyStep.
-			$properVolume = $entryVolume->formatForOrder($this->getQtyStep($market));
-
-			// Adding to the params for the API call.
-			$params[BybitParam::Qty] = $properVolume;
-
 			// If we have a TP defined.
 			if ($takeProfitPercent) {
 				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
@@ -349,6 +343,8 @@ class Bybit extends AbstractExchangeDriver {
 				$params[BybitParam::IsReduceOnly] = false;
 			}
 		}
+
+		// NOTE: For spot, we cannot assign TP in the same API call.
 
 		try {
 			// Make an API call.
@@ -385,7 +381,7 @@ class Bybit extends AbstractExchangeDriver {
 				$this->setTakeProfit($market, $takeProfitPrice);
 			}
 
-			// Save the "position" to the database.
+			// Save the “position” to the database.
 			$position->save();
 
 			// Success.
@@ -403,9 +399,8 @@ class Bybit extends AbstractExchangeDriver {
 	 * @inheritDoc
 	 */
 	public function buyAdditional(IMarket $market, Money $amount): bool {
-		$pair = $market->getPair();
-		$ticker = $pair->getExchangeTicker($this);
-
+		// TODO: Implement buyAdditional for DCA averaging.
+		return false;
 	}
 
 	/**
