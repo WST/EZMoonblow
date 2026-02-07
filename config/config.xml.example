@@ -20,7 +20,7 @@
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
 			<spot>
 				<pair ticker="SOL/USDT" timeframe="4h" monitor="yes" trade="no">
-					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365">
+					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365" backtest_initial_balance="10000">
 						<!-- Long -->
 						<param name="numberOfLevels" value="6"/>
 						<param name="entryVolume" value="140"/>

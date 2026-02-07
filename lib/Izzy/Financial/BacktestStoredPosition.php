@@ -19,6 +19,7 @@ class BacktestStoredPosition extends StoredPosition
 
 	/**
 	 * @inheritDoc
+	 * @param int|null $createdAt Unix timestamp for position_created_at (for backtest: simulation time; omit for real time).
 	 */
 	public static function create(
 		IMarket $market,
@@ -27,9 +28,10 @@ class BacktestStoredPosition extends StoredPosition
 		Money $entryPrice,
 		Money $currentPrice,
 		PositionStatusEnum $status,
-		string $exchangePositionId
+		string $exchangePositionId,
+		?int $createdAt = null
 	): static {
-		$now = time();
+		$now = $createdAt ?? time();
 		$row = [
 			self::FExchangeName => $market->getExchange()->getName(),
 			self::FTicker => $market->getTicker(),

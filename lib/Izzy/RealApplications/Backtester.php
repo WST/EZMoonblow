@@ -9,24 +9,28 @@ use Izzy\Financial\BacktestStoredPosition;
 use Izzy\Financial\CandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
+use Izzy\System\Logger;
 
 class Backtester extends ConsoleApplication
 {
 	private const float DEFAULT_INITIAL_BALANCE = 10000.0;
 
-	public function __construct() {
+	public function __construct()
+	{
 		parent::__construct();
 	}
 
-	public function run(): void {
-		echo "OK".PHP_EOL;
+	public function run(): void
+	{
+		echo "OK" . PHP_EOL;
 	}
 
 	/**
 	 * Load historical candles for all pairs that have backtest_days set.
 	 * Fetches from exchange in chunks and saves to the database.
 	 */
-	public function loadCandles(): void {
+	public function loadCandles(): void
+	{
 		$this->logger->info('Loading candles for backtest pairs...');
 		$exchanges = $this->configuration->connectExchanges($this);
 		$pairsForBacktest = $this->configuration->getPairsForBacktest($exchanges);
@@ -54,7 +58,7 @@ class Backtester extends ConsoleApplication
 			$chunkEndMs = $endTimeMs;
 			$totalSaved = 0;
 			while (true) {
-				$candles = $exchange->getCandles($pair, $limit, (int)$startTimeMs, (int)$chunkEndMs);
+				$candles = $exchange->getCandles($pair, $limit, (int) $startTimeMs, (int) $chunkEndMs);
 				if (empty($candles)) {
 					break;
 				}
@@ -75,7 +79,8 @@ class Backtester extends ConsoleApplication
 	 * Prints summary: total trades, initial balance, final balance.
 	 * Creates a temporary copy of the positions table for the run and drops it when done.
 	 */
-	public function runBacktest(): void {
+	public function runBacktest(): void
+	{
 		$this->logger->info('Starting backtest...');
 		$exchanges = $this->configuration->connectExchanges($this);
 		$pairsForBacktest = $this->configuration->getPairsForBacktest($exchanges);
@@ -89,15 +94,17 @@ class Backtester extends ConsoleApplication
 			return;
 		}
 		try {
+			Logger::getLogger()->setBacktestMode(true);
 			$this->runBacktestLoop($pairsForBacktest);
 		} finally {
+			Logger::getLogger()->setBacktestMode(false);
 			$this->database->dropTableIfExists('backtest_positions');
 		}
 	}
 
-	private function runBacktestLoop(array $pairsForBacktest): void {
+	private function runBacktestLoop(array $pairsForBacktest): void
+	{
 		$repository = new CandleRepository($this->database);
-		$initialBalance = self::DEFAULT_INITIAL_BALANCE;
 
 		foreach ($pairsForBacktest as $entry) {
 			$pair = $entry['pair'];
@@ -106,6 +113,7 @@ class Backtester extends ConsoleApplication
 			if ($days === null) {
 				continue;
 			}
+			$initialBalance = $pair->getBacktestInitialBalance() ?? self::DEFAULT_INITIAL_BALANCE;
 			$exchangeName = $pair->getExchangeName();
 			$exchangeConfig = $this->configuration->getExchangeConfiguration($exchangeName);
 			if (!$exchangeConfig) {
@@ -142,6 +150,12 @@ class Backtester extends ConsoleApplication
 			$market->initializeStrategy();
 			$market->initializeIndicators();
 			$n = count($candles);
+			$ticker = $pair->getTicker();
+			$log = Logger::getLogger();
+			$log->backtestProgress("$ticker: $n candles, balance " . number_format($initialBalance, 2) . " USDT");
+			$progressStep = max(1, (int) ($n / 20));
+			$liquidated = false;
+			$lastCandle = null;
 			for ($i = 0; $i < $n; $i++) {
 				$slice = array_slice($candles, 0, $i + 1);
 				foreach ($slice as $c) {
@@ -149,37 +163,115 @@ class Backtester extends ConsoleApplication
 				}
 				$market->setCandles($slice);
 				$currentCandle = $candles[$i];
+				$lastCandle = $currentCandle;
+				$candleTime = (int) $currentCandle->getOpenTime();
+				$backtestExchange->setSimulationTime($candleTime);
+				$log->setBacktestSimulationTime($candleTime);
+
+				$openPrice = $currentCandle->getOpenPrice();
+				$highPrice = $currentCandle->getHighPrice();
+				$lowPrice = $currentCandle->getLowPrice();
 				$closePrice = $currentCandle->getClosePrice();
-				$backtestExchange->setCurrentPriceForMarket($market, Money::from($closePrice));
+				$isBullish = $closePrice >= $openPrice;
+
+				// Step 1: Set price at OPEN for indicators and trading signals.
+				$backtestExchange->setCurrentPriceForMarket($market, Money::from($openPrice));
 				$market->calculateIndicators();
 				$market->processTrading();
-				$high = $currentCandle->getHighPrice();
-				$low = $currentCandle->getLowPrice();
-				$candleTime = $currentCandle->getOpenTime();
-				$where = [
-					BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
-					BacktestStoredPosition::FTicker => $market->getTicker(),
-					BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
-					BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
-				];
-				$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
-				foreach ($openPositions as $position) {
-					$tpPrice = $position->getTakeProfitPrice();
-					if ($tpPrice === null) {
-						continue;
+
+				// Determine price sequence based on candle type:
+				// Bullish: open → low → high → close
+				// Bearish: open → high → low → close
+				$priceSequence = $isBullish
+					? [$lowPrice, $highPrice, $closePrice]
+					: [$highPrice, $lowPrice, $closePrice];
+
+				foreach ($priceSequence as $pricePoint) {
+					$backtestExchange->setCurrentPriceForMarket($market, Money::from($pricePoint));
+
+					// Process pending limit orders (DCA fills).
+					foreach (array_values($backtestExchange->getPendingLimitOrders($market)) as $order) {
+						$orderPrice = $order['price'];
+						$filled = $order['direction']->isLong()
+							? ($pricePoint <= $orderPrice)
+							: ($pricePoint >= $orderPrice);
+						if ($filled) {
+							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price']);
+							$backtestExchange->removePendingLimitOrder($market, $order['orderId']);
+						}
 					}
-					$tp = $tpPrice->getAmount();
-					$hit = $position->getDirection()->isLong() ? ($high >= $tp) : ($low <= $tp);
-					if ($hit) {
-						$position->setCurrentPrice(Money::from($tp));
+
+					// Reload positions from DB after DCA fills.
+					$where = [
+						BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
+						BacktestStoredPosition::FTicker => $market->getTicker(),
+						BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
+						BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+					];
+					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+
+					// Liquidation check.
+					$balance = $backtestExchange->getVirtualBalance()->getAmount();
+					$worstUnrealizedPnl = 0.0;
+					foreach ($openPositions as $position) {
+						$vol = $position->getVolume()->getAmount();
+						$entry = $position->getAverageEntryPrice()->getAmount();
+						if ($position->getDirection()->isLong()) {
+							$worstUnrealizedPnl += $vol * ($pricePoint - $entry);
+						} else {
+							$worstUnrealizedPnl += $vol * ($entry - $pricePoint);
+						}
+					}
+					if ($balance + $worstUnrealizedPnl <= 0) {
+						$liquidated = true;
+						$dateStr = date('Y-m-d H:i', $candleTime);
+						$log->backtestProgress("  LIQUIDATION at candle " . ($i + 1) . "/$n ($dateStr): balance " . number_format($balance, 2) . " USDT + unrealized PnL " . number_format($worstUnrealizedPnl, 2) . " USDT <= 0");
+						$this->logger->warning("Backtest stopped: liquidated at candle " . ($i + 1) . " $dateStr.");
+						break 2; // Exit both loops.
+					}
+
+					// Check TP hits.
+					foreach ($openPositions as $position) {
+						$tpPrice = $position->getTakeProfitPrice();
+						if ($tpPrice === null) {
+							continue;
+						}
+						$tp = $tpPrice->getAmount();
+						$hit = $position->getDirection()->isLong()
+							? ($pricePoint >= $tp)
+							: ($pricePoint <= $tp);
+						if (!$hit) {
+							continue;
+						}
+						// Calculate PnL at TP price.
+						$position->setCurrentPrice($tpPrice);
+						$profitMoney = $position->getUnrealizedPnL();
+						$profit = $profitMoney->getAmount();
+						if ($profit <= 0) {
+							continue; // Skip false TP hits.
+						}
 						$position->markFinished($candleTime);
 						$position->save();
-						$exitValue = $position->getVolume()->getAmount() * $tp;
-						$backtestExchange->creditBalance($exitValue);
+						$backtestExchange->creditBalance($profit);
+						// Clear pending DCA orders for this market.
+						$backtestExchange->clearPendingLimitOrders($market);
+						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
+						$dir = $position->getDirection()->value;
+						$log->backtestProgress("  TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT -> balance " . number_format($balanceAfter, 2) . " USDT");
 					}
 				}
+
+				if ($i % $progressStep === 0 || $i === $n - 1) {
+					$balance = $backtestExchange->getVirtualBalance()->getAmount();
+					$date = date('Y-m-d H:i', $candleTime);
+					$log->backtestProgress("  Candle " . ($i + 1) . "/$n $date close=" . number_format($closePrice, 4) . " balance=" . number_format($balance, 2) . " USDT");
+				}
 			}
+
 			$finalBalance = $backtestExchange->getVirtualBalance()->getAmount();
+			if ($liquidated) {
+				$finalBalance = 0.0; // Positions closed at a loss; balance is wiped out.
+			}
 			$table = BacktestStoredPosition::getTableName();
 			$marketWhere = [
 				BacktestStoredPosition::FExchangeName => $exchangeName,
@@ -189,6 +281,57 @@ class Backtester extends ConsoleApplication
 			$finishedCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::FINISHED->value]));
 			$openCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::OPEN->value]));
 			$pendingCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::PENDING->value]));
+
+			$openPositionsData = [];
+			$lastClose = $lastCandle !== null ? $lastCandle->getClosePrice() : 0.0;
+			$simEndTime = $lastCandle !== null ? (int) $lastCandle->getOpenTime() : time();
+			$simStartTime = !empty($candles) ? (int) $candles[0]->getOpenTime() : $simEndTime;
+			$whereOpen = array_merge($marketWhere, [
+				BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+			]);
+			$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $whereOpen, '');
+			foreach ($openPositions as $pos) {
+				$vol = $pos->getVolume()->getAmount();
+				$entry = $pos->getAverageEntryPrice()->getAmount();
+				$unrealizedPnl = $pos->getDirection()->isLong()
+					? $vol * ($lastClose - $entry)
+					: $vol * ($entry - $lastClose);
+				$createdAt = $pos->getCreatedAt();
+				$timeHangingSec = $simEndTime - $createdAt;
+				$openPositionsData[] = [
+					'direction' => $pos->getDirection()->value,
+					'entry' => $entry,
+					'volume' => $vol,
+					'created_at' => $createdAt,
+					'unrealized_pnl' => $unrealizedPnl,
+					'time_hanging_sec' => $timeHangingSec,
+				];
+			}
+
+			// Compute trade duration stats from finished positions.
+			$whereFinished = array_merge($marketWhere, [
+				BacktestStoredPosition::FStatus => PositionStatusEnum::FINISHED->value,
+			]);
+			$finishedPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $whereFinished, BacktestStoredPosition::FCreatedAt . ' ASC');
+			$tradeDurations = [];
+			$tradeIntervals = []; // [created_at, finished_at] for each position (finished or still open)
+			foreach ($finishedPositions as $pos) {
+				$created = $pos->getCreatedAt();
+				$finished = $pos->getFinishedAt();
+				if ($created > 0 && $finished > 0) {
+					$tradeDurations[] = $finished - $created;
+					$tradeIntervals[] = [$created, $finished];
+				}
+			}
+			// Include open/pending positions: they cover time from created_at until simulation end.
+			foreach ($openPositions as $pos) {
+				$created = $pos->getCreatedAt();
+				if ($created > 0) {
+					$tradeIntervals[] = [$created, $simEndTime];
+				}
+			}
+			$durationStats = $this->computeDurationStats($tradeDurations, $tradeIntervals, $simStartTime, $simEndTime);
+
 			$this->printBacktestSummary(
 				$pair->getTicker(),
 				$pair->getTimeframe()->value,
@@ -197,9 +340,142 @@ class Backtester extends ConsoleApplication
 				$finalBalance,
 				$finishedCount,
 				$openCount,
-				$pendingCount
+				$pendingCount,
+				$liquidated,
+				$openPositionsData,
+				$durationStats
 			);
 		}
+	}
+
+	/**
+	 * Format duration in seconds to human-readable string (e.g. "5d 12h" or "120h 30m").
+	 */
+	private function formatDuration(int $seconds): string
+	{
+		if ($seconds < 0) {
+			return '0';
+		}
+		$d = (int) floor($seconds / 86400);
+		$h = (int) floor(($seconds % 86400) / 3600);
+		$m = (int) floor(($seconds % 3600) / 60);
+		$parts = [];
+		if ($d > 0) {
+			$parts[] = $d . 'd';
+		}
+		if ($h > 0 || $d > 0) {
+			$parts[] = $h . 'h';
+		}
+		if ($m > 0 || $parts === []) {
+			$parts[] = $m . 'm';
+		}
+		return implode(' ', $parts);
+	}
+
+	/**
+	 * Draw a console box table. $headers = ['Col1','Col2'], $rows = [ ['a','b'], ['c','d'] ].
+	 */
+	private function drawTable(string $title, array $headers, array $rows): void
+	{
+		$colCount = count($headers);
+		$widths = array_map('strlen', $headers);
+		foreach ($rows as $row) {
+			foreach (array_keys($headers) as $i) {
+				$cell = isset($row[$i]) ? (string) $row[$i] : '';
+				$widths[$i] = max($widths[$i], strlen($cell));
+			}
+		}
+		$totalWidth = array_sum($widths) + 3 * $colCount;
+		$titleLen = strlen($title);
+		$pad = $totalWidth >= $titleLen ? (int) floor(($totalWidth - $titleLen) / 2) : 0;
+		echo PHP_EOL;
+		echo "\033[1m" . str_repeat(' ', max(0, $pad)) . $title . str_repeat(' ', max(0, $totalWidth - $titleLen - $pad)) . "\033[0m" . PHP_EOL;
+		$top = '┌';
+		foreach (array_keys($widths) as $idx) {
+			$top .= str_repeat('─', $widths[$idx] + 2);
+			$top .= ($idx < $colCount - 1) ? '┬' : '┐';
+		}
+		echo $top . PHP_EOL;
+		$headerRow = '│';
+		foreach (array_keys($headers) as $i) {
+			$headerRow .= ' ' . str_pad($headers[$i], $widths[$i]) . ' │';
+		}
+		echo $headerRow . PHP_EOL;
+		$mid = '├';
+		foreach (array_keys($widths) as $idx) {
+			$mid .= str_repeat('─', $widths[$idx] + 2);
+			$mid .= ($idx < $colCount - 1) ? '┼' : '┤';
+		}
+		echo $mid . PHP_EOL;
+		foreach ($rows as $row) {
+			$line = '│';
+			foreach (array_keys($headers) as $i) {
+				$cell = isset($row[$i]) ? (string) $row[$i] : '';
+				$line .= ' ' . str_pad($cell, $widths[$i]) . ' │';
+			}
+			echo $line . PHP_EOL;
+		}
+		$bot = '└';
+		foreach (array_keys($widths) as $idx) {
+			$bot .= str_repeat('─', $widths[$idx] + 2);
+			$bot .= ($idx < $colCount - 1) ? '┴' : '┘';
+		}
+		echo $bot . PHP_EOL;
+	}
+
+	/**
+	 * Compute trade duration statistics and time without open positions.
+	 *
+	 * @param int[] $durations Array of trade durations in seconds.
+	 * @param array $intervals Array of [created_at, finished_at] pairs for finished trades.
+	 * @param int $simStart Simulation start timestamp.
+	 * @param int $simEnd Simulation end timestamp.
+	 * @return array{shortest: int, longest: int, average: int, idle: int}
+	 */
+	private function computeDurationStats(array $durations, array $intervals, int $simStart, int $simEnd): array
+	{
+		$shortest = 0;
+		$longest = 0;
+		$average = 0;
+		if (count($durations) > 0) {
+			$shortest = min($durations);
+			$longest = max($durations);
+			$average = (int) round(array_sum($durations) / count($durations));
+		}
+
+		// Compute time without any open positions.
+		// Merge overlapping intervals and sum the covered time.
+		$totalSpan = max(0, $simEnd - $simStart);
+		$coveredTime = 0;
+		if (count($intervals) > 0) {
+			// Sort by start time.
+			usort($intervals, fn($a, $b) => $a[0] <=> $b[0]);
+			$merged = [$intervals[0]];
+			for ($i = 1; $i < count($intervals); $i++) {
+				$last = &$merged[count($merged) - 1];
+				if ($intervals[$i][0] <= $last[1]) {
+					$last[1] = max($last[1], $intervals[$i][1]);
+				} else {
+					$merged[] = $intervals[$i];
+				}
+			}
+			unset($last);
+			foreach ($merged as $m) {
+				$start = max($m[0], $simStart);
+				$end = min($m[1], $simEnd);
+				if ($end > $start) {
+					$coveredTime += $end - $start;
+				}
+			}
+		}
+		$idle = max(0, $totalSpan - $coveredTime);
+
+		return [
+			'shortest' => $shortest,
+			'longest' => $longest,
+			'average' => $average,
+			'idle' => $idle,
+		];
 	}
 
 	private function printBacktestSummary(
@@ -210,18 +486,49 @@ class Backtester extends ConsoleApplication
 		float $finalBalance,
 		int $totalTrades,
 		int $openCount,
-		int $pendingCount
+		int $pendingCount,
+		bool $liquidated = false,
+		array $openPositionsData = [],
+		array $durationStats = []
 	): void {
 		$pnl = $finalBalance - $initialBalance;
 		$pnlPercent = $initialBalance > 0 ? (($pnl / $initialBalance) * 100) : 0.0;
-		echo PHP_EOL;
-		echo "=== Backtest summary: $ticker $timeframe ($exchangeName) ===".PHP_EOL;
-		echo "Initial balance: ".number_format($initialBalance, 2)." USDT".PHP_EOL;
-		echo "Final balance:   ".number_format($finalBalance, 2)." USDT".PHP_EOL;
-		echo "PnL:             ".number_format($pnl, 2)." USDT (".number_format($pnlPercent, 2)."%)".PHP_EOL;
-		echo "Total trades (finished): $totalTrades".PHP_EOL;
-		echo "Open positions:  $openCount".PHP_EOL;
-		echo "Pending:         $pendingCount".PHP_EOL;
+		$statusStr = $liquidated ? 'LIQUIDATED (simulation stopped)' : 'Completed';
+
+		$summaryHeaders = ['Metric', 'Value'];
+		$summaryRows = [
+			['Pair', "$ticker $timeframe ($exchangeName)"],
+			['Status', $statusStr],
+			['Initial balance', number_format($initialBalance, 2) . ' USDT'],
+			['Final balance', number_format($finalBalance, 2) . ' USDT'],
+			['PnL', number_format($pnl, 2) . ' USDT (' . number_format($pnlPercent, 2) . '%)'],
+			['Trades (finished)', (string) $totalTrades],
+			['Open', (string) $openCount],
+			['Pending', (string) $pendingCount],
+		];
+		if (!empty($durationStats) && $totalTrades > 0) {
+			$summaryRows[] = ['Shortest trade', $this->formatDuration($durationStats['shortest'])];
+			$summaryRows[] = ['Longest trade', $this->formatDuration($durationStats['longest'])];
+			$summaryRows[] = ['Average trade duration', $this->formatDuration($durationStats['average'])];
+			$summaryRows[] = ['Time without positions', $this->formatDuration($durationStats['idle'])];
+		}
+		$this->drawTable('Backtest Summary', $summaryHeaders, $summaryRows);
+
+		if ($openPositionsData !== []) {
+			$posHeaders = ['Direction', 'Entry', 'Volume', 'Created', 'Time open', 'Unrealized PnL'];
+			$posRows = [];
+			foreach ($openPositionsData as $p) {
+				$posRows[] = [
+					$p['direction'],
+					number_format($p['entry'], 4),
+					number_format($p['volume'], 4),
+					date('Y-m-d H:i', $p['created_at']),
+					$this->formatDuration($p['time_hanging_sec']),
+					number_format($p['unrealized_pnl'], 2) . ' USDT',
+				];
+			}
+			$this->drawTable('Open / Pending positions at end', $posHeaders, $posRows);
+		}
 		echo PHP_EOL;
 	}
 }

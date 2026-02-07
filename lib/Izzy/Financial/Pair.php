@@ -72,6 +72,12 @@ class Pair implements IPair
 	private ?int $backtestDays = null;
 
 	/**
+	 * Initial balance (USDT) for backtest; null to use default.
+	 * @var float|null
+	 */
+	private ?float $backtestInitialBalance = null;
+
+	/**
 	 * Constructor for creating a new trading pair.
 	 *
 	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT"), including “/” is important.
@@ -332,6 +338,22 @@ class Pair implements IPair
 	 */
 	public function setBacktestDays(?int $days): void {
 		$this->backtestDays = $days;
+	}
+
+	/**
+	 * Get the initial balance (USDT) for backtesting, or null to use default.
+	 * @return float|null
+	 */
+	public function getBacktestInitialBalance(): ?float {
+		return $this->backtestInitialBalance;
+	}
+
+	/**
+	 * Set the initial balance for backtesting.
+	 * @param float|null $balance Initial balance in USDT or null.
+	 */
+	public function setBacktestInitialBalance(?float $balance): void {
+		$this->backtestInitialBalance = $balance;
 	}
 
 	/**

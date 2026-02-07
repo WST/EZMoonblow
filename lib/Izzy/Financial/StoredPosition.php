@@ -276,6 +276,10 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @param string|int $date Timestamp or date string.
 	 * @return void
 	 */
+	public function setCreatedAt(string|int $date): void {
+		$this->row[self::FCreatedAt] = $date;
+	}
+
 	public function setUpdatedAt(string|int $date): void {
 		$this->row[self::FUpdatedAt] = $date;
 	}
@@ -597,15 +601,34 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function updateTakeProfit(IMarket $market): void {
 		// This is the average entry point (aka the PnL line). Above this line we are at benefit.
 		$averageEntryPrice = $this->getAverageEntryPrice();
+		if ($averageEntryPrice === null || $averageEntryPrice->getAmount() <= 0) {
+			return;
+		}
 
-		// This is the expected profit in %.
+		// Do not set TP when expected profit is zero (e.g. grid levels without TP); avoids false "TP hit" with 0 PnL.
 		$expectedProfitPercent = $this->getExpectedProfitPercent();
+		if (abs($expectedProfitPercent) < 0.0001) {
+			return;
+		}
 
-		// Current price of the take profit order.
+		// This is the expected profit in % (positive number).
+		// For LONG, TP is above entry; for SHORT, TP is below entry.
+		$direction = $this->getDirection();
+		$expectedTPPrice = $averageEntryPrice->modifyByPercentWithDirection($expectedProfitPercent, $direction);
+
+		// Sanity check: TP price must be positive (price of an instrument cannot be negative).
+		if ($expectedTPPrice->getAmount() <= 0) {
+			Logger::getLogger()->warning("Skipping TP update for {$this->getTicker()}: computed TP price would be non-positive (entry={$averageEntryPrice->getAmount()}, direction={$direction->value}, percent={$expectedProfitPercent})");
+			return;
+		}
+
+		// Current price of the take profit order (may be unset on first update).
 		$currentTPPrice = $this->getTakeProfitPrice();
-
-		// The expected price for the take profit order.
-		$expectedTPPrice = $averageEntryPrice->modifyByPercent($expectedProfitPercent);
+		if ($currentTPPrice === null) {
+			$market->setTakeProfit($expectedTPPrice);
+			$this->setTakeProfitPrice($expectedTPPrice);
+			return;
+		}
 
 		// Difference between the current and the expected price.
 		$diff = abs($currentTPPrice->getPercentDifference($expectedTPPrice));

@@ -29,6 +29,11 @@ class BacktestExchange implements IExchangeDriver
 	/** @var array<string, Money> Current price per market key (exchange_ticker_marketType). */
 	private array $currentPriceByMarketKey = [];
 	private int $orderIdCounter = 0;
+	/** @var int Current simulation timestamp (candle time) for position created_at. */
+	private int $simulationTime = 0;
+
+	/** @var array<string, list<array{orderId: string, price: float, volumeBase: float, direction: PositionDirectionEnum}>> Pending limit orders (grid levels) per market. */
+	private array $pendingLimitOrders = [];
 
 	public function __construct(
 		Database $database,
@@ -44,51 +49,70 @@ class BacktestExchange implements IExchangeDriver
 		$this->virtualBalance = $initialBalance;
 	}
 
-	public function getVirtualBalance(): Money {
+	public function getVirtualBalance(): Money
+	{
 		return Money::from($this->virtualBalance, 'USDT');
 	}
 
 	/**
 	 * Set the current price for a market (used by the backtest runner before each step).
 	 */
-	public function setCurrentPriceForMarket(IMarket $market, Money $price): void {
+	public function setCurrentPriceForMarket(IMarket $market, Money $price): void
+	{
 		$this->currentPriceByMarketKey[$this->marketKey($market)] = $price;
 	}
 
-	private function marketKey(IMarket $market): string {
-		return $market->getExchangeName().'_'.$market->getTicker().'_'.$market->getMarketType()->value;
+	/**
+	 * Set current simulation time (candle open time) so new positions get correct created_at.
+	 */
+	public function setSimulationTime(int $timestamp): void
+	{
+		$this->simulationTime = $timestamp;
 	}
 
-	public function update(): int {
+	public function getSimulationTime(): int
+	{
+		return $this->simulationTime;
+	}
+
+	private function marketKey(IMarket $market): string
+	{
+		return $market->getExchangeName() . '_' . $market->getTicker() . '_' . $market->getMarketType()->value;
+	}
+
+	public function update(): int
+	{
 		return 60;
 	}
 
-	public function updateBalance(): void {
+	public function updateBalance(): void
+	{
 	}
 
-	public function connect(): bool {
+	public function connect(): bool
+	{
 		return true;
 	}
 
-	public function disconnect(): void {
+	public function disconnect(): void
+	{
 	}
 
-	public function getCurrentPrice(IMarket $market): ?Money {
+	public function getCurrentPrice(IMarket $market): ?Money
+	{
 		$key = $this->marketKey($market);
 		return $this->currentPriceByMarketKey[$key] ?? null;
 	}
 
-	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
+	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool
+	{
 		$currentPrice = $price ?? $this->getCurrentPrice($market);
 		if (!$currentPrice) {
 			return false;
 		}
-		$cost = $amount->getAmount();
-		if ($cost > $this->virtualBalance) {
-			return false;
-		}
-		$this->virtualBalance -= $cost;
-		$orderId = 'bt-'.(++$this->orderIdCounter);
+		// Do not deduct from balance: margin stays on the account and only funds the position.
+		$orderId = 'bt-' . (++$this->orderIdCounter);
+		$createdAt = $this->simulationTime > 0 ? $this->simulationTime : null;
 		$position = BacktestStoredPosition::create(
 			market: $market,
 			volume: $amount,
@@ -96,7 +120,8 @@ class BacktestExchange implements IExchangeDriver
 			entryPrice: $currentPrice,
 			currentPrice: $currentPrice,
 			status: PositionStatusEnum::OPEN,
-			exchangePositionId: $orderId
+			exchangePositionId: $orderId,
+			createdAt: $createdAt
 		);
 		$position->setAverageEntryPrice($currentPrice);
 		if ($takeProfitPercent !== null) {
@@ -104,28 +129,28 @@ class BacktestExchange implements IExchangeDriver
 			$position->setTakeProfitPrice($currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		}
 		$position->save();
+		$this->logger->backtestProgress("  OPEN {$market->getTicker()} {$direction->value} @ " . number_format($currentPrice->getAmount(), 4) . " vol=" . number_format($amount->getAmount(), 2) . " -> balance " . number_format($this->virtualBalance, 2) . " USDT");
 		return true;
 	}
 
-	public function buyAdditional(IMarket $market, Money $amount): bool {
+	public function buyAdditional(IMarket $market, Money $amount): bool
+	{
 		$position = $market->getStoredPosition();
 		if (!$position instanceof BacktestStoredPosition) {
 			return false;
 		}
-		$cost = $amount->getAmount();
-		if ($cost > $this->virtualBalance) {
-			return false;
-		}
-		$this->virtualBalance -= $cost;
+		// Do not deduct from balance: margin stays on the account.
 		$currentPrice = $this->getCurrentPrice($market);
 		if ($currentPrice) {
 			$position->updateInfo($market);
 		}
 		$position->save();
+		$this->logger->backtestProgress("  DCA {$market->getTicker()} +" . number_format($amount->getAmount(), 2) . " -> balance " . number_format($this->virtualBalance, 2) . " USDT");
 		return true;
 	}
 
-	public function sellAdditional(IMarket $market, Money $amount): bool {
+	public function sellAdditional(IMarket $market, Money $amount): bool
+	{
 		$position = $market->getStoredPosition();
 		if (!$position) {
 			return false;
@@ -135,26 +160,41 @@ class BacktestExchange implements IExchangeDriver
 		return true;
 	}
 
-	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array {
+	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array
+	{
 		return [];
 	}
 
-	public function createMarket(IPair $pair): ?IMarket {
+	public function createMarket(IPair $pair): ?IMarket
+	{
 		$market = new Market($this, $pair);
 		$market->setPositionRecordClass(BacktestStoredPosition::class);
 		return $market;
 	}
 
-	public function pairToTicker(IPair $pair): string {
-		return $pair->getBaseCurrency().$pair->getQuoteCurrency();
+	public function pairToTicker(IPair $pair): string
+	{
+		return $pair->getBaseCurrency() . $pair->getQuoteCurrency();
 	}
 
-	public function getSpotBalanceByCurrency(string $coin): Money {
+	public function getSpotBalanceByCurrency(string $coin): Money
+	{
 		return $coin === 'USDT' ? $this->getVirtualBalance() : Money::from(0.0, $coin);
 	}
 
-	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false {
-		return false;
+	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false
+	{
+		$where = [
+			BacktestStoredPosition::FExchangeName => $this->getName(),
+			BacktestStoredPosition::FTicker => $market->getTicker(),
+			BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
+			BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+		];
+		$position = $this->database->selectOneObject(BacktestStoredPosition::class, $where);
+		if (!$position instanceof BacktestStoredPosition) {
+			return false;
+		}
+		return new BacktestPositionOnExchange($market, $position);
 	}
 
 	public function placeLimitOrder(
@@ -168,74 +208,153 @@ class BacktestExchange implements IExchangeDriver
 		if (!$currentPrice) {
 			return false;
 		}
-		$volumeQuote = $amount->getAmount() * $price->getAmount();
-		if ($volumeQuote > $this->virtualBalance) {
-			return false;
-		}
-		$this->virtualBalance -= $volumeQuote;
-		$orderId = 'bt-'.(++$this->orderIdCounter);
-		$position = BacktestStoredPosition::create(
-			market: $market,
-			volume: $amount,
-			direction: $direction,
-			entryPrice: $price,
-			currentPrice: $price,
-			status: PositionStatusEnum::PENDING,
-			exchangePositionId: $orderId
-		);
-		$position->setAverageEntryPrice($price);
+		// Do not deduct from balance: margin stays on the account and only funds the position.
+		$orderId = 'bt-' . (++$this->orderIdCounter);
+		$key = $this->marketKey($market);
+		// Entry order (takeProfitPercent set): Market::openPositionByDCAGrid creates the position. Do not create here.
+		// Clear any stale pending orders for this market so we only have orders from the current grid.
 		if ($takeProfitPercent !== null) {
-			$position->setExpectedProfitPercent($takeProfitPercent);
-			$position->setTakeProfitPrice($price->modifyByPercentWithDirection($takeProfitPercent, $direction));
+			unset($this->pendingLimitOrders[$key]);
 		}
-		$position->save();
+		// Grid level (takeProfitPercent null): do not create a position; record as pending limit order to fill when price is reached.
+		if ($takeProfitPercent === null) {
+			if (!isset($this->pendingLimitOrders[$key])) {
+				$this->pendingLimitOrders[$key] = [];
+			}
+			$this->pendingLimitOrders[$key][] = [
+				'orderId' => $orderId,
+				'price' => $price->getAmount(),
+				'volumeBase' => $amount->getAmount(),
+				'direction' => $direction,
+			];
+		}
+		$volumeQuote = $amount->getAmount() * $price->getAmount();
+		$this->logger->backtestProgress("  LIMIT {$market->getTicker()} {$direction->value} @ " . number_format($price->getAmount(), 4) . " vol=" . number_format($volumeQuote, 2) . " USDT -> balance " . number_format($this->virtualBalance, 2) . " USDT");
 		return $orderId;
 	}
 
-	public function removeLimitOrders(IMarket $market): bool {
+	/**
+	 * Get pending limit orders (grid levels) for a market. When price reaches the order level, the backtester should call addToPosition and removePendingLimitOrder.
+	 * @return list<array{orderId: string, price: float, volumeBase: float, direction: PositionDirectionEnum}>
+	 */
+	public function getPendingLimitOrders(IMarket $market): array
+	{
+		$key = $this->marketKey($market);
+		return $this->pendingLimitOrders[$key] ?? [];
+	}
+
+	/**
+	 * Remove a filled pending limit order.
+	 */
+	public function removePendingLimitOrder(IMarket $market, string $orderId): void
+	{
+		$key = $this->marketKey($market);
+		if (!isset($this->pendingLimitOrders[$key])) {
+			return;
+		}
+		$this->pendingLimitOrders[$key] = array_values(array_filter(
+			$this->pendingLimitOrders[$key],
+			fn($o) => $o['orderId'] !== $orderId
+		));
+		if ($this->pendingLimitOrders[$key] === []) {
+			unset($this->pendingLimitOrders[$key]);
+		}
+	}
+
+	/**
+	 * Add filled grid level to the existing position (DCA): update volume and average entry, recalc TP from new average.
+	 */
+	public function addToPosition(IMarket $market, float $volumeBase, float $fillPrice): bool
+	{
+		$position = $market->getStoredPosition();
+		if (!$position instanceof BacktestStoredPosition) {
+			return false;
+		}
+		$oldVol = $position->getVolume()->getAmount();
+		$oldEntry = $position->getAverageEntryPrice()->getAmount();
+		$newVol = $oldVol + $volumeBase;
+		$newAvgEntry = ($oldVol * $oldEntry + $volumeBase * $fillPrice) / $newVol;
+		$baseCurrency = $market->getPair()->getBaseCurrency();
+		$quoteCurrency = $market->getPair()->getQuoteCurrency();
+		$position->setVolume(Money::from($newVol, $baseCurrency));
+		$position->setAverageEntryPrice(Money::from($newAvgEntry, $quoteCurrency));
+		$percent = $position->getExpectedProfitPercent();
+		if (abs($percent) >= 0.0001) {
+			$avgEntryMoney = Money::from($newAvgEntry, $quoteCurrency);
+			$position->setTakeProfitPrice($avgEntryMoney->modifyByPercentWithDirection($percent, $position->getDirection()));
+		}
+		$position->save();
+		$this->logger->backtestProgress("  DCA {$market->getTicker()} +" . number_format($volumeBase, 4) . " @ " . number_format($fillPrice, 4) . " -> vol " . number_format($newVol, 4) . " avg " . number_format($newAvgEntry, 4));
 		return true;
 	}
 
-	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
+	public function removeLimitOrders(IMarket $market): bool
+	{
+		$this->clearPendingLimitOrders($market);
 		return true;
 	}
 
-	public function getDatabase(): Database {
+	/**
+	 * Clear all pending limit orders for a market.
+	 * Called when a position is closed to remove stale DCA orders.
+	 */
+	public function clearPendingLimitOrders(IMarket $market): void
+	{
+		$key = $this->marketKey($market);
+		unset($this->pendingLimitOrders[$key]);
+	}
+
+
+	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool
+	{
+		return true;
+	}
+
+	public function getDatabase(): Database
+	{
 		return $this->database;
 	}
 
-	public function getLogger(): Logger {
+	public function getLogger(): Logger
+	{
 		return $this->logger;
 	}
 
-	public function getName(): string {
+	public function getName(): string
+	{
 		return $this->name;
 	}
 
-	public function getExchangeConfiguration(): ExchangeConfiguration {
+	public function getExchangeConfiguration(): ExchangeConfiguration
+	{
 		return $this->config;
 	}
 
-	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool {
+	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool
+	{
 		return false;
 	}
 
-	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false {
+	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false
+	{
 		return false;
 	}
 
-	public function getQtyStep(IMarket $market): string {
+	public function getQtyStep(IMarket $market): string
+	{
 		return '0.0001';
 	}
 
-	public function getTickSize(IMarket $market): string {
+	public function getTickSize(IMarket $market): string
+	{
 		return '0.01';
 	}
 
 	/**
 	 * Credit balance (e.g. when a position is closed at profit).
 	 */
-	public function creditBalance(float $amount): void {
+	public function creditBalance(float $amount): void
+	{
 		$this->virtualBalance += $amount;
 	}
 }
