@@ -12,6 +12,7 @@ use Izzy\Interfaces\IPair;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 use Izzy\System\QueueTask;
+use Izzy\System\SystemHeartbeat;
 
 /**
  * Abstract cryptocurrency exchange driver class.
@@ -179,8 +180,15 @@ abstract class AbstractExchangeDriver implements IExchangeDriver {
 			return 0;
 		}
 
+		// Start heartbeat monitoring for Trader component.
+		$heartbeat = new SystemHeartbeat($this->database, 'Trader');
+		$heartbeat->start();
+
 		// Main loop.
 		while (true) {
+			// Update heartbeat with exchange info.
+			$heartbeat->beat(['exchange' => $this->getName()]);
+
 			$timeout = $this->update();
 			sleep($timeout);
 		}

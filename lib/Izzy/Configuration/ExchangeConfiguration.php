@@ -134,7 +134,7 @@ class ExchangeConfiguration {
 	private function parseStrategyConfig(DOMElement $pairElement): ?array {
 		$strategyElements = $pairElement->getElementsByTagName('strategy');
 
-		// Check that there's only 0 or 1 strategy elements
+		// Check that there’s only 0 or 1 strategy elements
 		if ($strategyElements->length > 1) {
 			throw new InvalidArgumentException("Pair {$pairElement->getAttribute('ticker')} has more than one strategy defined");
 		}

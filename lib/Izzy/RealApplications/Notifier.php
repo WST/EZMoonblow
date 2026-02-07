@@ -44,11 +44,17 @@ class Notifier extends ConsoleApplication {
 		$this->logger->warning("Got an unknown task type: $taskType->value");
 	}
 
-	public function run() {
+	public function run(): void {
 		$this->logger->info('Starting EZMoonblow Notifier...');
+
+		// Start heartbeat monitoring.
+		$this->startHeartbeat();
 
 		while (true) {
 			try {
+				// Update heartbeat.
+				$this->beat();
+
 				// Process tasks first.
 				$this->processTasks();
 
@@ -374,7 +380,7 @@ class Notifier extends ConsoleApplication {
 			$message .= "• $pair\n";
 		}
 
-		$message .= "\nUse: /chart $exchangeName $marketType <pair> <timeframe>";
+		$message .= "\nUse: /chart $exchangeName {$marketType->value} <pair> <timeframe>";
 
 		$this->sendMessage($message);
 	}
@@ -419,13 +425,12 @@ class Notifier extends ConsoleApplication {
 		}
 
 		// Validate market type.
-		if (!in_array($marketType, ['spot', 'futures'])) {
+		if (!MarketTypeEnum::tryFrom($marketType)) {
 			return false;
 		}
 
 		// Validate timeframe.
-		$validTimeframes = ['1m', '3m', '5m', '15m', '30m', '1h', '2h', '4h', '6h', '12h', '1d', '1w', '1M'];
-		if (!in_array($timeframe, $validTimeframes)) {
+		if (!TimeFrameEnum::tryFrom($timeframe)) {
 			return false;
 		}
 

@@ -39,8 +39,16 @@ class Bybit extends AbstractExchangeDriver {
 	 */
 	protected array $markets = [];
 
+	/**
+	 * Cached quantity steps.
+	 * @var array
+	 */
 	protected array $qtySteps = [];
 
+	/**
+	 * Cached tick sizes.
+	 * @var array
+	 */
 	protected array $tickSizes = [];
 
 	/**
@@ -76,7 +84,7 @@ class Bybit extends AbstractExchangeDriver {
 
 		// Check for explicit "API key is invalid" or similar messages.
 		if (stripos($errorMessage, 'API key') !== false &&
-		    (stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'is invalid') !== false)) {
+		    (stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'expired') !== false)) {
 			return true;
 		}
 

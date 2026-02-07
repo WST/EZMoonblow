@@ -164,7 +164,13 @@ class Analyzer extends ConsoleApplication {
 		$this->logger->info("Balance RRD file: $this->balanceRrdFile");
 		$this->logger->info("Charts directory: ".IZZY_CHARTS);
 
+		// Start heartbeat monitoring.
+		$this->startHeartbeat();
+
 		while (true) {
+			// Update heartbeat.
+			$this->beat();
+
 			// Update balance information.
 			$balance = $this->database->getTotalBalance();
 			$this->updateBalanceLog($balance);
