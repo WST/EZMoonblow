@@ -160,24 +160,22 @@ class ShowDCASettingsCommand extends Command {
 		$io->title($title);
 		$io->writeln("Strategy: <info>{$strategyName}</info>");
 
-		// Get DCA levels.
-		$dcaLevels = $strategy->getDCALevels();
+		// Get DCA grids and build order maps.
+		$dcaSettings = $strategy->getDCASettings();
+		$context = $strategy->getMarket()->getTradingContext();
+		$longGrid = $dcaSettings->getLongGrid();
+		$shortGrid = $dcaSettings->getShortGrid();
 
 		// Display Long positions.
-		if (!empty($dcaLevels[PositionDirectionEnum::LONG->value])) {
-			$this->displayDirectionSettings($io, '🟢 LONG', $dcaLevels[PositionDirectionEnum::LONG->value], $strategy);
+		if (!$longGrid->isEmpty()) {
+			$longLevels = $longGrid->buildOrderMap($context);
+			$this->displayDirectionSettings($io, '🟢 LONG', $longLevels, $strategy);
 		}
 
 		// Display Short positions only if they are actually configured.
-		if (!empty($dcaLevels[PositionDirectionEnum::SHORT->value])) {
-			// Check if strategy parameters have Short position settings.
-			$hasShortConfig = isset($pairData['strategy']->params['numberOfLevelsShort']) ||
-				isset($pairData['strategy']->params['entryVolumeShort']) ||
-				isset($pairData['strategy']->params['volumeMultiplierShort']);
-
-			if ($hasShortConfig) {
-				$this->displayDirectionSettings($io, '🔴 SHORT', $dcaLevels[PositionDirectionEnum::SHORT->value], $strategy);
-			}
+		if (!$shortGrid->isEmpty()) {
+			$shortLevels = $shortGrid->buildOrderMap($context);
+			$this->displayDirectionSettings($io, '🔴 SHORT', $shortLevels, $strategy);
 		}
 
 		// General information
@@ -236,14 +234,15 @@ class ShowDCASettingsCommand extends Command {
 	 * Display general information.
 	 */
 	private function displaySummaryInfo(SymfonyStyle $io, AbstractDCAStrategy $strategy): void {
-		$dcaSettings = $this->getDCASettings($strategy);
+		$dcaSettings = $strategy->getDCASettings();
+		$context = $strategy->getMarket()->getTradingContext();
 
 		$io->section('📊 General Information');
 
 		// Maximum volumes.
-		$maxLongVolume = $dcaSettings->getMaxLongPositionVolume();
-		$maxShortVolume = $dcaSettings->getMaxShortPositionVolume();
-		$maxTotalVolume = $dcaSettings->getMaxTotalPositionVolume();
+		$maxLongVolume = $dcaSettings->getMaxLongPositionVolume($context);
+		$maxShortVolume = $dcaSettings->getMaxShortPositionVolume($context);
+		$maxTotalVolume = $dcaSettings->getMaxTotalPositionVolume($context);
 
 		$summaryTable = new Table($io);
 		$summaryTable->setHeaders(['Parameter', 'Value']);
@@ -261,36 +260,15 @@ class ShowDCASettingsCommand extends Command {
 		$settingsTable = new Table($io);
 		$settingsTable->setHeaders(['Parameter', 'Value']);
 		$settingsTable->addRow(['Use Limit Orders', $dcaSettings->isUseLimitOrders() ? 'Yes' : 'No']);
-		$settingsTable->addRow(['Expected Profit Long', $dcaSettings->getExpectedProfit().'%']);
-
-		// Get Short settings via reflection.
-		$reflection = new ReflectionClass($dcaSettings);
-		$expectedProfitShort = $reflection->getProperty('expectedProfitShort');
-		$expectedProfitShort->setAccessible(true);
-		$volumeMultiplierShort = $reflection->getProperty('volumeMultiplierShort');
-		$volumeMultiplierShort->setAccessible(true);
-		$priceDeviationMultiplierShort = $reflection->getProperty('priceDeviationMultiplierShort');
-		$priceDeviationMultiplierShort->setAccessible(true);
-
-		$settingsTable->addRow(['Expected Profit Short', $expectedProfitShort->getValue($dcaSettings).'%']);
-		$settingsTable->addRow(['Volume Multiplier Long', $dcaSettings->getVolumeMultiplier().'x']);
-		$settingsTable->addRow(['Volume Multiplier Short', $volumeMultiplierShort->getValue($dcaSettings).'x']);
-		$settingsTable->addRow(['Price Deviation Multiplier Long', $dcaSettings->getPriceDeviationMultiplier().'x']);
-		$settingsTable->addRow(['Price Deviation Multiplier Short', $priceDeviationMultiplierShort->getValue($dcaSettings).'x']);
+		$settingsTable->addRow(['Offset Mode', $dcaSettings->getOffsetMode()->value]);
+		$settingsTable->addRow(['Expected Profit Long', $dcaSettings->getLongGrid()->getExpectedProfit().'%']);
+		$settingsTable->addRow(['Expected Profit Short', $dcaSettings->getShortGrid()->getExpectedProfit().'%']);
+		$settingsTable->addRow(['Long Grid Levels', $dcaSettings->getLongGrid()->count()]);
+		$settingsTable->addRow(['Short Grid Levels', $dcaSettings->getShortGrid()->count()]);
 
 		$settingsTable->render();
 	}
 
-	/**
-	 * Get DCA settings (if available).
-	 */
-	private function getDCASettings(AbstractDCAStrategy $strategy) {
-		// Use reflection to access protected property.
-		$reflection = new ReflectionClass($strategy);
-		$property = $reflection->getProperty('dcaSettings');
-		$property->setAccessible(true);
-		return $property->getValue($strategy);
-	}
 }
 
 // Create and run application.

@@ -7,6 +7,7 @@ use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Financial\Pair;
 use Izzy\Strategies\AbstractDCAStrategy;
+use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
@@ -26,13 +27,26 @@ class TradedPairsViewer extends PageViewer {
 			// Render DCA tables if available
 			if (isset($pair['dcaInfo'])) {
 				$pair['dcaTables'] = [];
+				$context = $pair['dcaInfo']['context'];
 
-				if (!empty($pair['dcaInfo']['orderMap']['LONG'])) {
-					$pair['dcaTables']['long'] = $this->renderDCATable($pair['dcaInfo']['orderMap']['LONG'], 'Long');
+				/** @var DCAOrderGrid $longGrid */
+				$longGrid = $pair['dcaInfo']['longGrid'];
+				if (!$longGrid->isEmpty()) {
+					$pair['dcaTables']['long'] = $this->renderDCAGridTable(
+						$longGrid,
+						$context,
+						'Long'
+					);
 				}
 
-				if (!empty($pair['dcaInfo']['orderMap']['SHORT'])) {
-					$pair['dcaTables']['short'] = $this->renderDCATable($pair['dcaInfo']['orderMap']['SHORT'], 'Short');
+				/** @var DCAOrderGrid $shortGrid */
+				$shortGrid = $pair['dcaInfo']['shortGrid'];
+				if (!$shortGrid->isEmpty()) {
+					$pair['dcaTables']['short'] = $this->renderDCAGridTable(
+						$shortGrid,
+						$context,
+						'Short'
+					);
 				}
 			}
 		}
@@ -128,26 +142,19 @@ class TradedPairsViewer extends PageViewer {
 		if ($strategy instanceof AbstractDCAStrategy) {
 			$dcaSettings = $strategy->getDCASettings();
 			$context = $strategy->getMarket()->getTradingContext();
-			$orderMap = $dcaSettings->getOrderMap($context);
-
-			// Don't format volumes and offsets here - let TableViewer handle formatting
-			// foreach ($orderMap as $direction => &$levels) {
-			// 	foreach ($levels as &$level) {
-			// 		$level['volume'] = number_format($level['volume'], 2);
-			// 		$level['offset'] = number_format($level['offset'], 2);
-			// 	}
-			// }
 
 			$data['dcaInfo'] = [
-				'orderMap' => $orderMap,
+				'context' => $context,
+				'longGrid' => $dcaSettings->getLongGrid(),
+				'shortGrid' => $dcaSettings->getShortGrid(),
 				'maxLongVolume' => [
 					'amount' => number_format($dcaSettings->getMaxLongPositionVolume($context)->getAmount(), 2)
 				],
 				'maxShortVolume' => [
 					'amount' => number_format($dcaSettings->getMaxShortPositionVolume($context)->getAmount(), 2)
 				],
-				'expectedProfitLong' => $dcaSettings->getExpectedProfit(),
-				'expectedProfitShort' => $dcaSettings->getExpectedProfitShort(),
+				'expectedProfitLong' => $dcaSettings->getLongGrid()->getExpectedProfit(),
+				'expectedProfitShort' => $dcaSettings->getShortGrid()->getExpectedProfit(),
 				'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
 			];
 		}
@@ -177,10 +184,24 @@ class TradedPairsViewer extends PageViewer {
 		return StrategyFactory::getStrategyClass($strategyName);
 	}
 
-	private function renderDCATable(array $orders, string $direction): string {
+	/**
+	 * Render DCA order grid as HTML table.
+	 *
+	 * @param DCAOrderGrid $grid DCA order grid.
+	 * @param \Izzy\Financial\TradingContext $context Trading context for volume resolution.
+	 * @param string $label Display label for the table caption.
+	 * @return string Rendered HTML table.
+	 */
+	private function renderDCAGridTable(
+		DCAOrderGrid $grid,
+		\Izzy\Financial\TradingContext $context,
+		string $label
+	): string {
+		$displayData = $grid->getDisplayData($context);
+
 		// Transform data to required format.
 		$tableData = [];
-		foreach ($orders as $level => $order) {
+		foreach ($displayData as $level => $order) {
 			$tableData[] = [
 				'level' => ($level == 0) ? 'Entry' : $level,
 				'volume' => $order['volume'],
@@ -189,7 +210,7 @@ class TradedPairsViewer extends PageViewer {
 		}
 
 		$viewer = new TableViewer();
-		return $viewer->setCaption($direction.' positions')
+		return $viewer->setCaption($label.' positions')
 			->insertTextColumn('level', 'Level', ['align' => 'center'])
 			->insertMoneyColumn('volume', 'Volume', ['align' => 'right'])
 			->insertPercentColumn('offset', 'Price change (%)', ['align' => 'right'])

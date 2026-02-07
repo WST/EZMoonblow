@@ -16,6 +16,7 @@ use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IStrategy;
+use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Database\Database;
 use Izzy\System\QueueTask;
@@ -236,7 +237,7 @@ class Market implements IMarket {
 	/**
 	 * @inheritDoc
 	 */
-	public function getCurrentPosition(): IPosition|false {
+	public function getCurrentPosition(): IStoredPosition|false {
 		if ($this->getMarketType()->isSpot()) {
 			// For a spot market, we emulate the positions by using a database.
 			$storedPosition = $this->getStoredPosition();
@@ -255,7 +256,7 @@ class Market implements IMarket {
 				$positionFromExchange = $this->exchange->getCurrentFuturesPosition($this);
 				if ($positionFromExchange) {
 					// NOTE: we don’t have info about entry order here.
-					$this->exchange->getLogger()->debug("Found position on the exchange for $this");
+					$this->exchange->getLogger()->debug("Found position on the exchange for $this, creating a stored position");
 					$storedPosition = $positionFromExchange->store();
 					return $storedPosition;
 				}
@@ -765,14 +766,17 @@ class Market implements IMarket {
 	}
 
 	/**
-	 * Open position using limit order map.
+	 * Open position using DCA order grid.
 	 *
-	 * @param array $orderMap Order map with levels.
-	 * @param PositionDirectionEnum $direction Position direction.
-	 * @param float $takeProfitPercent Take profit percentage.
+	 * @param DCAOrderGrid $grid DCA order grid with levels, direction and TP percent.
 	 * @return IStoredPosition|false Created position or false on failure.
 	 */
-	public function openPositionByLimitOrderMap(array $orderMap, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
+	public function openPositionByDCAGrid(DCAOrderGrid $grid): IStoredPosition|false {
+		$context = $this->getTradingContext();
+		$direction = $grid->getDirection();
+		$takeProfitPercent = $grid->getExpectedProfit();
+		$orderMap = $grid->buildOrderMap($context);
+
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);

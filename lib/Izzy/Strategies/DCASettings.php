@@ -25,67 +25,10 @@ class DCASettings {
 	private DCAOrderGrid $shortGrid;
 
 	/**
-	 * Number of DCA levels, including position entry.
-	 * @var int
+	 * Use limit orders (or market orders otherwise).
+	 * @var bool
 	 */
-	private int $numberOfLevels;
-
-	/**
-	 * Initial position volume (raw value).
-	 * @var float
-	 */
-	private float $entryVolume;
-
-	/**
-	 * Volume mode for Long trades.
-	 * @var EntryVolumeModeEnum
-	 */
-	private EntryVolumeModeEnum $volumeMode;
-
-	/**
-	 * Martingale coefficient.
-	 * @var float
-	 */
-	private float $volumeMultiplier;
-
-	private float $priceDeviation;
-	private float $priceDeviationMultiplier;
-	private float $expectedProfit;
-
-	/**
-	 * Number of DCA levels, including position entry.
-	 * @var int
-	 */
-	private int $numberOfLevelsShort;
-
-	/**
-	 * Initial position volume (raw value).
-	 * @var float
-	 */
-	private float $entryVolumeShort;
-
-	/**
-	 * Volume mode for Short trades.
-	 * @var EntryVolumeModeEnum
-	 */
-	private EntryVolumeModeEnum $volumeModeShort;
-
-	/**
-	 * Martingale coefficient.
-	 * @var float
-	 */
-	private float $volumeMultiplierShort;
-
-	private float $priceDeviationShort;
-	private float $priceDeviationMultiplierShort;
-	private float $expectedProfitShort;
 	private bool $useLimitOrders;
-
-	/**
-	 * Offset calculation mode for the order grid.
-	 * @var DCAOffsetModeEnum
-	 */
-	private DCAOffsetModeEnum $offsetMode;
 
 	/**
 	 * Builds a DCASettings instance.
@@ -124,10 +67,6 @@ class DCASettings {
 		EntryVolumeModeEnum $volumeModeShort = EntryVolumeModeEnum::ABSOLUTE_QUOTE,
 		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY
 	) {
-		$this->offsetMode = $offsetMode;
-		$this->volumeMode = $volumeMode;
-		$this->volumeModeShort = $volumeModeShort;
-
 		// Build the order grid for Long trades.
 		$this->longGrid = DCAOrderGrid::fromParameters(
 			$numberOfLevels,
@@ -135,6 +74,8 @@ class DCASettings {
 			$volumeMultiplier,
 			$priceDeviation,
 			$priceDeviationMultiplier,
+			PositionDirectionEnum::LONG,
+			$expectedProfit,
 			$offsetMode,
 			$volumeMode
 		);
@@ -147,48 +88,17 @@ class DCASettings {
 				$volumeMultiplierShort,
 				$priceDeviationShort,
 				$priceDeviationMultiplierShort,
+				PositionDirectionEnum::SHORT,
+				$expectedProfitShort,
 				$offsetMode,
 				$volumeModeShort
 			);
 		} else {
-			$this->shortGrid = new DCAOrderGrid($offsetMode);
+			$this->shortGrid = new DCAOrderGrid($offsetMode, PositionDirectionEnum::SHORT, 0.0);
 		}
 
-		// Store settings for Long trades.
-		$this->numberOfLevels = $numberOfLevels;
-		$this->entryVolume = $entryVolume;
-		$this->volumeMultiplier = $volumeMultiplier;
-		$this->priceDeviation = $priceDeviation;
-		$this->priceDeviationMultiplier = $priceDeviationMultiplier;
-		$this->expectedProfit = $expectedProfit;
-
-		// Store settings for Short trades.
-		$this->numberOfLevelsShort = $numberOfLevelsShort;
-		$this->entryVolumeShort = $entryVolumeShort;
-		$this->volumeMultiplierShort = $volumeMultiplierShort;
-		$this->priceDeviationShort = $priceDeviationShort;
-		$this->priceDeviationMultiplierShort = $priceDeviationMultiplierShort;
-		$this->expectedProfitShort = $expectedProfitShort;
+		// Store settings.
 		$this->useLimitOrders = $useLimitOrders;
-	}
-
-	/**
-	 * Get the order map for both Long and Short trades.
-	 *
-	 * @param TradingContext $context Runtime trading context for volume resolution.
-	 * @return array Order map with PositionDirectionEnum values as keys.
-	 */
-	public function getOrderMap(TradingContext $context): array {
-		return [
-			PositionDirectionEnum::LONG->value => $this->longGrid->buildOrderMap(
-				PositionDirectionEnum::LONG,
-				$context
-			),
-			PositionDirectionEnum::SHORT->value => $this->shortGrid->buildOrderMap(
-				PositionDirectionEnum::SHORT,
-				$context
-			),
-		];
 	}
 
 	/**
@@ -212,23 +122,7 @@ class DCASettings {
 	 * @return DCAOffsetModeEnum
 	 */
 	public function getOffsetMode(): DCAOffsetModeEnum {
-		return $this->offsetMode;
-	}
-
-	/**
-	 * Get the volume mode for Long trades.
-	 * @return EntryVolumeModeEnum
-	 */
-	public function getVolumeMode(): EntryVolumeModeEnum {
-		return $this->volumeMode;
-	}
-
-	/**
-	 * Get the volume mode for Short trades.
-	 * @return EntryVolumeModeEnum
-	 */
-	public function getVolumeModeShort(): EntryVolumeModeEnum {
-		return $this->volumeModeShort;
+		return $this->longGrid->getOffsetMode();
 	}
 
 	/**
@@ -251,34 +145,6 @@ class DCASettings {
 
 	public function getMaxShortPositionVolume(TradingContext $context): Money {
 		return Money::from($this->shortGrid->getTotalVolume($context));
-	}
-
-	public function getNumberOfLevels(): int {
-		return $this->numberOfLevels;
-	}
-
-	public function getEntryVolume(): float {
-		return $this->entryVolume;
-	}
-
-	public function getVolumeMultiplier(): float {
-		return $this->volumeMultiplier;
-	}
-
-	public function getPriceDeviation(): float {
-		return $this->priceDeviation;
-	}
-
-	public function getPriceDeviationMultiplier(): float {
-		return $this->priceDeviationMultiplier;
-	}
-
-	public function getExpectedProfit(): float {
-		return $this->expectedProfit;
-	}
-
-	public function getExpectedProfitShort(): float {
-		return $this->expectedProfitShort;
 	}
 
 	public function isUseLimitOrders(): bool {

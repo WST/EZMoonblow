@@ -24,12 +24,28 @@ class DCAOrderGrid {
 	private DCAOffsetModeEnum $offsetMode;
 
 	/**
+	 * Expected Take Profit offset, %
+	 * @var float
+	 */
+	private float $expectedProfit;
+
+	private PositionDirectionEnum $direction;
+
+	/**
 	 * Creates a new DCA order grid.
 	 *
 	 * @param DCAOffsetModeEnum $offsetMode How offsets should be calculated (default: FROM_ENTRY).
+	 * @param PositionDirectionEnum $direction Position direction (default: LONG).
+	 * @param float $expectedProfit Expected profit percentage (default: 0).
 	 */
-	public function __construct(DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY) {
+	public function __construct(
+		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY,
+		PositionDirectionEnum $direction = PositionDirectionEnum::LONG,
+		float $expectedProfit = 0.0
+	) {
 		$this->offsetMode = $offsetMode;
+		$this->direction = $direction;
+		$this->expectedProfit = $expectedProfit;
 	}
 
 	/**
@@ -62,6 +78,8 @@ class DCAOrderGrid {
 	 * @param float $volumeMultiplier Multiplier for each subsequent order volume.
 	 * @param float $priceDeviation Initial price deviation percentage.
 	 * @param float $priceDeviationMultiplier Multiplier for each subsequent deviation.
+	 * @param PositionDirectionEnum $direction
+	 * @param float $expectedProfit
 	 * @param DCAOffsetModeEnum $offsetMode Offset calculation mode.
 	 * @param EntryVolumeModeEnum $volumeMode Volume interpretation mode.
 	 * @return self
@@ -72,10 +90,12 @@ class DCAOrderGrid {
 		float $volumeMultiplier,
 		float $priceDeviation,
 		float $priceDeviationMultiplier,
+		PositionDirectionEnum $direction,
+		float $expectedProfit,
 		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY,
-		EntryVolumeModeEnum $volumeMode = EntryVolumeModeEnum::ABSOLUTE_QUOTE
+		EntryVolumeModeEnum $volumeMode = EntryVolumeModeEnum::ABSOLUTE_QUOTE,
 	): self {
-		$grid = new self($offsetMode);
+		$grid = new self($offsetMode, $direction, $expectedProfit);
 
 		$volume = $entryVolume;
 		$currentDeviation = $priceDeviation; // Initial deviation for first averaging
@@ -105,32 +125,20 @@ class DCAOrderGrid {
 	}
 
 	/**
-	 * Set the offset calculation mode.
-	 *
-	 * @param DCAOffsetModeEnum $offsetMode New offset mode.
-	 * @return self Fluent interface.
-	 */
-	public function setOffsetMode(DCAOffsetModeEnum $offsetMode): self {
-		$this->offsetMode = $offsetMode;
-		return $this;
-	}
-
-	/**
 	 * Build the order map with absolute offsets from entry price.
 	 *
 	 * This method converts the grid levels into an order map format compatible
-	 * with the existing Market::openPositionByLimitOrderMap() method.
+	 * with the Market::openPositionByDCAGrid() method.
 	 *
 	 * The offset values in the result are always relative to the entry price,
 	 * regardless of the offset mode. The mode affects how the offsets are calculated.
 	 *
-	 * @param PositionDirectionEnum $direction Position direction (LONG or SHORT).
 	 * @param TradingContext $context Runtime trading context for volume resolution.
 	 * @return array Array of ['volume' => float, 'offset' => float] entries.
 	 */
-	public function buildOrderMap(PositionDirectionEnum $direction, TradingContext $context): array {
+	public function buildOrderMap(TradingContext $context): array {
 		$orderMap = [];
-		$sign = $direction->isLong() ? -1 : 1;
+		$sign = $this->direction->isLong() ? -1 : 1;
 
 		if ($this->offsetMode->isFromEntry()) {
 			// Traditional mode: offsets accumulate from entry price
@@ -160,7 +168,7 @@ class DCAOrderGrid {
 				$stepPercent = $level->getOffsetPercent();
 
 				if ($stepPercent > 0) {
-					if ($direction->isLong()) {
+					if ($this->direction->isLong()) {
 						// Long: price drops by stepPercent% from current level
 						// newPrice = currentPrice * (1 - step/100)
 						$currentPriceRatio *= (1 - $stepPercent / 100);
@@ -174,7 +182,7 @@ class DCAOrderGrid {
 				// Calculate absolute offset from entry price
 				// For Long: offset = (1 - priceRatio) * 100, negative (price below entry)
 				// For Short: offset = (priceRatio - 1) * 100, positive (price above entry)
-				$absoluteOffset = $direction->isLong()
+				$absoluteOffset = $this->direction->isLong()
 					? (1 - $currentPriceRatio) * 100
 					: ($currentPriceRatio - 1) * 100;
 
@@ -197,6 +205,14 @@ class DCAOrderGrid {
 	 */
 	public function getLevels(): array {
 		return $this->levels;
+	}
+
+	public function getExpectedProfit(): float {
+		return $this->expectedProfit;
+	}
+
+	public function getDirection(): PositionDirectionEnum {
+		return $this->direction;
 	}
 
 	/**
@@ -253,5 +269,18 @@ class DCAOrderGrid {
 	 */
 	public function isEmpty(): bool {
 		return empty($this->levels);
+	}
+
+	/**
+	 * Get display data for rendering in UI (tables, etc.).
+	 *
+	 * Returns an array of level data suitable for display, with resolved
+	 * volumes and calculated offsets based on direction.
+	 *
+	 * @param TradingContext $context Runtime trading context.
+	 * @return array[] Array of ['volume' => float, 'offset' => float] entries.
+	 */
+	public function getDisplayData(TradingContext $context): array {
+		return $this->buildOrderMap($context);
 	}
 }

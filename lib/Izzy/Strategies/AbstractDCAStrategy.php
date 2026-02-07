@@ -103,25 +103,18 @@ abstract class AbstractDCAStrategy extends Strategy {
 	 */
 	public function handleLong(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			$context = $market->getTradingContext();
-			$orderMap = $this->dcaSettings->getOrderMap($context);
-
-			$newPosition = $market->openPositionByLimitOrderMap(
-				$orderMap[PositionDirectionEnum::LONG->value],
-				PositionDirectionEnum::LONG,
-				$this->dcaSettings->getExpectedProfit()
-			);
+			$newPosition = $market->openPositionByDCAGrid($this->dcaSettings->getLongGrid());
 		} else {
 			// Market open the Long position.
 			$newPosition = $market->openPosition(
 				$this->getEntryVolume(),
 				PositionDirectionEnum::LONG,
-				$this->dcaSettings->getExpectedProfit()
+				$this->dcaSettings->getLongGrid()->getExpectedProfit()
 			);
+			$newPosition->setExpectedProfitPercent($this->dcaSettings->getLongGrid()->getExpectedProfit());
+			$newPosition->save();
+			return $newPosition;
 		}
-		$newPosition->setExpectedProfitPercent($this->dcaSettings->getExpectedProfit());
-		$newPosition->save();
-		return $newPosition;
 	}
 
 	/**
@@ -131,30 +124,26 @@ abstract class AbstractDCAStrategy extends Strategy {
 	 */
 	public function handleShort(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			$context = $market->getTradingContext();
-			$orderMap = $this->dcaSettings->getOrderMap($context);
-
-			return $market->openPositionByLimitOrderMap(
-				$orderMap[PositionDirectionEnum::SHORT->value],
-				PositionDirectionEnum::SHORT,
-				$this->dcaSettings->getExpectedProfit()
-			);
+			return $market->openPositionByDCAGrid($this->dcaSettings->getShortGrid());
 		} else {
 			// Market open the Short position.
-			return $market->openPosition(
+			$newPosition = $market->openPosition(
 				$this->getEntryVolume(),
 				PositionDirectionEnum::SHORT,
-				$this->dcaSettings->getExpectedProfit()
+				$this->dcaSettings->getShortGrid()->getExpectedProfit()
 			);
+			$newPosition->setExpectedProfitPercent($this->dcaSettings->getShortGrid()->getExpectedProfit());
+			$newPosition->save();
+			return $newPosition;
 		}
 	}
 
 	/**
 	 * This strategy does not use stop loss.
 	 * Instead, it relies on the DCA mechanism to average down the position.
-	 * Since this is an abstract class, this method will call the getDCALevels() method
-	 * of the child class to determine the DCA levels.
-	 * @param IStoredPosition $position
+	 * Uses the DCA order grids to determine when to average.
+	 *
+	 * @param IStoredPosition $position Position to update.
 	 * @return void
 	 */
 	public function updatePosition(IStoredPosition $position): void {
@@ -164,13 +153,14 @@ abstract class AbstractDCAStrategy extends Strategy {
 			return;
 		}
 
-		// Complete DCA map with runtime context.
-		$dcaLevels = $this->getDCALevels();
+		$context = $this->market->getTradingContext();
+		$longGrid = $this->dcaSettings->getLongGrid();
+		$shortGrid = $this->dcaSettings->getShortGrid();
 
-		// Separate maps for Long and Short positions.
-		$dcaLevelsLong = $dcaLevels[PositionDirectionEnum::LONG->value];
+		// Build order maps from grids.
+		$dcaLevelsLong = $longGrid->buildOrderMap($context);
 		krsort($dcaLevelsLong);
-		$dcaLevelsShort = $dcaLevels[PositionDirectionEnum::SHORT->value];
+		$dcaLevelsShort = $shortGrid->buildOrderMap($context);
 		krsort($dcaLevelsShort);
 
 		/**
@@ -194,7 +184,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 			if (abs($offset) < 0.1)
 				continue;
 			if ($priceChangePercent <= $offset) {
-				// Execute DCA buy order
+				// Execute DCA buy order.
 				$dcaAmount = new Money($volume, 'USDT');
 				$position->buyAdditional($dcaAmount);
 				break;
@@ -208,21 +198,12 @@ abstract class AbstractDCAStrategy extends Strategy {
 			if (abs($offset) < 0.1)
 				continue;
 			if ($priceChangePercent >= $offset) {
-				// Execute DCA buy order
+				// Execute DCA sell order.
 				$dcaAmount = new Money($volume, 'USDT');
 				$position->sellAdditional($dcaAmount);
 				break;
 			}
 		}
-	}
-
-	/**
-	 * Get DCA levels from DCASettings with runtime context.
-	 * @return array
-	 */
-	public function getDCALevels(): array {
-		$context = $this->market->getTradingContext();
-		return $this->dcaSettings->getOrderMap($context);
 	}
 
 	/**
