@@ -7,6 +7,7 @@ use DOMElement;
 use DOMXPath;
 use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Enums\MarketTypeEnum;
+use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\System\Database\Database;
 
@@ -113,8 +114,7 @@ class Configuration {
 	/**
 	 * Get all pairs with indicators configured across all enabled exchanges.
 	 *
-	 * @return array[] Array of pair info arrays, each containing:
-	 *                 exchange, marketType, pair (ticker), timeframe.
+	 * @return Pair[] Array of Pair objects with indicators.
 	 */
 	public function getPairsWithIndicators(): array {
 		$result = [];
@@ -131,7 +131,7 @@ class Configuration {
 			}
 
 			$exchangeConfig = new ExchangeConfiguration($exchangeNode);
-			$pairsWithIndicators = $exchangeConfig->getPairsWithIndicatorsInfo();
+			$pairsWithIndicators = $exchangeConfig->getPairsWithIndicators();
 			$result = array_merge($result, $pairsWithIndicators);
 		}
 

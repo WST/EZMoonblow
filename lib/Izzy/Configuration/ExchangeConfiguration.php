@@ -259,14 +259,13 @@ class ExchangeConfiguration {
 	}
 
 	/**
-	 * Get information about pairs that have indicators configured.
+	 * Get pairs that have indicators configured.
 	 *
-	 * Returns an array of pair info for pairs that have at least one indicator defined.
-	 * Each item contains: exchange, marketType, pair (ticker), timeframe.
+	 * Returns an array of Pair objects for pairs that have at least one indicator defined.
 	 *
-	 * @return array[] Array of pair info arrays.
+	 * @return Pair[] Array of Pair objects with indicators.
 	 */
-	public function getPairsWithIndicatorsInfo(): array {
+	public function getPairsWithIndicators(): array {
 		$pairsWithIndicators = [];
 		$exchangeName = $this->getName();
 
@@ -282,12 +281,16 @@ class ExchangeConfiguration {
 				}
 				$indicatorsElement = $this->getChildElementByTagName($pairElement, 'indicators');
 				if ($indicatorsElement && $indicatorsElement->getElementsByTagName('indicator')->length > 0) {
-					$pairsWithIndicators[] = [
-						'exchange' => $exchangeName,
-						'marketType' => $marketType->value,
-						'pair' => $pairElement->getAttribute('ticker'),
-						'timeframe' => $pairElement->getAttribute('timeframe'),
-					];
+					$timeframe = TimeFrameEnum::tryFrom($pairElement->getAttribute('timeframe'));
+					if (!$timeframe) {
+						continue;
+					}
+					$pairsWithIndicators[] = new Pair(
+						ticker: $pairElement->getAttribute('ticker'),
+						timeFrame: $timeframe,
+						exchangeName: $exchangeName,
+						marketType: $marketType
+					);
 				}
 			}
 		}

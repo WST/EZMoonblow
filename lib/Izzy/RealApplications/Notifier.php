@@ -505,21 +505,21 @@ class Notifier extends ConsoleApplication {
 			$message = "📈 Select chart with indicators:";
 
 			$keyboard = [];
-			foreach ($pairsWithIndicators as $pairInfo) {
+			foreach ($pairsWithIndicators as $pair) {
 				$displayText = sprintf(
 					"%s %s %s %s",
-					$pairInfo['exchange'],
-					$pairInfo['marketType'],
-					$pairInfo['timeframe'],
-					$pairInfo['pair']
+					$pair->getExchangeName(),
+					$pair->getMarketType()->value,
+					$pair->getTimeframe()->value,
+					$pair->getTicker()
 				);
 
 				$callbackData = sprintf(
 					"quick_chart:%s:%s:%s:%s",
-					$pairInfo['exchange'],
-					$pairInfo['marketType'],
-					$pairInfo['pair'],
-					$pairInfo['timeframe']
+					$pair->getExchangeName(),
+					$pair->getMarketType()->value,
+					$pair->getTicker(),
+					$pair->getTimeframe()->value
 				);
 
 				$keyboard[] = [['text' => $displayText, 'callback_data' => $callbackData]];
