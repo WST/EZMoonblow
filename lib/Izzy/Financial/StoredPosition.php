@@ -48,12 +48,6 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	const string FExpectedTakeProfitPrice = 'position_expected_tp_price';
 
 	/**
-	 * Market.
-	 * @var IMarket
-	 */
-	private IMarket $market;
-
-	/**
 	 * Reason of finishing the position. Always null if the position is still active.
 	 * @var PositionFinishReasonEnum|null
 	 */
@@ -62,40 +56,25 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	/**
 	 * Builds a Position object from a database row.
 	 *
-	 * @param Database $database
-	 * @param array $row
-	 * @param IMarket $market
+	 * @param Database $database Database connection.
+	 * @param array $row Database row.
 	 */
-	public function __construct(
-		Database $database,
-		array $row,
-		IMarket $market /* passed as user data */
-	) {
-		// Link to the Market.
-		$this->market = $market;
-
-		// Build the parent.
-		parent::__construct(
-			$market->getDatabase(),
-			$row,
-			self::FId
-		);
-
-		// Prefix for column names.
+	public function __construct(Database $database, array $row) {
+		parent::__construct($database, $row, self::FId);
 		parent::setFieldNamePrefix('position');
 	}
 
 	/**
 	 * Builds a Position object from a set of values.
 	 *
-	 * @param IMarket $market
-	 * @param Money $volume
-	 * @param PositionDirectionEnum $direction
-	 * @param Money $entryPrice
-	 * @param Money $currentPrice
-	 * @param PositionStatusEnum $status
-	 * @param string $exchangePositionId
-	 * @return static
+	 * @param IMarket $market Market for this position.
+	 * @param Money $volume Position volume.
+	 * @param PositionDirectionEnum $direction Position direction.
+	 * @param Money $entryPrice Entry price.
+	 * @param Money $currentPrice Current price.
+	 * @param PositionStatusEnum $status Position status.
+	 * @param string $exchangePositionId Exchange position ID.
+	 * @return static New position instance.
 	 */
 	public static function create(
 		IMarket $market,
@@ -123,7 +102,60 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 			self::FCreatedAt => $now,
 			self::FUpdatedAt => $now,
 		];
-		return new self($market->getDatabase(), $row, $market);
+		return new self($market->getDatabase(), $row);
+	}
+
+	/**
+	 * Default ORDER BY clause for loading positions.
+	 */
+	private const DEFAULT_ORDER = "FIELD(position_status, 'OPEN', 'PENDING', 'FINISHED', 'CANCELED', 'ERROR'), position_updated_at DESC";
+
+	/**
+	 * Load all positions from database.
+	 *
+	 * @param Database $database Database connection.
+	 * @param string|null $orderBy Optional ORDER BY clause.
+	 * @return static[] Array of StoredPosition objects.
+	 */
+	public static function loadAll(Database $database, ?string $orderBy = null): array {
+		return $database->selectAllObjects(self::class, [], $orderBy ?? self::DEFAULT_ORDER);
+	}
+
+	/**
+	 * Count positions by status.
+	 *
+	 * @param Database $database Database connection.
+	 * @return array<string, int> Statistics with counts by status.
+	 */
+	public static function getStatistics(Database $database): array {
+		$stats = [
+			'total' => 0,
+			'open' => 0,
+			'pending' => 0,
+			'finished' => 0,
+			'cancelled' => 0,
+			'error' => 0,
+		];
+
+		$positions = self::loadAll($database);
+		foreach ($positions as $position) {
+			$stats['total']++;
+			$status = $position->getStatus();
+
+			if ($status->isOpen()) {
+				$stats['open']++;
+			} elseif ($status->isPending()) {
+				$stats['pending']++;
+			} elseif ($status->isFinished()) {
+				$stats['finished']++;
+			} elseif ($status->isCanceled()) {
+				$stats['cancelled']++;
+			} elseif ($status->isError()) {
+				$stats['error']++;
+			}
+		}
+
+		return $stats;
 	}
 
 	/**
@@ -166,13 +198,30 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 */
 	public function getUnrealizedPnL(): Money {
 		$volume = $this->getVolume()->getAmount();
+		$referencePrice = $this->getPriceForPnL()->getAmount();
+		$currentPrice = $this->getCurrentPrice()->getAmount();
+		
 		if ($this->getDirection()->isLong()) {
-			$pnl = ($this->getCurrentPrice()->getAmount() - $this->getEntryPrice()->getAmount()) * $volume;
+			$pnl = ($currentPrice - $referencePrice) * $volume;
 		} else {
-			$pnl = ($this->getEntryPrice()->getAmount() - $this->getCurrentPrice()->getAmount()) * $volume;
+			$pnl = ($referencePrice - $currentPrice) * $volume;
 		}
 
-		return new Money($pnl, $this->getVolume()->getCurrency());
+		return new Money($pnl, $this->getQuoteCurrency());
+	}
+
+	/**
+	 * Get the reference price for PnL calculation.
+	 * Uses average entry price if available, otherwise initial entry price.
+	 *
+	 * @return Money Reference price for PnL calculation.
+	 */
+	public function getPriceForPnL(): Money {
+		$avgPrice = $this->getAverageEntryPrice();
+		if ($avgPrice->getAmount() > 0) {
+			return $avgPrice;
+		}
+		return $this->getEntryPrice();
 	}
 
 	/**
@@ -252,10 +301,10 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @inheritDoc
 	 */
 	public function getUnrealizedPnLPercent(): float {
-		$entryPrice = $this->getEntryPrice();
+		$referencePrice = $this->getPriceForPnL();
 		$currentPrice = $this->getCurrentPrice();
 		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
-		$pnlPercent = $entryPrice->getPercentDifference($currentPrice) * $direction;
+		$pnlPercent = $referencePrice->getPercentDifference($currentPrice) * $direction;
 		return round($pnlPercent, 4);
 	}
 
@@ -267,18 +316,104 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	/**
-	 * Get the market this position belongs to.
-	 * @return IMarket Market instance.
-	 */
-	public function getMarket(): IMarket {
-		return $this->market;
-	}
-
-	/**
 	 * @inheritDoc
 	 */
 	public static function getTableName(): string {
 		return 'positions';
+	}
+
+	/**
+	 * Get exchange name for this position.
+	 * @return string Exchange name.
+	 */
+	public function getExchangeName(): string {
+		return $this->row[self::FExchangeName];
+	}
+
+	/**
+	 * Get ticker symbol for this position.
+	 * @return string Ticker symbol.
+	 */
+	public function getTicker(): string {
+		return $this->row[self::FTicker];
+	}
+
+	/**
+	 * Get base currency for this position.
+	 * @return string Base currency code.
+	 */
+	public function getBaseCurrency(): string {
+		return $this->row[self::FBaseCurrency];
+	}
+
+	/**
+	 * Get quote currency for this position.
+	 * @return string Quote currency code.
+	 */
+	public function getQuoteCurrency(): string {
+		return $this->row[self::FQuoteCurrency];
+	}
+
+	/**
+	 * Get position creation timestamp.
+	 * @return int Unix timestamp.
+	 */
+	public function getCreatedAt(): int {
+		return (int)($this->row[self::FCreatedAt] ?? 0);
+	}
+
+	/**
+	 * Get position last update timestamp.
+	 * @return int Unix timestamp.
+	 */
+	public function getUpdatedAt(): int {
+		return (int)($this->row[self::FUpdatedAt] ?? 0);
+	}
+
+	/**
+	 * Get position finish timestamp.
+	 * @return int Unix timestamp (0 if not finished).
+	 */
+	public function getFinishedAt(): int {
+		return (int)($this->row[self::FFinishedAt] ?? 0);
+	}
+
+	/**
+	 * Format a Unix timestamp for display.
+	 *
+	 * @param int $timestamp Unix timestamp.
+	 * @param string $format Date format.
+	 * @return string Formatted date or '-' if timestamp is 0.
+	 */
+	public static function formatTimestamp(int $timestamp, string $format = 'Y-m-d H:i'): string {
+		return $timestamp > 0 ? date($format, $timestamp) : '-';
+	}
+
+	/**
+	 * Get formatted creation date.
+	 * @param string $format Date format.
+	 * @return string Formatted date or '-'.
+	 */
+	public function getCreatedAtFormatted(string $format = 'Y-m-d H:i'): string {
+		return self::formatTimestamp($this->getCreatedAt(), $format);
+	}
+
+	/**
+	 * Get formatted last update date.
+	 * @param string $format Date format.
+	 * @return string Formatted date or '-'.
+	 */
+	public function getUpdatedAtFormatted(string $format = 'Y-m-d H:i'): string {
+		return self::formatTimestamp($this->getUpdatedAt(), $format);
+	}
+
+	/**
+	 * Get formatted finish date.
+	 * @param string $format Date format.
+	 * @return string Formatted date or '-'.
+	 */
+	public function getFinishedAtFormatted(string $format = 'Y-m-d H:i'): string {
+		return self::formatTimestamp($this->getFinishedAt(), $format);
 	}
 
 	/**
@@ -298,8 +433,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	/**
 	 * @inheritDoc
 	 */
-	public function updateInfo(): bool {
-		$market = $this->getMarket();
+	public function updateInfo(IMarket $market): bool {
 		$exchange = $market->getExchange();
 
 		// Get current position status.
@@ -321,7 +455,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 			// If the status is pending, check the presence of a “buy” limit order on the exchange.
 			if ($currentStatus->isPending()) {
 				$orderIdOnExchange = $this->getEntryOrderIdOnExchange();
-				$orderExists = $this->getMarket()->hasOrder($orderIdOnExchange);
+				$orderExists = $market->hasOrder($orderIdOnExchange);
 				if (!$orderExists) {
 					$this->setStatus(PositionStatusEnum::OPEN);
 					// When position becomes open, update average entry price to current price.
@@ -468,7 +602,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	/**
 	 * @inheritDoc
 	 */
-	public function updateTakeProfit(): void {
+	public function updateTakeProfit(IMarket $market): void {
 		// This is the average entry point (aka the PnL line). Above this line we are at benefit.
 		$averageEntryPrice = $this->getAverageEntryPrice();
 
@@ -486,7 +620,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 
 		// If the prices are different enough, we should move the TP order.
 		if ($diff > 0.1) {
-			$this->getMarket()->setTakeProfit($expectedTPPrice);
+			$market->setTakeProfit($expectedTPPrice);
 			$this->setTakeProfitPrice($expectedTPPrice);
 		}
 	}
@@ -506,4 +640,5 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function setAverageEntryPrice(Money $averageEntryPrice): void {
 		$this->row[self::FAverageEntryPrice] = $averageEntryPrice->getAmount();
 	}
+
 }

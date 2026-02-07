@@ -2,7 +2,6 @@
 
 namespace Izzy\Interfaces;
 
-use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\Money;
 
@@ -13,6 +12,24 @@ use Izzy\Financial\Money;
  * specific to positions tracked by EZMoonblow.
  */
 interface IStoredPosition extends IPosition {
+	/**
+	 * Get position creation timestamp.
+	 * @return int Unix timestamp.
+	 */
+	public function getCreatedAt(): int;
+
+	/**
+	 * Get position last update timestamp.
+	 * @return int Unix timestamp.
+	 */
+	public function getUpdatedAt(): int;
+
+	/**
+	 * Get position finish timestamp.
+	 * @return int Unix timestamp (0 if not finished).
+	 */
+	public function getFinishedAt(): int;
+
 	/**
 	 * Set current position volume.
 	 * @param Money $volume New position volume.
@@ -37,7 +54,7 @@ interface IStoredPosition extends IPosition {
 	public function isOpen(): bool;
 
 	/**
-	 * Get EZMoonblow’s internal position identifier.
+	 * Get EZMoonblow's internal position identifier.
 	 * @return int Position ID in the local database.
 	 */
 	public function getPositionId(): int;
@@ -47,12 +64,6 @@ interface IStoredPosition extends IPosition {
 	 * @return void
 	 */
 	public function close(): void;
-
-	/**
-	 * Get the market type for this position.
-	 * @return MarketTypeEnum Market type (spot or futures).
-	 */
-	public function getMarketType(): MarketTypeEnum;
 
 	/**
 	 * Buy additional volume to increase position size (DCA for long).
@@ -83,9 +94,10 @@ interface IStoredPosition extends IPosition {
 
 	/**
 	 * Update the take-profit order based on current position state.
+	 * @param IMarket $market Market instance for exchange operations.
 	 * @return void
 	 */
-	public function updateTakeProfit(): void;
+	public function updateTakeProfit(IMarket $market): void;
 
 	/**
 	 * Save the position to the database.
@@ -95,7 +107,8 @@ interface IStoredPosition extends IPosition {
 
 	/**
 	 * Update position info from the exchange.
+	 * @param IMarket $market Market instance for exchange operations.
 	 * @return bool True on success.
 	 */
-	public function updateInfo(): bool;
+	public function updateInfo(IMarket $market): bool;
 }

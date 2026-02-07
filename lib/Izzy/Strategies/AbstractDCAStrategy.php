@@ -149,7 +149,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 	public function updatePosition(IStoredPosition $position): void {
 		// If the position uses limit orders, we only need to move TP order.
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			$position->updateTakeProfit();
+			$position->updateTakeProfit($this->market);
 			return;
 		}
 

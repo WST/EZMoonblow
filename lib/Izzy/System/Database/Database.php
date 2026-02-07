@@ -493,9 +493,18 @@ class Database {
 		return $object;
 	}
 
-	public function selectAllObjects($objectType, string|array $where = '1', $userdata = null): array {
+	/**
+	 * Select all rows from a table and return them as objects.
+	 *
+	 * @param string $objectType Class name of the object to create.
+	 * @param string|array $where WHERE clause or associative array of conditions.
+	 * @param string $order Optional ORDER BY clause.
+	 * @param mixed|null $userdata Optional user data to pass to the object constructor.
+	 * @return array Array of objects.
+	 */
+	public function selectAllObjects(string $objectType, string|array $where = '1', string $order = '', mixed $userdata = null): array {
 		$results = [];
-		$rows = $this->selectAllRows($objectType::getTableName(), '*', $where);
+		$rows = $this->selectAllRows($objectType::getTableName(), '*', $where, $order);
 		foreach ($rows as $row) {
 			if (is_null($userdata)) {
 				$object = new $objectType($this, $row);

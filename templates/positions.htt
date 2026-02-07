@@ -87,6 +87,7 @@
         text-align: center;
         vertical-align: middle;
         border: 0px none;
+        font-size: 12px;
     }
 
     .positions-table th {
@@ -254,58 +255,62 @@
                     <th>Pair</th>
                     <th>Volume</th>
                     <th>Entry Price</th>
+                    <th>Avg Price</th>
                     <th>Current Price</th>
                     <th>PnL %</th>
                     <th>PnL</th>
                     <th>Status</th>
                     <th>Created</th>
                     <th>Updated</th>
+                    <th>Finished</th>
                 </tr>
             </thead>
             <tbody>
                 {% for position in positions %}
                 <tr>
-                    <td>{{ position.id }}</td>
+                    <td>{{ position.positionId }}</td>
                     <td>
                         <strong>{{ position.ticker }}</strong>
-                        {{ position.exchange }}
-                        {% if position.market_type == 'spot' %}
+                        {{ position.exchangeName }}
+                        {% if position.marketType.isSpot %}
                             <span class="market-badge market-spot">Spot</span>
                         {% else %}
                             <span class="market-badge market-futures">Futures</span>
                         {% endif %}
-                        {% if position.direction == 'LONG' %}
+                        {% if position.direction.isLong %}
                             <span class="direction-badge direction-long">LONG</span>
                         {% else %}
                             <span class="direction-badge direction-short">SHORT</span>
                         {% endif %}
                     </td>
-                    <td class="number">{{ position.volume|number_format(2) }} {{ position.quote_currency }}</td>
-                    <td class="number">{{ position.entry_price|number_format(2) }} {{ position.quote_currency }}</td>
-                    <td class="number">{{ position.current_price|number_format(2) }} {{ position.quote_currency }}</td>
-                    <td class="number {% if position.pnl_percent > 0 %}pnl-positive{% elseif position.pnl_percent < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
-                        {% if position.pnl_percent > 0 %}+{% endif %}{{ position.pnl_percent|number_format(2) }}%
+                    <td class="number">{{ position.volume.amount|number_format(2) }} {{ position.baseCurrency }}</td>
+                    <td class="number">{{ position.entryPrice.amount|number_format(2) }} {{ position.quoteCurrency }}</td>
+                    <td class="number">{{ position.averageEntryPrice.amount|number_format(2) }} {{ position.quoteCurrency }}</td>
+                    <td class="number">{{ position.currentPrice.amount|number_format(2) }} {{ position.quoteCurrency }}</td>
+                    <td class="number {% if position.unrealizedPnLPercent > 0 %}pnl-positive{% elseif position.unrealizedPnLPercent < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
+                        {% if position.unrealizedPnLPercent > 0 %}+{% endif %}{{ position.unrealizedPnLPercent|number_format(2) }}%
                     </td>
-                    <td class="number {% if position.pnl_amount > 0 %}pnl-positive{% elseif position.pnl_amount < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
-                        {% if position.pnl_amount > 0 %}+{% endif %}{{ position.pnl_amount|number_format(2) }} {{ position.quote_currency }}
+                    <td class="number {% if position.unrealizedPnL.amount > 0 %}pnl-positive{% elseif position.unrealizedPnL.amount < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
+                        {% if position.unrealizedPnL.amount > 0 %}+{% endif %}{{ position.unrealizedPnL.amount|number_format(2) }} {{ position.quoteCurrency }}
                     </td>
                     <td>
-                        {% if position.status == 'OPEN' %}
+                        {% if position.status.isOpen %}
                             <span class="status-badge status-open">Open</span>
-                        {% elseif position.status == 'PENDING' %}
+                        {% elseif position.status.isPending %}
                             <span class="status-badge status-pending">Pending</span>
-                        {% elseif position.status == 'FINISHED' %}
+                        {% elseif position.status.isFinished %}
                             <span class="status-badge status-finished">Finished</span>
-                        {% elseif position.status == 'CANCELLED' %}
+                        {% elseif position.status.isCanceled %}
                             <span class="status-badge status-cancelled">Cancelled</span>
-                        {% elseif position.status == 'ERROR' %}
+                        {% elseif position.status.isError %}
                             <span class="status-badge status-error">Error</span>
                         {% else %}
-                            {{ position.status }}
+                            {{ position.status.value }}
                         {% endif %}
                     </td>
-                    <td>{{ position.created_at_formatted }}</td>
-                    <td>{{ position.updated_at_formatted }}</td>
+                    <td>{{ position.createdAtFormatted }}</td>
+                    <td>{{ position.updatedAtFormatted }}</td>
+                    <td>{{ position.finishedAtFormatted }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

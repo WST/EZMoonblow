@@ -4,10 +4,10 @@ namespace Izzy\Exchanges\Bybit;
 
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
+use Izzy\Exchanges\PositionOnExchange;
 use Izzy\Financial\Money;
 use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPositionOnExchange;
 use Izzy\Interfaces\IStoredPosition;
 
 /**
@@ -15,13 +15,7 @@ use Izzy\Interfaces\IStoredPosition;
  *
  * NOTE: Only USDT is supported as the quote currency.
  */
-class PositionOnBybit implements IPositionOnExchange {
-	/**
-	 * Market this position belongs to.
-	 * @var IMarket
-	 */
-	private IMarket $market;
-
+class PositionOnBybit extends PositionOnExchange {
 	/**
 	 * Raw position info from Bybit API.
 	 * @var array
@@ -35,7 +29,7 @@ class PositionOnBybit implements IPositionOnExchange {
 	 * @param array $positionInfo Raw position data from Bybit API.
 	 */
 	public function __construct(IMarket $market, array $positionInfo) {
-		$this->market = $market;
+		parent::__construct($market);
 		$this->info = $positionInfo;
 	}
 
@@ -54,7 +48,7 @@ class PositionOnBybit implements IPositionOnExchange {
 	 * @inheritDoc
 	 */
 	public function getVolume(): Money {
-		return Money::from($this->info['size'], $this->market->getPair()->getBaseCurrency());
+		return Money::from($this->info['size'], $this->getBaseCurrency());
 	}
 
 	/**
@@ -71,13 +65,13 @@ class PositionOnBybit implements IPositionOnExchange {
 	 * @inheritDoc
 	 */
 	public function getAverageEntryPrice(): Money {
-		return Money::from($this->info['avgPrice'], $this->market->getPair()->getQuoteCurrency());
+		return Money::from($this->info['avgPrice'], $this->getQuoteCurrency());
 	}
 
 	/**
 	 * @inheritDoc
 	 *
-	 * NOTE: There is no way to get the first “entry” price from Bybit.
+	 * NOTE: There is no way to get the first "entry" price from Bybit.
 	 * Returns the average entry price instead.
 	 */
 	public function getEntryPrice(): Money {
@@ -88,25 +82,14 @@ class PositionOnBybit implements IPositionOnExchange {
 	 * @inheritDoc
 	 */
 	public function getUnrealizedPnL(): Money {
-		return Money::from($this->info['unrealisedPnl'], $this->market->getPair()->getQuoteCurrency());
+		return Money::from($this->info['unrealisedPnl'], $this->getQuoteCurrency());
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	public function getCurrentPrice(): Money {
-		return Money::from($this->info['markPrice'], $this->market->getPair()->getQuoteCurrency());
-	}
-
-	/**
-	 * @inheritDoc
-	 */
-	public function getUnrealizedPnLPercent(): float {
-		$avgPrice = $this->getAverageEntryPrice();
-		$markPrice = $this->getCurrentPrice();
-		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
-		$pnlPercent = $avgPrice->getPercentDifference($markPrice) * $direction;
-		return round($pnlPercent, 4);
+		return Money::from($this->info['markPrice'], $this->getQuoteCurrency());
 	}
 
 	/**
@@ -124,7 +107,7 @@ class PositionOnBybit implements IPositionOnExchange {
 			$this->info['positionIdx'] ?? 'unknown'
 		);
 
-		// Set additional data that’s available from Bybit position.
+		// Set additional data that's available from Bybit position.
 		$storedPosition->setAverageEntryPrice($this->getAverageEntryPrice());
 		
 		// Save to database.

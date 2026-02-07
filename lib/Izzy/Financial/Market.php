@@ -685,7 +685,7 @@ class Market implements IMarket {
 		}
 
 		// Update position info from the Exchange.
-		$currentPosition->updateInfo();
+		$currentPosition->updateInfo($this);
 
 		// All checks passed, we can ask the Strategy to update our active Position.
 		$this->strategy->updatePosition($currentPosition);
