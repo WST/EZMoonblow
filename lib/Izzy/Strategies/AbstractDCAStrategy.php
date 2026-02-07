@@ -111,10 +111,10 @@ abstract class AbstractDCAStrategy extends Strategy {
 				PositionDirectionEnum::LONG,
 				$this->dcaSettings->getLongGrid()->getExpectedProfit()
 			);
-			$newPosition->setExpectedProfitPercent($this->dcaSettings->getLongGrid()->getExpectedProfit());
-			$newPosition->save();
-			return $newPosition;
 		}
+		$newPosition->setExpectedProfitPercent($this->dcaSettings->getLongGrid()->getExpectedProfit());
+		$newPosition->save();
+		return $newPosition;
 	}
 
 	/**
@@ -124,7 +124,7 @@ abstract class AbstractDCAStrategy extends Strategy {
 	 */
 	public function handleShort(IMarket $market): IStoredPosition|false {
 		if ($this->dcaSettings->isUseLimitOrders()) {
-			return $market->openPositionByDCAGrid($this->dcaSettings->getShortGrid());
+			$newPosition = $market->openPositionByDCAGrid($this->dcaSettings->getShortGrid());
 		} else {
 			// Market open the Short position.
 			$newPosition = $market->openPosition(
@@ -132,10 +132,10 @@ abstract class AbstractDCAStrategy extends Strategy {
 				PositionDirectionEnum::SHORT,
 				$this->dcaSettings->getShortGrid()->getExpectedProfit()
 			);
-			$newPosition->setExpectedProfitPercent($this->dcaSettings->getShortGrid()->getExpectedProfit());
-			$newPosition->save();
-			return $newPosition;
 		}
+		$newPosition->setExpectedProfitPercent($this->dcaSettings->getShortGrid()->getExpectedProfit());
+		$newPosition->save();
+		return $newPosition;
 	}
 
 	/**
