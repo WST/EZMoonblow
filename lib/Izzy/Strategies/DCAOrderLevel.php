@@ -85,24 +85,6 @@ class DCAOrderLevel {
 	}
 
 	/**
-	 * Create a level from an array representation.
-	 *
-	 * @param array $data Array with 'volume', 'offsetPercent', and optionally 'volumeMode' keys.
-	 * @return self
-	 */
-	public static function fromArray(array $data): self {
-		$volumeMode = isset($data['volumeMode'])
-			? (EntryVolumeModeEnum::tryFrom($data['volumeMode']) ?? EntryVolumeModeEnum::ABSOLUTE_QUOTE)
-			: EntryVolumeModeEnum::ABSOLUTE_QUOTE;
-
-		return new self(
-			$data['volume'] ?? 0.0,
-			$data['offsetPercent'] ?? 0.0,
-			$volumeMode
-		);
-	}
-
-	/**
 	 * Convert level to array representation.
 	 * @return array
 	 */
