@@ -13,7 +13,6 @@ use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
-use Izzy\Interfaces\IPosition;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IStrategy;
 use Izzy\Strategies\DCAOrderGrid;
@@ -77,7 +76,7 @@ class Market implements IMarket {
 	/**
 	 * Price cache TTL in seconds.
 	 */
-	private const PRICE_CACHE_TTL = 10;
+	private const int PRICE_CACHE_TTL = 10;
 
 	public function __construct(
 		IExchangeDriver $exchange,
@@ -214,7 +213,7 @@ class Market implements IMarket {
 				$this->addIndicator($indicator);
 			} catch (Exception $e) {
 				// Log error but continue with other indicators
-				error_log("Failed to initialize indicator {$indicatorClass}: ".$e->getMessage());
+				error_log("Failed to initialize indicator $indicatorClass: ".$e->getMessage());
 			}
 		}
 	}
@@ -618,9 +617,9 @@ class Market implements IMarket {
 			try {
 				$indicator = IndicatorFactory::create($this, $indicatorType, $parameters);
 				$this->addIndicator($indicator);
-				$this->getExchange()->getLogger()->info("Added indicator {$indicatorType} to market $this");
+				$this->getExchange()->getLogger()->info("Added indicator $indicatorType to market $this");
 			} catch (Exception $e) {
-				$this->getExchange()->getLogger()->error("Failed to add indicator {$indicatorType} to market $this: ".$e->getMessage());
+				$this->getExchange()->getLogger()->error("Failed to add indicator $indicatorType to market $this: ".$e->getMessage());
 			}
 		}
 	}

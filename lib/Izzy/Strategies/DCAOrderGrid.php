@@ -255,12 +255,7 @@ class DCAOrderGrid {
 	 * @return bool
 	 */
 	public function requiresRuntimeCalculation(): bool {
-		foreach ($this->levels as $level) {
-			if ($level->getVolumeMode()->requiresRuntimeCalculation()) {
-				return true;
-			}
-		}
-		return false;
+		return array_any($this->levels, fn($level) => $level->getVolumeMode()->requiresRuntimeCalculation());
 	}
 
 	/**
