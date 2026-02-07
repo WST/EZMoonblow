@@ -60,11 +60,9 @@ class Bybit extends AbstractExchangeDriver {
 
 	/**
 	 * @inheritDoc
-	 *
-	 * TODO: Implement disconnect() method.
 	 */
 	public function disconnect(): void {
-		// TODO: Implement disconnect() method.
+		die();
 	}
 
 	/**
