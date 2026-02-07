@@ -355,12 +355,12 @@ class Bybit extends AbstractExchangeDriver {
 			$response = $this->api->tradeApi()->placeOrder($params);
 
 			if (!isset($response[BybitParam::OrderId])) {
-				$this->logger->error("Failed to open long position on $market: ".json_encode($response));
+				$this->logger->error("Failed to open a position on $market: ".json_encode($response));
 				return false;
 			}
 
 			// Inform the user.
-			$this->logger->warning("Successfully opened long position on Bybit for $market: $properVolume");
+			$this->logger->warning("Successfully opened a position on Bybit for $market: $properVolume");
 
 			/**
 			 * Create and save the position. For the spot market, positions are emulated.
@@ -369,7 +369,7 @@ class Bybit extends AbstractExchangeDriver {
 			$position = StoredPosition::create(
 				market: $market,
 				volume: $amount,
-				direction: PositionDirectionEnum::LONG,
+				direction: $direction,
 				entryPrice: $currentPrice,
 				currentPrice: $currentPrice,
 				status: PositionStatusEnum::OPEN,
@@ -392,7 +392,7 @@ class Bybit extends AbstractExchangeDriver {
 			return true;
 		} catch (Exception $e) {
 			// Inform the user.
-			$this->logger->error("Failed to open long position on $market: ".$e->getMessage());
+			$this->logger->error("Failed to open a position on $market: ".$e->getMessage());
 
 			// Failure.
 			return false;

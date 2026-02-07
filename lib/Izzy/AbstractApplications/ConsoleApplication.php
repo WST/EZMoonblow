@@ -69,9 +69,7 @@ abstract class ConsoleApplication extends IzzyApplication {
 	 * @param array|null $extraInfo Optional extra information to store.
 	 */
 	protected function beat(?array $extraInfo = null): void {
-		if ($this->heartbeat) {
-			$this->heartbeat->beat($extraInfo);
-		}
+		$this->heartbeat?->beat($extraInfo);
 	}
 
 	/**
@@ -79,8 +77,6 @@ abstract class ConsoleApplication extends IzzyApplication {
 	 * Should be called when shutting down gracefully.
 	 */
 	protected function stopHeartbeat(): void {
-		if ($this->heartbeat) {
-			$this->heartbeat->stop();
-		}
+		$this->heartbeat?->stop();
 	}
 }

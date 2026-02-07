@@ -257,8 +257,7 @@ class Market implements IMarket {
 				if ($positionFromExchange) {
 					// NOTE: we don’t have info about entry order here.
 					$this->exchange->getLogger()->debug("Found position on the exchange for $this, creating a stored position");
-					$storedPosition = $positionFromExchange->store();
-					return $storedPosition;
+					return $positionFromExchange->store();
 				}
 			}
 		}
