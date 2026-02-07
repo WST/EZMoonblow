@@ -95,24 +95,7 @@ class PositionOnBybit extends PositionOnExchange {
 	/**
 	 * @inheritDoc
 	 */
-	public function store(): IStoredPosition {
-		// Create StoredPosition from current position data.
-		$storedPosition = StoredPosition::create(
-			$this->market,
-			$this->getVolume(),
-			$this->getDirection(),
-			$this->getEntryPrice(),
-			$this->getCurrentPrice(),
-			PositionStatusEnum::OPEN,
-			$this->info['positionIdx'] ?? 'unknown'
-		);
-
-		// Set additional data that's available from Bybit position.
-		$storedPosition->setAverageEntryPrice($this->getAverageEntryPrice());
-		
-		// Save to database.
-		$storedPosition->save();
-
-		return $storedPosition;
+	public function getExchangePositionId(): string {
+		return $this->info['positionIdx'] ?? 'unknown';
 	}
 }

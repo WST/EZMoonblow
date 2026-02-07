@@ -298,14 +298,15 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	}
 
 	/**
+	 * @param int $precision
 	 * @inheritDoc
 	 */
-	public function getUnrealizedPnLPercent(): float {
+	public function getUnrealizedPnLPercent(int $precision = 4): float {
 		$referencePrice = $this->getPriceForPnL();
 		$currentPrice = $this->getCurrentPrice();
 		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
 		$pnlPercent = $referencePrice->getPercentDifference($currentPrice) * $direction;
-		return round($pnlPercent, 4);
+		return round($pnlPercent, $precision);
 	}
 
 	/**

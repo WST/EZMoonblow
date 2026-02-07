@@ -3,8 +3,11 @@
 namespace Izzy\Exchanges;
 
 use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\PositionStatusEnum;
+use Izzy\Financial\StoredPosition;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IPositionOnExchange;
+use Izzy\Interfaces\IStoredPosition;
 
 /**
  * Abstract base class for positions on exchanges.
@@ -75,11 +78,35 @@ abstract class PositionOnExchange implements IPositionOnExchange {
 	/**
 	 * @inheritDoc
 	 */
-	public function getUnrealizedPnLPercent(): float {
+	public function getUnrealizedPnLPercent($precision = 4): float {
 		$avgPrice = $this->getAverageEntryPrice();
 		$currentPrice = $this->getCurrentPrice();
 		$direction = ($this->getDirection()->isLong()) ? 1 : -1;
 		$pnlPercent = $avgPrice->getPercentDifference($currentPrice) * $direction;
-		return round($pnlPercent, 4);
+		return round($pnlPercent, $precision);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function store(): IStoredPosition {
+		// Create StoredPosition from current position data.
+		$storedPosition = StoredPosition::create(
+			$this->market,
+			$this->getVolume(),
+			$this->getDirection(),
+			$this->getEntryPrice(),
+			$this->getCurrentPrice(),
+			PositionStatusEnum::OPEN,
+			$this->getExchangePositionId()
+		);
+
+		// Set additional data that’s available from Exchange-specific position.
+		$storedPosition->setAverageEntryPrice($this->getAverageEntryPrice());
+
+		// Save to the database.
+		$storedPosition->save();
+
+		return $storedPosition;
 	}
 }

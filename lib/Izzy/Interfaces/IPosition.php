@@ -78,7 +78,8 @@ interface IPosition {
 
 	/**
 	 * Get unrealized profit/loss in percent of the position size (not the margin).
+	 * @param int $precision Precision
 	 * @return float Unrealized PnL percentage.
 	 */
-	public function getUnrealizedPnLPercent(): float;
+	public function getUnrealizedPnLPercent(int $precision = 4): float;
 }
