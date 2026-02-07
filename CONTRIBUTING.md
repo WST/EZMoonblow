@@ -204,12 +204,29 @@ lib/Izzy/
 - `Market` provides high-level trading terminal interface.
 - `AbstractExchangeDriver` and implementations provide low-level exchange communication.
 
-#### 5. Database Migrations
+#### 5. Database Conventions
 
+##### Column Naming
+- **All columns must have a table prefix** matching the stored entity name.
+- Example for `tasks` table: `task_id`, `task_status`, `task_sender`.
+- Example for `positions` table: `position_id`, `position_status`.
+- This prevents ambiguity in JOINs and makes queries self-documenting.
+
+##### Type Consistency
+- When adding a new column similar to an existing one, **use the same type**.
+- Example: if `task_recipient` is `ENUM('Trader', 'Analyzer', 'Notifier')`, then `task_sender` should also be an ENUM, not VARCHAR.
+- Before choosing a column type, check existing similar columns in the same or related tables.
+
+##### Enum Columns
+- For fields with a fixed set of values, prefer `ENUM` over `VARCHAR`.
+- Ensure the PHP enum (`lib/Izzy/Enums/`) matches the database ENUM values exactly.
+- When writing enum values to database, use `EnumClass::CASE->value`, never `(string)$object`.
+
+##### Migrations
 - **Critical**: This is a custom migration system, not a third-party one.
 - Always examine `DatabaseMigrationManager` class before writing migrations.
 - Study existing migrations in `migrations/` folder.
-- Don’t write migrations “blindly” — understand the system first.
+- Don't write migrations "blindly" — understand the system first.
 
 #### 6. Pair vs Market Distinction
 
