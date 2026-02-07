@@ -60,6 +60,11 @@ class BacktestExchange implements IExchangeDriver
 	public function setCurrentPriceForMarket(IMarket $market, Money $price): void
 	{
 		$this->currentPriceByMarketKey[$this->marketKey($market)] = $price;
+		// Also update the Market's own price cache to prevent stale reads.
+		// Market::getCurrentPrice() has a 10s TTL based on wall-clock time();
+		// in backtesting, multiple ticks are processed within milliseconds,
+		// so the cache would never expire and would return stale prices.
+		$market->setCurrentPrice($price);
 	}
 
 	/**

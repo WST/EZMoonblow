@@ -715,6 +715,20 @@ class Market implements IMarket
 	}
 
 	/**
+	 * Force-set the current price and refresh the cache.
+	 *
+	 * Used by BacktestExchange to inject the simulated tick price directly
+	 * into the Market's cache, bypassing the TTL check that relies on
+	 * wall-clock time(). Without this, rapid backtest ticks may return a
+	 * stale cached price from a previous tick, causing non-deterministic results.
+	 */
+	public function setCurrentPrice(Money $price): void
+	{
+		$this->cachedPrice = $price;
+		$this->cachedPriceTimestamp = time();
+	}
+
+	/**
 	 * Get the current trading context for volume calculations.
 	 *
 	 * This method provides runtime context (balance, margin, price) needed

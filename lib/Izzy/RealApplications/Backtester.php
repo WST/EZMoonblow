@@ -156,6 +156,49 @@ class Backtester extends ConsoleApplication
 			$progressStep = max(1, (int) ($n / 20));
 			$liquidated = false;
 			$lastCandle = null;
+			$maxDrawdown = 0.0; // Track the deepest unrealized PnL dip during the simulation.
+			/*
+			 * ============================================================
+			 *  INTRA-CANDLE TIME SIMULATION
+			 * ============================================================
+			 *
+			 * In the real Trader, Market::processTrading() is called every
+			 * 60 seconds regardless of the candle timeframe. This means
+			 * the bot can open a new position seconds after the previous
+			 * one was closed by TP, even within the same candle.
+			 *
+			 * To model this behaviour without generating millions of fake
+			 * 1-minute ticks, we split each candle into 4 synthetic ticks
+			 * that approximate the price path inside the candle:
+			 *
+			 *   Tick 0  time = candleOpen               price = open
+			 *   Tick 1  time = candleOpen + duration/3   price = low  (bullish) | high (bearish)
+			 *   Tick 2  time = candleOpen + duration*2/3 price = high (bullish) | low  (bearish)
+			 *   Tick 3  time = candleOpen + duration - 1 price = close
+			 *
+			 * A candle is bullish when close >= open (price went up overall),
+			 * bearish otherwise. The assumed intra-candle price path:
+			 *
+			 *   Bullish:  open ──▼ low ──▲ high ──► close   (dips first, then rallies)
+			 *   Bearish:  open ──▲ high ──▼ low  ──► close   (rallies first, then drops)
+			 *
+			 * On EVERY tick we execute the full trading cycle:
+			 *   1. Set simulation time and current market price
+			 *   2. Recalculate indicators (they see the latest candle slice)
+			 *   3. Call processTrading() — checks for existing position,
+			 *      fires entry signals, executes DCA updatePosition, etc.
+			 *   4. Fill any pending DCA limit orders whose price is reached
+			 *   5. Check Take-Profit hits on open positions
+			 *   6. Check liquidation (balance + unrealized PnL <= 0)
+			 *
+			 * Because processTrading() runs on every tick, a TP hit on
+			 * tick 1 is immediately followed by processTrading() on tick 2
+			 * of the SAME candle — the strategy can open a new position
+			 * without waiting for the next candle, just like in production.
+			 * ============================================================
+			 */
+			$candleDuration = $pair->getTimeframe()->toSeconds();
+
 			for ($i = 0; $i < $n; $i++) {
 				$slice = array_slice($candles, 0, $i + 1);
 				foreach ($slice as $c) {
@@ -165,8 +208,6 @@ class Backtester extends ConsoleApplication
 				$currentCandle = $candles[$i];
 				$lastCandle = $currentCandle;
 				$candleTime = (int) $currentCandle->getOpenTime();
-				$backtestExchange->setSimulationTime($candleTime);
-				$log->setBacktestSimulationTime($candleTime);
 
 				$openPrice = $currentCandle->getOpenPrice();
 				$highPrice = $currentCandle->getHighPrice();
@@ -174,34 +215,46 @@ class Backtester extends ConsoleApplication
 				$closePrice = $currentCandle->getClosePrice();
 				$isBullish = $closePrice >= $openPrice;
 
-				// Step 1: Set price at OPEN for indicators and trading signals.
-				$backtestExchange->setCurrentPriceForMarket($market, Money::from($openPrice));
-				$market->calculateIndicators();
-				$market->processTrading();
+				// Build 4 ticks: [time, price] pairs that approximate the price path.
+				$ticks = $isBullish
+					? [
+						[$candleTime,                                    $openPrice],
+						[$candleTime + (int) ($candleDuration / 3),      $lowPrice],
+						[$candleTime + (int) ($candleDuration * 2 / 3),  $highPrice],
+						[$candleTime + $candleDuration - 1,              $closePrice],
+					]
+					: [
+						[$candleTime,                                    $openPrice],
+						[$candleTime + (int) ($candleDuration / 3),      $highPrice],
+						[$candleTime + (int) ($candleDuration * 2 / 3),  $lowPrice],
+						[$candleTime + $candleDuration - 1,              $closePrice],
+					];
 
-				// Determine price sequence based on candle type:
-				// Bullish: open → low → high → close
-				// Bearish: open → high → low → close
-				$priceSequence = $isBullish
-					? [$lowPrice, $highPrice, $closePrice]
-					: [$highPrice, $lowPrice, $closePrice];
+				foreach ($ticks as [$tickTime, $tickPrice]) {
+					// --- 1. Set simulation time and price ---
+					$backtestExchange->setSimulationTime($tickTime);
+					$log->setBacktestSimulationTime($tickTime);
+					$backtestExchange->setCurrentPriceForMarket($market, Money::from($tickPrice));
 
-				foreach ($priceSequence as $pricePoint) {
-					$backtestExchange->setCurrentPriceForMarket($market, Money::from($pricePoint));
+					// --- 2. Recalculate indicators ---
+					$market->calculateIndicators();
 
-					// Process pending limit orders (DCA fills).
+					// --- 3. processTrading: entry signals / position updates ---
+					$market->processTrading();
+
+					// --- 4. Fill pending DCA limit orders ---
 					foreach (array_values($backtestExchange->getPendingLimitOrders($market)) as $order) {
 						$orderPrice = $order['price'];
 						$filled = $order['direction']->isLong()
-							? ($pricePoint <= $orderPrice)
-							: ($pricePoint >= $orderPrice);
+							? ($tickPrice <= $orderPrice)
+							: ($tickPrice >= $orderPrice);
 						if ($filled) {
 							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price']);
 							$backtestExchange->removePendingLimitOrder($market, $order['orderId']);
 						}
 					}
 
-					// Reload positions from DB after DCA fills.
+					// Reload positions from DB after DCA fills / new opens.
 					$where = [
 						BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
 						BacktestStoredPosition::FTicker => $market->getTicker(),
@@ -210,27 +263,7 @@ class Backtester extends ConsoleApplication
 					];
 					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
 
-					// Liquidation check.
-					$balance = $backtestExchange->getVirtualBalance()->getAmount();
-					$worstUnrealizedPnl = 0.0;
-					foreach ($openPositions as $position) {
-						$vol = $position->getVolume()->getAmount();
-						$entry = $position->getAverageEntryPrice()->getAmount();
-						if ($position->getDirection()->isLong()) {
-							$worstUnrealizedPnl += $vol * ($pricePoint - $entry);
-						} else {
-							$worstUnrealizedPnl += $vol * ($entry - $pricePoint);
-						}
-					}
-					if ($balance + $worstUnrealizedPnl <= 0) {
-						$liquidated = true;
-						$dateStr = date('Y-m-d H:i', $candleTime);
-						$log->backtestProgress("  LIQUIDATION at candle " . ($i + 1) . "/$n ($dateStr): balance " . number_format($balance, 2) . " USDT + unrealized PnL " . number_format($worstUnrealizedPnl, 2) . " USDT <= 0");
-						$this->logger->warning("Backtest stopped: liquidated at candle " . ($i + 1) . " $dateStr.");
-						break 2; // Exit both loops.
-					}
-
-					// Check TP hits.
+					// --- 5. Check Take-Profit hits ---
 					foreach ($openPositions as $position) {
 						$tpPrice = $position->getTakeProfitPrice();
 						if ($tpPrice === null) {
@@ -238,29 +271,53 @@ class Backtester extends ConsoleApplication
 						}
 						$tp = $tpPrice->getAmount();
 						$hit = $position->getDirection()->isLong()
-							? ($pricePoint >= $tp)
-							: ($pricePoint <= $tp);
+							? ($tickPrice >= $tp)
+							: ($tickPrice <= $tp);
 						if (!$hit) {
 							continue;
 						}
-						// Calculate PnL at TP price.
 						$position->setCurrentPrice($tpPrice);
 						$profitMoney = $position->getUnrealizedPnL();
 						$profit = $profitMoney->getAmount();
 						if ($profit <= 0) {
-							continue; // Skip false TP hits.
+							continue;
 						}
-						$position->markFinished($candleTime);
+						$position->markFinished($tickTime);
 						$position->save();
 						$backtestExchange->creditBalance($profit);
-						// Clear pending DCA orders for this market.
 						$backtestExchange->clearPendingLimitOrders($market);
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$dir = $position->getDirection()->value;
 						$log->backtestProgress("  TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT -> balance " . number_format($balanceAfter, 2) . " USDT");
 					}
+
+					// --- 6. Liquidation check ---
+					$balance = $backtestExchange->getVirtualBalance()->getAmount();
+					$unrealizedPnl = 0.0;
+					// Re-fetch positions (some may have been closed by TP above).
+					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+					foreach ($openPositions as $position) {
+						$vol = $position->getVolume()->getAmount();
+						$entry = $position->getAverageEntryPrice()->getAmount();
+						if ($position->getDirection()->isLong()) {
+							$unrealizedPnl += $vol * ($tickPrice - $entry);
+						} else {
+							$unrealizedPnl += $vol * ($entry - $tickPrice);
+						}
+					}
+					if ($unrealizedPnl < $maxDrawdown) {
+						$maxDrawdown = $unrealizedPnl;
+					}
+					if ($balance + $unrealizedPnl <= 0) {
+						$liquidated = true;
+						$dateStr = date('Y-m-d H:i', $tickTime);
+						$log->backtestProgress("  LIQUIDATION at candle " . ($i + 1) . "/$n ($dateStr): balance " . number_format($balance, 2) . " USDT + unrealized PnL " . number_format($unrealizedPnl, 2) . " USDT <= 0");
+						$this->logger->warning("Backtest stopped: liquidated at candle " . ($i + 1) . " $dateStr.");
+						break 2; // Exit both tick and candle loops.
+					}
 				}
 
+				// Progress log after all ticks of this candle are processed.
 				if ($i % $progressStep === 0 || $i === $n - 1) {
 					$balance = $backtestExchange->getVirtualBalance()->getAmount();
 					$date = date('Y-m-d H:i', $candleTime);
@@ -284,7 +341,7 @@ class Backtester extends ConsoleApplication
 
 			$openPositionsData = [];
 			$lastClose = $lastCandle !== null ? $lastCandle->getClosePrice() : 0.0;
-			$simEndTime = $lastCandle !== null ? (int) $lastCandle->getOpenTime() : time();
+			$simEndTime = $lastCandle !== null ? ((int) $lastCandle->getOpenTime() + $candleDuration - 1) : time();
 			$simStartTime = !empty($candles) ? (int) $candles[0]->getOpenTime() : $simEndTime;
 			$whereOpen = array_merge($marketWhere, [
 				BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
@@ -343,7 +400,8 @@ class Backtester extends ConsoleApplication
 				$pendingCount,
 				$liquidated,
 				$openPositionsData,
-				$durationStats
+				$durationStats,
+				$maxDrawdown
 			);
 		}
 	}
@@ -489,7 +547,8 @@ class Backtester extends ConsoleApplication
 		int $pendingCount,
 		bool $liquidated = false,
 		array $openPositionsData = [],
-		array $durationStats = []
+		array $durationStats = [],
+		float $maxDrawdown = 0.0
 	): void {
 		$pnl = $finalBalance - $initialBalance;
 		$pnlPercent = $initialBalance > 0 ? (($pnl / $initialBalance) * 100) : 0.0;
@@ -502,6 +561,7 @@ class Backtester extends ConsoleApplication
 			['Initial balance', number_format($initialBalance, 2) . ' USDT'],
 			['Final balance', number_format($finalBalance, 2) . ' USDT'],
 			['PnL', number_format($pnl, 2) . ' USDT (' . number_format($pnlPercent, 2) . '%)'],
+			['Max drawdown', number_format($maxDrawdown, 2) . ' USDT'],
 			['Trades (finished)', (string) $totalTrades],
 			['Open', (string) $openCount],
 			['Pending', (string) $pendingCount],
