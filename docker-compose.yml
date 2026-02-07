@@ -1,0 +1,152 @@
+# EZMoonblow Docker Compose configuration.
+
+services:
+  # MySQL database server.
+  mysql:
+    image: mysql:8.0
+    container_name: ezmoonblow-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: izzy_php
+      MYSQL_USER: izzy
+      MYSQL_PASSWORD: izzy123
+    ports:
+      - "23306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - ezmoonblow-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-prootpassword"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Database migrations service.
+  # This service runs migrations once before other services start.
+  migrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezmoonblow-migrator
+    restart: "no"
+    command: /app/tasks/docker/run-migrations.sh
+    volumes:
+      - ./config:/app/config:ro
+      - ./migrations:/app/migrations:ro
+      - migration_marker:/app/migration_marker
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ezmoonblow-network
+    environment:
+      - TZ=Asia/Yerevan
+
+  # Trading component.
+  trader:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezmoonblow-trader
+    restart: unless-stopped
+    command: /app/tasks/docker/wait-for-migrations.sh && /app/trader.php
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./charts:/app/charts
+      - ./rrd:/app/rrd
+      - ./cache:/app/cache
+      - migration_marker:/app/migration_marker
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ezmoonblow-network
+    environment:
+      - TZ=Asia/Yerevan
+
+  # Analysis component.
+  analyzer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezmoonblow-analyzer
+    restart: unless-stopped
+    command: /app/tasks/docker/wait-for-migrations.sh && /app/analyzer.php
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./charts:/app/charts
+      - ./rrd:/app/rrd
+      - ./cache:/app/cache
+      - migration_marker:/app/migration_marker
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ezmoonblow-network
+    environment:
+      - TZ=Asia/Yerevan
+
+  # Notifications component.
+  notifier:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezmoonblow-notifier
+    restart: unless-stopped
+    command: /app/tasks/docker/wait-for-migrations.sh && /app/notifier.php
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./charts:/app/charts
+      - ./rrd:/app/rrd
+      - ./cache:/app/cache
+      - migration_marker:/app/migration_marker
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ezmoonblow-network
+    environment:
+      - TZ=Asia/Yerevan
+
+  # Web interface.
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezmoonblow-web
+    restart: unless-stopped
+    command: /app/tasks/docker/wait-for-migrations.sh && sh -c "cd /app/web && php -S 0.0.0.0:9090 router.php"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./charts:/app/charts
+      - ./rrd:/app/rrd
+      - ./cache:/app/cache
+      - ./templates:/app/templates:ro
+      - ./web/static:/app/web/static:ro
+      - migration_marker:/app/migration_marker
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - ezmoonblow-network
+    environment:
+      - TZ=Asia/Yerevan
+
+volumes:
+  mysql_data:
+    driver: local
+  migration_marker:
+    driver: local
+
+networks:
+  ezmoonblow-network:
+    driver: bridge
+
