@@ -202,6 +202,7 @@
         color: #999;
         font-size: 11px;
     }
+
 </style>
 {% endblock %}
 
@@ -250,10 +251,7 @@
             <thead>
                 <tr>
                     <th>ID</th>
-                    <th>Exchange</th>
-                    <th>Ticker</th>
-                    <th>Type</th>
-                    <th>Direction</th>
+                    <th>Pair</th>
                     <th>Volume</th>
                     <th>Entry Price</th>
                     <th>Current Price</th>
@@ -268,16 +266,14 @@
                 {% for position in positions %}
                 <tr>
                     <td>{{ position.id }}</td>
-                    <td>{{ position.exchange }}</td>
-                    <td class="ticker-cell">{{ position.ticker }}</td>
                     <td>
+                        <strong>{{ position.ticker }}</strong>
+                        {{ position.exchange }}
                         {% if position.market_type == 'spot' %}
                             <span class="market-badge market-spot">Spot</span>
                         {% else %}
                             <span class="market-badge market-futures">Futures</span>
                         {% endif %}
-                    </td>
-                    <td>
                         {% if position.direction == 'LONG' %}
                             <span class="direction-badge direction-long">LONG</span>
                         {% else %}

@@ -94,7 +94,7 @@ class PositionsViewer extends PageViewer {
 
 		$positions = [];
 		foreach ($rows as $row) {
-			$entryPrice = (float)$row['position_entry_price'];
+			$entryPrice = (float)$row['position_initial_entry_price'];
 			$currentPrice = (float)$row['position_current_price'];
 			$volume = (float)$row['position_volume'];
 			$direction = $row['position_direction'];
