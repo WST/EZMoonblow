@@ -224,9 +224,16 @@ class Market implements IMarket
 			return;
 		}
 
-		// Get indicator classes from strategy
+		// Get indicator classes from strategy.
+		// Skip indicators that were already created by initializeConfiguredIndicators()
+		// with user-specified parameters — otherwise the config values would be
+		// silently overwritten by the strategy's default (parameterless) instance.
 		$strategyIndicatorClasses = $this->strategy->useIndicators();
 		foreach ($strategyIndicatorClasses as $indicatorClass) {
+			$name = $indicatorClass::getName();
+			if (isset($this->indicators[$name])) {
+				continue;
+			}
 			try {
 				$indicator = IndicatorFactory::create($this, $indicatorClass);
 				$this->addIndicator($indicator);
