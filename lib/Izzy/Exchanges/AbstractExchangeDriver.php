@@ -184,13 +184,30 @@ abstract class AbstractExchangeDriver implements IExchangeDriver {
 		$heartbeat = new SystemHeartbeat($this->database, 'Trader');
 		$heartbeat->start();
 
+		// Register signal handlers for graceful shutdown.
+		$shouldStop = false;
+		pcntl_async_signals(true);
+		$shutdownHandler = function (int $signal) use ($heartbeat, &$shouldStop): void {
+			$signalName = $signal === SIGINT ? 'SIGINT' : 'SIGTERM';
+			$this->logger->info("Received $signalName, shutting down Trader gracefully...");
+			$shouldStop = true;
+			$heartbeat->stop();
+			exit(0);
+		};
+		pcntl_signal(SIGINT, $shutdownHandler);
+		pcntl_signal(SIGTERM, $shutdownHandler);
+
 		// Main loop.
-		while (true) {
+		while (!$shouldStop) {
 			// Update heartbeat with exchange info.
 			$heartbeat->beat(['exchange' => $this->getName()]);
 
 			$timeout = $this->update();
-			sleep($timeout);
+
+			// Interruptible sleep - check for shutdown signal every second.
+			for ($i = 0; $i < $timeout && !$shouldStop; $i++) {
+				sleep(1);
+			}
 		}
 	}
 

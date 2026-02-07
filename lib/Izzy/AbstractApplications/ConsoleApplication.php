@@ -11,6 +11,9 @@ abstract class ConsoleApplication extends IzzyApplication {
 	/** @var SystemHeartbeat|null Heartbeat manager for health monitoring. */
 	protected ?SystemHeartbeat $heartbeat = null;
 
+	/** @var bool Flag to indicate graceful shutdown requested. */
+	protected static bool $shouldStop = false;
+
 	public function __construct() {
 		parent::__construct();
 	}
@@ -22,6 +25,41 @@ abstract class ConsoleApplication extends IzzyApplication {
 	protected function startHeartbeat(): void {
 		$this->heartbeat = new SystemHeartbeat($this->database, static::getApplicationName());
 		$this->heartbeat->start();
+
+		// Register signal handlers for graceful shutdown.
+		$this->registerSignalHandlers();
+	}
+
+	/**
+	 * Register signal handlers for graceful shutdown.
+	 * Handles SIGINT (Ctrl+C) and SIGTERM.
+	 */
+	private function registerSignalHandlers(): void {
+		// Enable async signal handling.
+		pcntl_async_signals(true);
+
+		$shutdownHandler = function (int $signal): void {
+			$signalName = $signal === SIGINT ? 'SIGINT' : 'SIGTERM';
+			$this->logger->info("Received $signalName, shutting down gracefully...");
+			self::$shouldStop = true;
+			$this->stopHeartbeat();
+			exit(0);
+		};
+
+		pcntl_signal(SIGINT, $shutdownHandler);
+		pcntl_signal(SIGTERM, $shutdownHandler);
+	}
+
+	/**
+	 * Sleep for specified seconds, but check for shutdown signal every second.
+	 * This allows for quick response to Ctrl+C even during long sleep intervals.
+	 *
+	 * @param int $seconds Number of seconds to sleep.
+	 */
+	protected function interruptibleSleep(int $seconds): void {
+		for ($i = 0; $i < $seconds && !self::$shouldStop; $i++) {
+			sleep(1);
+		}
 	}
 
 	/**

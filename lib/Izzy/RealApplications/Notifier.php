@@ -58,14 +58,11 @@ class Notifier extends ConsoleApplication {
 				// Process tasks first.
 				$this->processTasks();
 
-				// Then handle incoming messages.
+				// Handle incoming messages (includes 5s timeout in long polling).
 				$this->handleIncomingMessages();
-
-				// Small delay to prevent excessive API calls.
-				sleep(5);
 			} catch (Exception $e) {
 				$this->logger->error('Notifier error: '.$e->getMessage());
-				sleep(60);
+				$this->interruptibleSleep(60);
 			}
 		}
 	}

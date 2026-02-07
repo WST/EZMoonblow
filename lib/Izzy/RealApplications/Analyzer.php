@@ -185,7 +185,7 @@ class Analyzer extends ConsoleApplication {
 			}
 
 			$iteration++;
-			sleep(60);
+			$this->interruptibleSleep(60);
 		}
 	}
 
