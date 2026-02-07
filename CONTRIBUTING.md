@@ -47,8 +47,6 @@ trading system. Please follow these rules strictly when making any changes to th
 - If Russian comments are found, translate them to English as part of the current task.
 - Keep PHPDoc comments up-to-date with method signatures.
 - When modifying method signatures, update corresponding PHPDoc documentation.
-- **Use typographic quotes** (“curly quotes”) and apostrophes (’) instead of straight quotes (") and single quotes (')
-  in comments and documentation.
 - End the comments with a dot.
 
 ### 5. Comment Inheritance
@@ -226,7 +224,7 @@ lib/Izzy/
 - **Critical**: This is a custom migration system, not a third-party one.
 - Always examine `DatabaseMigrationManager` class before writing migrations.
 - Study existing migrations in `migrations/` folder.
-- Don't write migrations "blindly" — understand the system first.
+- Don’t write migrations “blindly” — understand the system first.
 
 #### 6. Pair vs Market Distinction
 
