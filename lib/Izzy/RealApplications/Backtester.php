@@ -10,10 +10,6 @@ class Backtester extends ConsoleApplication {
 		parent::__construct();
 	}
 
-	public function getConfiguration(): Configuration {
-		return $this->configuration;
-	}
-
 	public function run(): void {
 		echo "OK".PHP_EOL;
 	}

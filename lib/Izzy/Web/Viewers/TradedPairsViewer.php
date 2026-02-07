@@ -191,7 +191,7 @@ class TradedPairsViewer extends PageViewer {
 		$viewer = new TableViewer();
 		return $viewer->setCaption($direction.' positions')
 			->insertTextColumn('level', 'Level', ['align' => 'center'])
-			->insertMoneyColumn('volume', 'Volume (USDT)', ['align' => 'right'])
+			->insertMoneyColumn('volume', 'Volume', ['align' => 'right'])
 			->insertPercentColumn('offset', 'Price change (%)', ['align' => 'right'])
 			->setData($tableData)
 			->render();

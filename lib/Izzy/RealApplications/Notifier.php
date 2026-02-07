@@ -115,108 +115,6 @@ class Notifier extends ConsoleApplication {
 		}
 	}
 
-	/**
-	 * Load all pairs with indicators from configuration.
-	 * @return array Array of pairs with indicators, each containing exchange, marketType, pair, timeframe
-	 */
-	private function loadPairsWithIndicators(): array {
-		$pairsWithIndicators = [];
-
-		try {
-			$configPath = IZZY_CONFIG.'/config.xml';
-			if (!file_exists($configPath)) {
-				return [];
-			}
-
-			$dom = new \DOMDocument();
-			$dom->load($configPath);
-			$xpath = new \DOMXPath($dom);
-
-			// Find all exchanges
-			$exchangeNodes = $xpath->query('//exchanges/exchange');
-
-			foreach ($exchangeNodes as $exchangeNode) {
-				$exchangeName = $exchangeNode->getAttribute('name');
-				$enabled = $exchangeNode->getAttribute('enabled');
-
-				// Skip disabled exchanges
-				if ($enabled !== 'yes') {
-					continue;
-				}
-
-				// Check spot pairs
-				$spotPairs = $xpath->query('.//spot/pair', $exchangeNode);
-				foreach ($spotPairs as $pairNode) {
-					$indicators = $xpath->query('.//indicators', $pairNode);
-					if ($indicators->length > 0) {
-						$pairsWithIndicators[] = [
-							'exchange' => $exchangeName,
-							'marketType' => 'spot',
-							'pair' => $pairNode->getAttribute('ticker'),
-							'timeframe' => $pairNode->getAttribute('timeframe')
-						];
-					}
-				}
-
-				// Check futures pairs
-				$futuresPairs = $xpath->query('.//futures/pair', $exchangeNode);
-				foreach ($futuresPairs as $pairNode) {
-					$indicators = $xpath->query('.//indicators', $pairNode);
-					if ($indicators->length > 0) {
-						$pairsWithIndicators[] = [
-							'exchange' => $exchangeName,
-							'marketType' => 'futures',
-							'pair' => $pairNode->getAttribute('ticker'),
-							'timeframe' => $pairNode->getAttribute('timeframe')
-						];
-					}
-				}
-			}
-
-			return $pairsWithIndicators;
-
-		} catch (Exception $e) {
-			$this->logger->error('Error loading pairs with indicators: '.$e->getMessage());
-			return [];
-		}
-	}
-
-	private function loadAvailablePairs(string $exchangeName, string $marketType): array {
-		try {
-			$pairs = [];
-
-			// Parse config.xml to get available pairs.
-			$configPath = IZZY_CONFIG.'/config.xml';
-			if (!file_exists($configPath)) {
-				return [];
-			}
-
-			$dom = new \DOMDocument();
-			$dom->load($configPath);
-			$xpath = new \DOMXPath($dom);
-
-			// Find the specific exchange.
-			$exchangeNode = $xpath->query("//exchanges/exchange[@name='$exchangeName']")->item(0);
-			if (!$exchangeNode) {
-				return [];
-			}
-
-			// Find pairs for the specified market type.
-			$pairNodes = $xpath->query(".//$marketType/pair", $exchangeNode);
-			foreach ($pairNodes as $pairNode) {
-				$ticker = $pairNode->getAttribute('ticker');
-				if ($ticker) {
-					$pairs[] = $ticker;
-				}
-			}
-
-			return $pairs;
-
-		} catch (Exception $e) {
-			$this->logger->error('Error loading pairs: '.$e->getMessage());
-			return [];
-		}
-	}
 
 	private function handleIncomingMessages(): void {
 		try {
@@ -262,7 +160,7 @@ class Notifier extends ConsoleApplication {
 			if ($message->has('text')) {
 				$text = $message->get('text');
 
-				// If it's a command, process it
+				// If it’s a command, process it
 				if (str_starts_with($text, '/')) {
 					$this->handleCommand($text);
 					return;
@@ -452,20 +350,26 @@ class Notifier extends ConsoleApplication {
 		}
 
 		$exchangeName = $args[0];
-		$marketType = $args[1];
+		$marketTypeStr = $args[1];
 
 		if (!isset($this->exchanges[$exchangeName])) {
 			$this->sendMessage("❌ Exchange '$exchangeName' not found. Use /exchanges for list.");
 			return;
 		}
 
-		$pairs = $this->loadAvailablePairs($exchangeName, $marketType);
-		if (empty($pairs)) {
-			$this->sendMessage("❌ No pairs found for $exchangeName ($marketType)");
+		$marketType = MarketTypeEnum::tryFrom($marketTypeStr);
+		if (!$marketType) {
+			$this->sendMessage("❌ Invalid market type '$marketTypeStr'. Use 'spot' or 'futures'.");
 			return;
 		}
 
-		$message = "📊 Available pairs on $exchangeName ($marketType):\n\n";
+		$pairs = $this->configuration->getAvailablePairTickers($exchangeName, $marketType);
+		if (empty($pairs)) {
+			$this->sendMessage("❌ No pairs found for $exchangeName ($marketTypeStr)");
+			return;
+		}
+
+		$message = "📊 Available pairs on $exchangeName ($marketTypeStr):\n\n";
 		foreach ($pairs as $pair) {
 			$message .= "• $pair\n";
 		}
@@ -592,7 +496,7 @@ class Notifier extends ConsoleApplication {
 	}
 
 	private function handleChartsWithIndicatorsCallback(array $args, int $messageId): void {
-		$pairsWithIndicators = $this->loadPairsWithIndicators();
+		$pairsWithIndicators = $this->configuration->getPairsWithIndicators();
 
 		if (empty($pairsWithIndicators)) {
 			$message = "❌ No pairs with indicators found in configuration.";
@@ -714,14 +618,18 @@ class Notifier extends ConsoleApplication {
 			return;
 
 		$exchangeName = $args[0];
-		$marketType = $args[1];
+		$marketTypeStr = $args[1];
+		$marketType = MarketTypeEnum::tryFrom($marketTypeStr);
+		if (!$marketType) {
+			return;
+		}
 
-		$pairs = $this->loadAvailablePairs($exchangeName, $marketType);
+		$pairs = $this->configuration->getAvailablePairTickers($exchangeName, $marketType);
 		if (empty($pairs)) {
-			$message = "❌ No pairs found for $exchangeName ($marketType)";
+			$message = "❌ No pairs found for $exchangeName ($marketTypeStr)";
 			$keyboard = [[['text' => '🔙 Back', 'callback_data' => "market_type:$exchangeName"]]];
 		} else {
-			$message = "📊 Select Trading Pair ($exchangeName, $marketType):";
+			$message = "📊 Select Trading Pair ($exchangeName, $marketTypeStr):";
 
 			$keyboard = [];
 			foreach ($pairs as $pair) {

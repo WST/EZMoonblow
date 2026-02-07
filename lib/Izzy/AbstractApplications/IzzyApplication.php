@@ -48,6 +48,14 @@ abstract class IzzyApplication {
 		return $this->database;
 	}
 
+	public function getLogger(): Logger {
+		return $this->logger;
+	}
+
+	public function getConfiguration(): Configuration {
+		return $this->configuration;
+	}
+
 	/**
 	 * Process all tasks assigned to this Application.
 	 */

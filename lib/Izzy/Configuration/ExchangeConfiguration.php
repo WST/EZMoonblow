@@ -230,6 +230,72 @@ class ExchangeConfiguration {
 	}
 
 	/**
+	 * Get pair tickers for a specific market type without requiring an exchange driver.
+	 *
+	 * This is a lightweight method that returns only ticker strings,
+	 * useful for UI display when full Pair objects are not needed.
+	 *
+	 * @param MarketTypeEnum $marketType Market type.
+	 * @return string[] Array of ticker strings (e.g., ['BTC/USDT', 'ETH/USDT']).
+	 */
+	public function getPairTickers(MarketTypeEnum $marketType): array {
+		$marketElement = $this->getChildElementByTagName($this->exchangeElement, $marketType->toString());
+		if (!$marketElement) {
+			return [];
+		}
+
+		$tickers = [];
+		foreach ($marketElement->getElementsByTagName('pair') as $pairElement) {
+			if (!$pairElement instanceof DOMElement) {
+				continue;
+			}
+			$ticker = $pairElement->getAttribute('ticker');
+			if ($ticker) {
+				$tickers[] = $ticker;
+			}
+		}
+
+		return $tickers;
+	}
+
+	/**
+	 * Get information about pairs that have indicators configured.
+	 *
+	 * Returns an array of pair info for pairs that have at least one indicator defined.
+	 * Each item contains: exchange, marketType, pair (ticker), timeframe.
+	 *
+	 * @return array[] Array of pair info arrays.
+	 */
+	public function getPairsWithIndicatorsInfo(): array {
+		$pairsWithIndicators = [];
+		$exchangeName = $this->getName();
+
+		foreach (MarketTypeEnum::cases() as $marketType) {
+			$marketElement = $this->getChildElementByTagName($this->exchangeElement, $marketType->value);
+			if (!$marketElement) {
+				continue;
+			}
+
+			foreach ($marketElement->getElementsByTagName('pair') as $pairElement) {
+				if (!$pairElement instanceof DOMElement) {
+					continue;
+				}
+				$indicatorsElement = $this->getChildElementByTagName($pairElement, 'indicators');
+				if ($indicatorsElement && $indicatorsElement->getElementsByTagName('indicator')->length > 0) {
+					$pairsWithIndicators[] = [
+						'exchange' => $exchangeName,
+						'marketType' => $marketType->value,
+						'pair' => $pairElement->getAttribute('ticker'),
+						'timeframe' => $pairElement->getAttribute('timeframe'),
+					];
+				}
+			}
+		}
+
+		return $pairsWithIndicators;
+	}
+
+	/**
 	 * Parse parameter value to appropriate type.
 	 *
 	 * @param string $value Parameter value as string.
