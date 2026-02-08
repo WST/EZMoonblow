@@ -569,10 +569,9 @@ class Market implements IMarket
 
 		// Is trading enabled for this Pair?
 		if (!$this->pair->isTradingEnabled()) {
-			// Process trading signals.
 			$this->exchange->getLogger()->info("Trading is disabled for $this");
-			if ($this->pair->isMonitoringEnabled()) {
-				// We notify the user about our intent to open a position only if trading is disabled.
+			// Pair is monitored but not traded — notify user about potential position entry.
+			if ($this->pair->isNotificationsEnabled()) {
 				$this->sendNewPositionIntentNotifications();
 			}
 			return;

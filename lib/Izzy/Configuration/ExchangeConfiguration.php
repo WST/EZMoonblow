@@ -65,8 +65,8 @@ class ExchangeConfiguration
 				continue;
 			$ticker = $pairElement->getAttribute('ticker');
 			$timeframe = TimeFrameEnum::from($pairElement->getAttribute('timeframe'));
-			$monitor = $pairElement->getAttribute('monitor');
 			$trade = $pairElement->getAttribute('trade');
+			$notify = $pairElement->getAttribute('notify');
 
 			$pair = new Pair(
 				$ticker,
@@ -74,8 +74,8 @@ class ExchangeConfiguration
 				$this->getName(),
 				MarketTypeEnum::SPOT
 			);
-			$pair->setMonitoringEnabled($monitor == 'yes');
 			$pair->setTradingEnabled($trade == 'yes');
+			$pair->setNotificationsEnabled($notify !== 'no');
 
 			// Parse strategy configuration
 			$strategyConfig = $this->parseStrategyConfig($pairElement);
@@ -103,8 +103,8 @@ class ExchangeConfiguration
 				continue;
 			$ticker = $pairElement->getAttribute('ticker');
 			$timeframe = TimeFrameEnum::from($pairElement->getAttribute('timeframe'));
-			$monitor = $pairElement->getAttribute('monitor');
 			$trade = $pairElement->getAttribute('trade');
+			$notify = $pairElement->getAttribute('notify');
 
 			$pair = new Pair(
 				$ticker,
@@ -112,8 +112,8 @@ class ExchangeConfiguration
 				$this->getName(),
 				MarketTypeEnum::FUTURES
 			);
-			$pair->setMonitoringEnabled($monitor == 'yes');
 			$pair->setTradingEnabled($trade == 'yes');
+			$pair->setNotificationsEnabled($notify !== 'no');
 
 			// Parse strategy configuration
 			$strategyConfig = $this->parseStrategyConfig($pairElement);

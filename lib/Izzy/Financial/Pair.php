@@ -42,16 +42,17 @@ class Pair implements IPair
 	private string $exchangeName;
 
 	/**
-	 * Whether to monitor the pair (draw charts, emit signals).
-	 * @var bool
-	 */
-	private bool $monitoringEnabled = false;
-
-	/**
 	 * Whether to trade the pair (execute buy/sell orders).
+	 * When false, the pair is still monitored (charts, signals) but orders are not placed.
 	 * @var bool
 	 */
 	private bool $tradingEnabled = false;
+
+	/**
+	 * Whether to send Telegram notifications for this pair.
+	 * @var bool
+	 */
+	private bool $notificationsEnabled = true;
 
 	/**
 	 * Name of the strategy to use for trading.
@@ -251,24 +252,6 @@ class Pair implements IPair
 	}
 
 	/**
-	 * Check if monitoring is enabled for this trading pair.
-	 *
-	 * @return bool True if monitoring is enabled, false otherwise.
-	 */
-	public function isMonitoringEnabled(): bool {
-		return $this->monitoringEnabled;
-	}
-
-	/**
-	 * Enable or disable monitoring for this trading pair.
-	 *
-	 * @param bool $monitor True to enable monitoring, false to disable.
-	 */
-	public function setMonitoringEnabled(bool $monitor): void {
-		$this->monitoringEnabled = $monitor;
-	}
-
-	/**
 	 * Check if trading is enabled for this trading pair.
 	 *
 	 * @return bool True if trading is enabled, false otherwise.
@@ -284,6 +267,24 @@ class Pair implements IPair
 	 */
 	public function setTradingEnabled(bool $tradingEnabled): void {
 		$this->tradingEnabled = $tradingEnabled;
+	}
+
+	/**
+	 * Check if Telegram notifications are enabled for this pair.
+	 *
+	 * @return bool True if notifications are enabled, false otherwise.
+	 */
+	public function isNotificationsEnabled(): bool {
+		return $this->notificationsEnabled;
+	}
+
+	/**
+	 * Enable or disable Telegram notifications for this pair.
+	 *
+	 * @param bool $enabled True to enable, false to disable.
+	 */
+	public function setNotificationsEnabled(bool $enabled): void {
+		$this->notificationsEnabled = $enabled;
 	}
 
 	/**

@@ -11,19 +11,21 @@ use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
-class TradedPairsViewer extends PageViewer
+class PairsViewer extends PageViewer
 {
 	public function __construct(WebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 
 	public function render(Response $response): Response {
-		$tradedPairs = $this->getTradedPairs();
+		$pairs = $this->getPairs();
 
 		// Prepare data for display using viewers
-		foreach ($tradedPairs as &$pair) {
-			// Render strategy parameters table
-			$pair['strategyParamsHtml'] = $this->renderStrategyParamsTable($pair['strategyParams'], $pair['strategyName']);
+		foreach ($pairs as &$pair) {
+			// Render strategy parameters table if strategy is configured
+			if (!empty($pair['strategyName'])) {
+				$pair['strategyParamsHtml'] = $this->renderStrategyParamsTable($pair['strategyParams'], $pair['strategyName']);
+			}
 
 			// Render DCA tables if available
 			if (isset($pair['dcaInfo'])) {
@@ -52,42 +54,47 @@ class TradedPairsViewer extends PageViewer
 			}
 		}
 
-		$body = $this->webApp->getTwig()->render('traded-pairs.htt', [
+		$body = $this->webApp->getTwig()->render('pairs.htt', [
 			'menu' => $this->menu,
-			'tradedPairs' => $tradedPairs
+			'pairs' => $pairs
 		]);
 		$response->getBody()->write($body);
 		return $response;
 	}
 
-	private function getTradedPairs(): array {
+	/**
+	 * Get all configured pairs from all enabled exchanges.
+	 *
+	 * Every pair in the config is included regardless of the trade flag.
+	 * The trade flag is passed through so the template can show the status.
+	 *
+	 * @return array[]
+	 */
+	private function getPairs(): array {
 		$config = Configuration::getInstance();
 		$exchanges = $config->connectExchanges($this->webApp);
-		$tradedPairs = [];
+		$pairs = [];
 
 		foreach ($exchanges as $exchange) {
 			$exchangeConfig = $this->getExchangeConfig($exchange->getName());
-			if (!$exchangeConfig)
+			if (!$exchangeConfig) {
 				continue;
+			}
 
 			// Spot pairs
 			$spotPairs = $exchangeConfig->getSpotPairs($exchange);
 			foreach ($spotPairs as $pair) {
-				if ($pair->isTradingEnabled() && $pair->getStrategyName()) {
-					$tradedPairs[] = $this->buildPairData($pair, $exchange);
-				}
+				$pairs[] = $this->buildPairData($pair, $exchange);
 			}
 
 			// Futures pairs
 			$futuresPairs = $exchangeConfig->getFuturesPairs($exchange);
 			foreach ($futuresPairs as $pair) {
-				if ($pair->isTradingEnabled() && $pair->getStrategyName()) {
-					$tradedPairs[] = $this->buildPairData($pair, $exchange);
-				}
+				$pairs[] = $this->buildPairData($pair, $exchange);
 			}
 		}
 
-		return $tradedPairs;
+		return $pairs;
 	}
 
 	private function getExchangeConfig(string $exchangeName): ?\Izzy\Configuration\ExchangeConfiguration {
@@ -98,7 +105,7 @@ class TradedPairsViewer extends PageViewer
 			if ($exchange->getName() === $exchangeName) {
 				// Get exchange configuration from XML
 				$document = new \DOMDocument();
-				$document->load(IZZY_CONFIG."/config.xml");
+				$document->load(IZZY_CONFIG . "/config.xml");
 				$xpath = new \DOMXPath($document);
 
 				$exchangeElement = $xpath->query("//exchanges/exchange[@name='$exchangeName']")->item(0);
@@ -112,23 +119,6 @@ class TradedPairsViewer extends PageViewer
 	}
 
 	private function buildPairData(Pair $pair, IExchangeDriver $exchange): array {
-		// Create Market from Pair for strategy creation
-		$market = $exchange->createMarket($pair);
-		if (!$market) {
-			// If failed to create market, return basic information without DCA
-			return [
-				'exchange' => $exchange->getName(),
-				'ticker' => $pair->getTicker(),
-				'timeframe' => $pair->getTimeframe()->value,
-				'marketType' => $pair->getMarketType()->value,
-				'strategyName' => $pair->getStrategyName(),
-				'strategyParams' => $pair->getStrategyParams(),
-			];
-		}
-
-		// Create strategy for analysis
-		$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
-
 		$data = [
 			'exchange' => $exchange->getName(),
 			'ticker' => $pair->getTicker(),
@@ -136,28 +126,36 @@ class TradedPairsViewer extends PageViewer
 			'marketType' => $pair->getMarketType()->value,
 			'strategyName' => $pair->getStrategyName(),
 			'strategyParams' => $pair->getStrategyParams(),
+			'tradingEnabled' => $pair->isTradingEnabled(),
 			'chartKey' => $pair->getChartKey(),
 		];
 
-		// If this is a DCA strategy, add order information
-		if ($strategy instanceof AbstractDCAStrategy) {
-			$dcaSettings = $strategy->getDCASettings();
-			$context = $strategy->getMarket()->getTradingContext();
+		// If strategy is configured, try to get DCA grid info for display.
+		if ($pair->getStrategyName()) {
+			$market = $exchange->createMarket($pair);
+			if ($market) {
+				$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
 
-			$data['dcaInfo'] = [
-				'context' => $context,
-				'longGrid' => $dcaSettings->getLongGrid(),
-				'shortGrid' => $dcaSettings->getShortGrid(),
-				'maxLongVolume' => [
-					'amount' => number_format($dcaSettings->getMaxLongPositionVolume($context)->getAmount(), 2)
-				],
-				'maxShortVolume' => [
-					'amount' => number_format($dcaSettings->getMaxShortPositionVolume($context)->getAmount(), 2)
-				],
-				'expectedProfitLong' => $dcaSettings->getLongGrid()->getExpectedProfit(),
-				'expectedProfitShort' => $dcaSettings->getShortGrid()->getExpectedProfit(),
-				'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
-			];
+				if ($strategy instanceof AbstractDCAStrategy) {
+					$dcaSettings = $strategy->getDCASettings();
+					$context = $strategy->getMarket()->getTradingContext();
+
+					$data['dcaInfo'] = [
+						'context' => $context,
+						'longGrid' => $dcaSettings->getLongGrid(),
+						'shortGrid' => $dcaSettings->getShortGrid(),
+						'maxLongVolume' => [
+							'amount' => number_format($dcaSettings->getMaxLongPositionVolume($context)->getAmount(), 2)
+						],
+						'maxShortVolume' => [
+							'amount' => number_format($dcaSettings->getMaxShortPositionVolume($context)->getAmount(), 2)
+						],
+						'expectedProfitLong' => $dcaSettings->getLongGrid()->getExpectedProfit(),
+						'expectedProfitShort' => $dcaSettings->getShortGrid()->getExpectedProfit(),
+						'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
+					];
+				}
+			}
 		}
 
 		return $data;
@@ -176,7 +174,7 @@ class TradedPairsViewer extends PageViewer
 			]);
 		}
 
-		return $viewer->setCaption('Strategy: '.$strategyName)
+		return $viewer->setCaption('Strategy: ' . $strategyName)
 			->setDataFromArray($strategyParams)
 			->render();
 	}
@@ -211,7 +209,7 @@ class TradedPairsViewer extends PageViewer
 		}
 
 		$viewer = new TableViewer();
-		return $viewer->setCaption($label.' positions')
+		return $viewer->setCaption($label . ' positions')
 			->insertTextColumn('level', 'Level', ['align' => 'center'])
 			->insertMoneyColumn('volume', 'Volume', ['align' => 'right'])
 			->insertPercentColumn('offset', 'Price change (%)', ['align' => 'right'])

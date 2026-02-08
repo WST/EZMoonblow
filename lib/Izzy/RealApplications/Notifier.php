@@ -636,7 +636,7 @@ class Notifier extends ConsoleApplication
 
 			$keyboard = [];
 			foreach ($pairs as $pair) {
-				$keyboard[] = [['text' => $pair, 'callback_data' => "timeframe:$exchangeName:$marketType:$pair"]];
+				$keyboard[] = [['text' => $pair, 'callback_data' => "timeframe:$exchangeName:$marketTypeStr:$pair"]];
 			}
 			$keyboard[] = [['text' => '🔙 Back', 'callback_data' => "market_type:$exchangeName"]];
 		}
