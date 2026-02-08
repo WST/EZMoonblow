@@ -821,9 +821,37 @@ class Market implements IMarket
 		$entryPrice = $this->getCurrentPrice();
 		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
 
-		/**
-		 * This is the entry order.
-		 */
+		if ($grid->isAlwaysMarketEntry()) {
+			// Market entry: execute the entry order immediately at the current market price.
+			// The position starts in OPEN status right away, so there is no risk of the
+			// entry being missed due to price movement. DCA averaging levels are still
+			// placed as regular limit orders below.
+
+			// Clear any stale limit orders from a previous grid before placing new ones.
+			$this->removeLimitOrders();
+
+			// Place a market order for the entry via the exchange driver.
+			// exchange->openPosition(price=null) sends a market order and creates
+			// the StoredPosition with status OPEN and correct TP settings.
+			$success = $this->exchange->openPosition($this, $direction, $entryVolume, null, $takeProfitPercent);
+			if (!$success) {
+				return false;
+			}
+
+			// Place remaining DCA levels as limit orders for averaging.
+			foreach ($orderMap as $level) {
+				$orderPrice = $entryPrice->modifyByPercent($level['offset']);
+				$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
+				$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
+			}
+
+			// The position was already created and saved by exchange->openPosition().
+			return $this->getCurrentPosition();
+		}
+
+		// Limit entry: the entry order is placed as a limit order at the current price.
+		// The position starts in PENDING status and transitions to OPEN when the
+		// exchange fills the entry order.
 		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, $direction, $takeProfitPercent);
 
 		// Grid offset sign: negative = below entry (LONG averaging), positive = above entry (SHORT averaging).

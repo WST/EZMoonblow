@@ -47,6 +47,9 @@ abstract class AbstractDCAStrategy extends Strategy
 		$offsetModeParam = $this->params['offsetMode'] ?? DCAOffsetModeEnum::FROM_ENTRY->value;
 		$offsetMode = DCAOffsetModeEnum::tryFrom($offsetModeParam) ?? DCAOffsetModeEnum::FROM_ENTRY;
 
+		/** Always execute entry order as market instead of limit */
+		$alwaysMarketEntry = ($this->params['alwaysMarketEntry'] ?? 'no') === 'yes';
+
 		// Parse entry volume for Long (supports: "140", "5%", "5%M", "0.002 BTC")
 		$parsedVolume = EntryVolumeParser::parse($entryVolumeRaw);
 		$entryVolume = $parsedVolume->getValue();
@@ -79,7 +82,8 @@ abstract class AbstractDCAStrategy extends Strategy
 			priceDeviationMultiplierShort: $priceDeviationMultiplierShort,
 			expectedProfitShort: $expectedProfitShort,
 			volumeModeShort: $volumeModeShort,
-			offsetMode: $offsetMode
+			offsetMode: $offsetMode,
+			alwaysMarketEntry: $alwaysMarketEntry,
 		);
 	}
 

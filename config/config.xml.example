@@ -38,6 +38,7 @@
 						<!-- Common -->
 						<param name="UseLimitOrders" value="yes"/>
 						<param name="offsetMode" value="FROM_PREVIOUS"/>
+						<param name="alwaysMarketEntry" value="yes"/>
 					</strategy>
 					<indicators>
 						<indicator type="RSI" period="14" overbought="70" oversold="30" />
