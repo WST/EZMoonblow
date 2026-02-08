@@ -120,6 +120,34 @@ class DatabaseMigrationManager
 	}
 
 	/**
+	 * Drop the table if it exists (no error if missing).
+	 *
+	 * @param string $table Table name.
+	 * @return void
+	 */
+	public function dropTableIfExists(string $table): void {
+		$success = $this->db->dropTableIfExists($table);
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Dropping table “{$table}” if exists...", $success);
+		$this->migrationHasPerformedActions = true;
+	}
+
+	/**
+	 * Create a table as an exact structural copy of an existing table (CREATE TABLE ... LIKE).
+	 * Use this to keep a mirror table in sync without duplicating schema definitions.
+	 *
+	 * @param string $newTable Name of the new table.
+	 * @param string $sourceTable Name of the existing table to copy structure from.
+	 * @return void
+	 */
+	public function createTableLike(string $newTable, string $sourceTable): void {
+		$success = $this->db->createTableLike($newTable, $sourceTable);
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Creating table “{$newTable}” like “{$sourceTable}”...", $success);
+		$this->migrationHasPerformedActions = true;
+	}
+
+	/**
 	 * @param string $table
 	 * @param string $columnName
 	 * @param string $columnType

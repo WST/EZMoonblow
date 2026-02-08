@@ -82,6 +82,8 @@ class ExchangeConfiguration
 			if ($strategyConfig) {
 				$pair->setStrategyName($strategyConfig['name']);
 				$pair->setStrategyParams($strategyConfig['params']);
+				$pair->setBacktestDays($strategyConfig['backtest_days'] ?? null);
+				$pair->setBacktestInitialBalance($strategyConfig['backtest_initial_balance'] ?? null);
 			}
 
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
@@ -118,6 +120,8 @@ class ExchangeConfiguration
 			if ($strategyConfig) {
 				$pair->setStrategyName($strategyConfig['name']);
 				$pair->setStrategyParams($strategyConfig['params']);
+				$pair->setBacktestDays($strategyConfig['backtest_days'] ?? null);
+				$pair->setBacktestInitialBalance($strategyConfig['backtest_initial_balance'] ?? null);
 			}
 
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
@@ -169,9 +173,18 @@ class ExchangeConfiguration
 			$params[$name] = $this->parseParameterValue($value);
 		}
 
+		$backtestDaysAttr = $strategyElement->getAttribute('backtest_days');
+		$backtestDays = $backtestDaysAttr !== '' && ctype_digit($backtestDaysAttr) ? (int)$backtestDaysAttr : null;
+
+		$backtestBalanceAttr = $strategyElement->getAttribute('backtest_initial_balance');
+		$backtestInitialBalance = ($backtestBalanceAttr !== '' && is_numeric($backtestBalanceAttr) && (float)$backtestBalanceAttr > 0)
+			? (float)$backtestBalanceAttr : null;
+
 		return [
 			'name' => $strategyName,
-			'params' => $params
+			'params' => $params,
+			'backtest_days' => $backtestDays,
+			'backtest_initial_balance' => $backtestInitialBalance,
 		];
 	}
 

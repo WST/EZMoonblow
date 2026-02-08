@@ -85,14 +85,14 @@ class Bybit extends AbstractExchangeDriver
 
 		// Check for explicit "API key is invalid" or similar messages.
 		if (stripos($errorMessage, 'API key') !== false &&
-		    (stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'expired') !== false)) {
+			(stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'expired') !== false)) {
 			return true;
 		}
 
 		// Check for other authentication-related errors.
 		if (stripos($lowerErrorMessage, 'authentication') !== false ||
-		    stripos($lowerErrorMessage, 'unauthorized') !== false ||
-		    stripos($lowerErrorMessage, 'api key invalid') !== false) {
+			stripos($lowerErrorMessage, 'unauthorized') !== false ||
+			stripos($lowerErrorMessage, 'api key invalid') !== false) {
 			return true;
 		}
 
@@ -418,7 +418,17 @@ class Bybit extends AbstractExchangeDriver
 	 * Bybit uses tickers like "BTCUSDT" for pairs.
 	 */
 	public function pairToTicker(IPair $pair): string {
-		return $pair->getBaseCurrency().$pair->getQuoteCurrency();
+		$multiplier = '';
+		if ($pair->isFutures()) {
+			$baseCurrency = $pair->getBaseCurrency();
+			switch ($baseCurrency) {
+				case 'PEPE':
+				case 'RATS':
+					$multiplier = '1000';
+					break;
+			}
+		}
+		return $multiplier . $pair->getBaseCurrency() . $pair->getQuoteCurrency();
 	}
 
 	/**

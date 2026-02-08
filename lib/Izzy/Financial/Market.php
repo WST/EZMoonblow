@@ -65,6 +65,12 @@ class Market implements IMarket
 	private Database $database;
 
 	/**
+	 * Class name for stored position records (StoredPosition or BacktestStoredPosition).
+	 * @var string
+	 */
+	protected string $positionRecordClass = StoredPosition::class;
+
+	/**
 	 * Cached current price.
 	 */
 	private ?Money $cachedPrice = null;
@@ -206,15 +212,22 @@ class Market implements IMarket
 			return;
 		}
 
-		// Get indicator classes from strategy
+		// Get indicator classes from strategy.
+		// Skip indicators that were already created by initializeConfiguredIndicators()
+		// with user-specified parameters — otherwise the config values would be
+		// silently overwritten by the strategy's default (parameterless) instance.
 		$strategyIndicatorClasses = $this->strategy->useIndicators();
 		foreach ($strategyIndicatorClasses as $indicatorClass) {
+			$name = $indicatorClass::getName();
+			if (isset($this->indicators[$name])) {
+				continue;
+			}
 			try {
 				$indicator = IndicatorFactory::create($this, $indicatorClass);
 				$this->addIndicator($indicator);
 			} catch (Exception $e) {
 				// Log error but continue with other indicators
-				error_log("Failed to initialize indicator $indicatorClass: ".$e->getMessage());
+				error_log("Failed to initialize indicator $indicatorClass: " . $e->getMessage());
 			}
 		}
 	}
@@ -413,12 +426,12 @@ class Market implements IMarket
 	 */
 	public function getDescription(bool $consoleColors = true): string {
 		if ($consoleColors) {
-			$exchangeName = "\033[37;45m ".$this->exchange->getName()." \033[0m";
-			$marketType = "\033[37;44m ".$this->getMarketType()->name." \033[0m";
-			$ticker = "\033[37;41m ".$this->pair->getTicker()." \033[0m";
-			$timeframe = "\033[37;42m ".$this->pair->getTimeframe()->name." \033[0m";
+			$exchangeName = "\033[37;45m " . $this->exchange->getName() . " \033[0m";
+			$marketType = "\033[37;44m " . $this->getMarketType()->name . " \033[0m";
+			$ticker = "\033[37;41m " . $this->pair->getTicker() . " \033[0m";
+			$timeframe = "\033[37;42m " . $this->pair->getTimeframe()->name . " \033[0m";
 
-			return $exchangeName.$marketType.$ticker.$timeframe;
+			return $exchangeName . $marketType . $ticker . $timeframe;
 		} else {
 			$format = "%s, %s, %s, %s";
 			$args = [
@@ -482,7 +495,16 @@ class Market implements IMarket
 			StoredPosition::FMarketType => $this->getMarketType()->value,
 			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 		];
-		return $this->database->selectOneObject(StoredPosition::class, $where, $this);
+		return $this->database->selectOneObject($this->positionRecordClass, $where, $this);
+	}
+
+	/**
+	 * Set the class to use for loading/saving stored positions (e.g. for backtesting).
+	 *
+	 * @param string $class Fully qualified class name (must extend StoredPosition).
+	 */
+	public function setPositionRecordClass(string $class): void {
+		$this->positionRecordClass = $class;
 	}
 
 	/**
@@ -507,7 +529,7 @@ class Market implements IMarket
 			$this->strategy = $strategy;
 			$this->exchange->getLogger()->info("Set strategy $strategyName for market $this");
 		} catch (Exception $e) {
-			$this->exchange->getLogger()->error("Failed to set strategy $strategyName for market $this: ".$e->getMessage());
+			$this->exchange->getLogger()->error("Failed to set strategy $strategyName for market $this: " . $e->getMessage());
 		}
 	}
 
@@ -528,6 +550,8 @@ class Market implements IMarket
 			// If position is open, update it (check for DCA, etc.)
 			$this->updatePosition($currentPosition);
 		} else {
+			// DEBUG: Log position class and table
+			$this->exchange->getLogger()->debug("[DEBUG] No position found for $this, positionRecordClass: {$this->positionRecordClass}");
 			$this->checkEntrySignals();
 		}
 	}
@@ -620,7 +644,7 @@ class Market implements IMarket
 				$this->addIndicator($indicator);
 				$this->getExchange()->getLogger()->info("Added indicator $indicatorType to market $this");
 			} catch (Exception $e) {
-				$this->getExchange()->getLogger()->error("Failed to add indicator $indicatorType to market $this: ".$e->getMessage());
+				$this->getExchange()->getLogger()->error("Failed to add indicator $indicatorType to market $this: " . $e->getMessage());
 			}
 		}
 	}
@@ -640,8 +664,10 @@ class Market implements IMarket
 		$now = time();
 
 		// Return cached price if valid
-		if ($cached && $this->cachedPrice !== null
-			&& ($now - $this->cachedPriceTimestamp) < self::PRICE_CACHE_TTL) {
+		if (
+			$cached && $this->cachedPrice !== null
+			&& ($now - $this->cachedPriceTimestamp) < self::PRICE_CACHE_TTL
+		) {
 			return $this->cachedPrice;
 		}
 
@@ -654,6 +680,19 @@ class Market implements IMarket
 	}
 
 	/**
+	 * Force-set the current price and refresh the cache.
+	 *
+	 * Used by BacktestExchange to inject the simulated tick price directly
+	 * into the Market's cache, bypassing the TTL check that relies on
+	 * wall-clock time(). Without this, rapid backtest ticks may return a
+	 * stale cached price from a previous tick, causing non-deterministic results.
+	 */
+	public function setCurrentPrice(Money $price): void {
+		$this->cachedPrice = $price;
+		$this->cachedPriceTimestamp = time();
+	}
+
+	/**
 	 * Get the current trading context for volume calculations.
 	 *
 	 * This method provides runtime context (balance, margin, price) needed
@@ -663,7 +702,9 @@ class Market implements IMarket
 	 * @return TradingContext
 	 */
 	public function getTradingContext(): TradingContext {
-		$balance = $this->getDatabase()->getTotalBalance()->getAmount();
+		$balance = method_exists($this->exchange, 'getVirtualBalance')
+			? $this->exchange->getVirtualBalance()->getAmount()
+			: $this->getDatabase()->getTotalBalance()->getAmount();
 		// For margin, we use balance with 1x leverage for now.
 		// This can be enhanced later to get actual available margin from exchange.
 		$margin = $balance;
@@ -785,8 +826,10 @@ class Market implements IMarket
 		 */
 		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, $direction, $takeProfitPercent);
 
+		// Grid offset sign: negative = below entry (LONG averaging), positive = above entry (SHORT averaging).
+		// Do not use modifyByPercentWithDirection (that is for TP: LONG up, SHORT down).
 		foreach ($orderMap as $level) {
-			$orderPrice = $entryPrice->modifyByPercentWithDirection(abs($level['offset']), $direction);
+			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
 			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
 			$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
 		}
@@ -794,7 +837,8 @@ class Market implements IMarket
 		/**
 		 * Position to be saved into the database.
 		 */
-		$position = StoredPosition::create(
+		$positionClass = $this->positionRecordClass;
+		$position = $positionClass::create(
 			market: $this,
 			volume: $entryVolume,
 			direction: $direction,
@@ -804,14 +848,19 @@ class Market implements IMarket
 			exchangePositionId: $orderIdOnExchange
 		);
 
-		/**
-		 * Some extra financial info for further calculations.
-		 */
 		$position->setExpectedProfitPercent($takeProfitPercent);
 		$position->setTakeProfitPrice($entryPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		$position->setAverageEntryPrice($entryPrice);
 
-		// Save the position.
+		// For backtest: use simulation time instead of wallclock time.
+		if ($this->exchange instanceof \Izzy\Exchanges\Backtest\BacktestExchange) {
+			$simTime = $this->exchange->getSimulationTime();
+			if ($simTime > 0) {
+				$position->setCreatedAt($simTime);
+				$position->setUpdatedAt($simTime);
+			}
+		}
+
 		$position->save();
 
 		return $position;

@@ -14,6 +14,54 @@ final class Logger
 	/** @var string Path to the log file for web applications. */
 	private string $logFile = '';
 
+	/** @var bool When true, debug and info are suppressed (used during backtest to reduce noise). */
+	private bool $backtestMode = false;
+
+	/** @var int When > 0, backtestProgress uses this instead of real wallclock time. */
+	private int $backtestSimulationTime = 0;
+
+	/**
+	 * Enable or disable backtest mode. In backtest mode, debug() and info() are no-ops;
+	 * only warning, error and fatal are logged. Use when running backtests to avoid live-trading noise.
+	 * @param bool $on Whether to enable backtest mode.
+	 * @return void
+	 */
+	public function setBacktestMode(bool $on): void {
+		$this->backtestMode = $on;
+		if (!$on) {
+			$this->backtestSimulationTime = 0;
+		}
+	}
+
+	/**
+	 * Set the simulation timestamp for backtest log lines.
+	 * @param int $timestamp Unix timestamp from the simulated candle.
+	 */
+	public function setBacktestSimulationTime(int $timestamp): void {
+		$this->backtestSimulationTime = $timestamp;
+	}
+
+	/**
+	 * Log a message only when in backtest mode. Use for backtest progress (candle index, balance, open/close).
+	 * No-op when not in backtest mode.
+	 * @param string $message Message to log.
+	 * @return void
+	 */
+	public function backtestProgress(string $message): void {
+		if (!$this->backtestMode) {
+			return;
+		}
+		$timestamp = $this->backtestSimulationTime > 0
+			? date('Y-m-d H:i:s', $this->backtestSimulationTime)
+			: date('Y-m-d H:i:s');
+		$logMessage = "$timestamp [Backtest] $message";
+		if ($this->isWebApp) {
+			$this->writeToFile($logMessage);
+		} else {
+			echo "\033[90m$logMessage\033[0m\n";
+		}
+	}
+
 	/**
 	 * Initialize the logger.
 	 * Determines if the application is running as a web application and sets up logging accordingly.
@@ -38,6 +86,9 @@ final class Logger
 	 * @return void
 	 */
 	public function info(string $message): void {
+		if ($this->backtestMode) {
+			return;
+		}
 		$timestamp = date('Y-m-d H:i:s');
 		$logMessage = "$timestamp Info: $message";
 
@@ -105,6 +156,9 @@ final class Logger
 	 * @return void
 	 */
 	public function debug(string $message): void {
+		if ($this->backtestMode) {
+			return;
+		}
 		$timestamp = date('Y-m-d H:i:s');
 		$logMessage = "$timestamp Debug: $message";
 
