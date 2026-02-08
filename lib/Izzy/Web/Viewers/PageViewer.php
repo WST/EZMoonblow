@@ -11,8 +11,7 @@ class PageViewer
 
 	protected array $menu = [
 		['title' => 'Balance', 'url' => '/'],
-		['title' => 'Traded Pairs', 'url' => '/pairs.jsp'],
-		['title' => 'Watched Pairs', 'url' => '/watched.jsp'],
+		['title' => 'Pairs', 'url' => '/pairs.jsp'],
 		['title' => 'Open Positions', 'url' => '/positions.jsp'],
 		['title' => 'System Status', 'url' => '/status.jsp'],
 		['title' => 'Log Out', 'url' => '/logout.jsp'],

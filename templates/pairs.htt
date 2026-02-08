@@ -2,11 +2,11 @@
 
 {% block content %}
     <div class="traded-pairs">
-        <h1>Trading Pairs</h1>
+        <h1>Pairs</h1>
 
-        {% if tradedPairs is empty %}
+        {% if pairs is empty %}
             <div class="no-pairs">
-                <p>No active trading pairs. Check configuration.</p>
+                <p>No pairs configured. Check configuration.</p>
             </div>
         {% else %}
             <div class="pairs-layout">
@@ -14,7 +14,7 @@
                 <div class="pairs-sidebar">
                     <h3>Pairs</h3>
                     <div class="pairs-list">
-                        {% for pair in tradedPairs %}
+                        {% for pair in pairs %}
                             <div class="pair-item" data-pair-id="{{ loop.index0 }}">
                                 <div class="pair-item-header">
                                     <span class="pair-ticker">{{ pair.ticker }}</span>
@@ -23,6 +23,11 @@
                                 <div class="pair-item-details">
                                     <span class="pair-timeframe">{{ pair.timeframe }}</span>
                                     <span class="pair-market-type">{{ pair.marketType }}</span>
+                                    {% if pair.tradingEnabled %}
+                                        <span class="pair-status pair-status-trading">trading</span>
+                                    {% else %}
+                                        <span class="pair-status pair-status-monitoring">monitoring</span>
+                                    {% endif %}
                                 </div>
                             </div>
                         {% endfor %}
@@ -31,13 +36,11 @@
 
                 <!-- Main content area -->
                 <div class="pairs-content">
-                    {% for pair in tradedPairs %}
+                    {% for pair in pairs %}
                         <div class="pair-panel" data-pair-id="{{ loop.index0 }}"
                              {% if loop.first %}style="display: block;"{% endif %}>
                             <div class="pair-header">
-                                <h2>{{ pair.exchange }} — {{ pair.ticker }}</h2>
-                                <span class="timeframe">{{ pair.timeframe }}</span>
-                                <span class="market-type">{{ pair.marketType }}</span>
+                                <h2>{{ pair.ticker }}&nbsp;— {{ pair.exchange }}</h2>
                             </div>
 
                             <!-- Chart and DCA grid -->
@@ -86,9 +89,11 @@
                             </div>
 
                             <!-- Strategy parameters -->
-                            <div class="strategy-info">
-                                {{ pair.strategyParamsHtml | raw }}
-                            </div>
+                            {% if pair.strategyParamsHtml is defined %}
+                                <div class="strategy-info">
+                                    {{ pair.strategyParamsHtml | raw }}
+                                </div>
+                            {% endif %}
                         </div>
                     {% endfor %}
                 </div>
@@ -128,4 +133,4 @@
             }
         });
     </script>
-{% endblock %} 
+{% endblock %}

@@ -19,7 +19,7 @@
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
 			<spot>
-				<pair ticker="SOL/USDT" timeframe="4h" monitor="yes" trade="no">
+				<pair ticker="SOL/USDT" timeframe="4h" trade="no" notify="yes">
 					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365" backtest_initial_balance="10000">
 						<!-- Long -->
 						<param name="numberOfLevels" value="6"/>
@@ -46,12 +46,12 @@
 				</pair>
 			</spot>
 			<futures>
-				<pair ticker="SOL/USDT" timeframe="15m" monitor="yes" trade="no" leverage="5" />
+				<pair ticker="SOL/USDT" timeframe="15m" trade="no" leverage="5" />
 			</futures>
 		</exchange>
 		<exchange name="Gate" key="..." secret="..." enabled="no" demo="yes">
 			<spot>
-				<pair ticker="BTC/USDT" timeframe="15m" monitor="yes" trade="no" />
+				<pair ticker="BTC/USDT" timeframe="15m" trade="no" />
 			</spot>
 			<futures>
 				<!-- TODO -->
@@ -59,7 +59,7 @@
 		</exchange>
 		<exchange name="KuCoin" key="..." secret="..." password="..." enabled="yes" demo="no">
 			<spot>
-				<pair ticker="ETH/USDT" timeframe="4h" monitor="yes" trade="no" />
+				<pair ticker="ETH/USDT" timeframe="4h" trade="no" />
 			</spot>
 			<futures>
 				<!-- TODO -->

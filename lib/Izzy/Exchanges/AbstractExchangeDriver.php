@@ -250,9 +250,11 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			// Calculate all indicators.
 			$market->calculateIndicators();
 
-			// Process trading signals.
-			$this->logger->info("Processing trading signals for $market");
-			$market->processTrading();
+			// Process trading signals if trading is enabled.
+			if ($market->getPair()->isTradingEnabled()) {
+				$this->logger->info("Processing trading signals for $market");
+				$market->processTrading();
+			}
 		}
 	}
 
