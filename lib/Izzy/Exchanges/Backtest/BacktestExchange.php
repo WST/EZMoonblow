@@ -134,7 +134,7 @@ class BacktestExchange implements IExchangeDriver
 			$position->setTakeProfitPrice($currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		}
 		$position->save();
-		$this->logger->backtestProgress("  OPEN {$market->getTicker()} {$direction->value} @ " . number_format($currentPrice->getAmount(), 4) . " vol=" . number_format($amount->getAmount(), 2) . " -> balance " . number_format($this->virtualBalance, 2) . " USDT");
+		$this->logger->backtestProgress("  OPEN {$market->getTicker()} {$direction->value} @ " . number_format($currentPrice->getAmount(), 4) . " vol=" . number_format($amount->getAmount(), 2));
 		return true;
 	}
 
@@ -234,7 +234,7 @@ class BacktestExchange implements IExchangeDriver
 			];
 		}
 		$volumeQuote = $amount->getAmount() * $price->getAmount();
-		$this->logger->backtestProgress("  LIMIT {$market->getTicker()} {$direction->value} @ " . number_format($price->getAmount(), 4) . " vol=" . number_format($volumeQuote, 2) . " USDT -> balance " . number_format($this->virtualBalance, 2) . " USDT");
+		$this->logger->backtestProgress(" Placing limit order: {$market->getTicker()} {$direction->value} @ " . $price->format() . " vol=" . number_format($volumeQuote, 2) . " USDT");
 		return $orderId;
 	}
 
@@ -289,7 +289,7 @@ class BacktestExchange implements IExchangeDriver
 			$position->setTakeProfitPrice($avgEntryMoney->modifyByPercentWithDirection($percent, $position->getDirection()));
 		}
 		$position->save();
-		$this->logger->backtestProgress("  DCA {$market->getTicker()} +" . number_format($volumeBase, 4) . " @ " . number_format($fillPrice, 4) . " -> vol " . number_format($newVol, 4) . " avg " . number_format($newAvgEntry, 4));
+		$this->logger->backtestProgress(" DCA averaging: {$market->getTicker()} +" . number_format($volumeBase, 4) . " @ " . number_format($fillPrice, 4) . " -> vol " . number_format($newVol, 4) . " avg " . number_format($newAvgEntry, 4));
 		return true;
 	}
 
