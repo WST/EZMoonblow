@@ -7,4 +7,4 @@ use Izzy\RealApplications\Backtester;
 require dirname(__DIR__, 2).'/lib/common.php';
 
 $backtester = Backtester::getInstance();
-$backtester->loadCandles();
+$backtester->runBacktest();

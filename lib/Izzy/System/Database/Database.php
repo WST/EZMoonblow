@@ -295,9 +295,48 @@ class Database
 	}
 
 	public function dropTable(string $table): bool {
-		$sql = "DROP TABLE $table";
+		$sql = "DROP TABLE `".str_replace('`', '``', $table)."`";
 
 		// Execute the query and return success status.
+		try {
+			$result = $this->exec($sql);
+			return is_int($result);
+		} catch (PDOException $e) {
+			$this->setError($e);
+			return false;
+		}
+	}
+
+	/**
+	 * Drop the table if it exists (no error if missing).
+	 *
+	 * @param string $table Table name.
+	 * @return bool True if the statement succeeded.
+	 */
+	public function dropTableIfExists(string $table): bool {
+		$escaped = str_replace('`', '``', $table);
+		$sql = "DROP TABLE IF EXISTS `{$escaped}`";
+		try {
+			$this->exec($sql);
+			return true;
+		} catch (PDOException $e) {
+			$this->setError($e);
+			return false;
+		}
+	}
+
+	/**
+	 * Create a new table with the same structure as an existing table (MySQL CREATE TABLE ... LIKE).
+	 * Copies columns, indexes, and attributes; does not copy data or foreign keys.
+	 *
+	 * @param string $newTable Name of the table to create.
+	 * @param string $sourceTable Name of the existing table to copy structure from.
+	 * @return bool True if the table was created successfully.
+	 */
+	public function createTableLike(string $newTable, string $sourceTable): bool {
+		$newEscaped = str_replace('`', '``', $newTable);
+		$sourceEscaped = str_replace('`', '``', $sourceTable);
+		$sql = "CREATE TABLE `{$newEscaped}` LIKE `{$sourceEscaped}`";
 		try {
 			$result = $this->exec($sql);
 			return is_int($result);
@@ -341,6 +380,30 @@ class Database
 		);
 
 		// Prepare and execute the statement with the data
+		$stmt = $this->pdo->prepare($sql);
+		return $stmt->execute($data);
+	}
+
+	/**
+	 * Insert data into the specified table using INSERT IGNORE (skip on duplicate key).
+	 *
+	 * @param string $table Name of the table to insert into.
+	 * @param array $data Associative array where keys are column names and values are data to insert.
+	 * @return bool True if statement executed successfully, false otherwise.
+	 */
+	public function insertIgnore(string $table, array $data): bool {
+		if (empty($data)) {
+			return true;
+		}
+		$columns = array_keys($data);
+		$placeholders = array_map(fn($col) => ":$col", $columns);
+		$escapedColumns = array_map(fn($col) => "`$col`", $columns);
+		$sql = sprintf(
+			"INSERT IGNORE INTO `%s` (%s) VALUES (%s)",
+			$table,
+			implode(', ', $escapedColumns),
+			implode(', ', $placeholders)
+		);
 		$stmt = $this->pdo->prepare($sql);
 		return $stmt->execute($data);
 	}
