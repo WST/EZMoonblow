@@ -20,13 +20,11 @@ class Backtester extends ConsoleApplication
 {
 	private const float DEFAULT_INITIAL_BALANCE = 10000.0;
 
-	public function __construct()
-	{
+	public function __construct() {
 		parent::__construct();
 	}
 
-	public function run(): void
-	{
+	public function run(): void {
 		echo "OK" . PHP_EOL;
 	}
 
@@ -34,8 +32,7 @@ class Backtester extends ConsoleApplication
 	 * Load historical candles for all pairs that have backtest_days set.
 	 * Fetches from exchange in chunks and saves to the database.
 	 */
-	public function loadCandles(): void
-	{
+	public function loadCandles(): void {
 		$this->logger->info('Loading candles for backtest pairs...');
 		$exchanges = $this->configuration->connectExchanges($this);
 		$pairsForBacktest = $this->configuration->getPairsForBacktest($exchanges);
@@ -84,8 +81,7 @@ class Backtester extends ConsoleApplication
 	 * Prints summary: total trades, initial balance, final balance.
 	 * Creates a temporary copy of the positions table for the run and drops it when done.
 	 */
-	public function runBacktest(): void
-	{
+	public function runBacktest(): void {
 		$this->logger->info('Starting backtest...');
 		$exchanges = $this->configuration->connectExchanges($this);
 		$pairsForBacktest = $this->configuration->getPairsForBacktest($exchanges);
@@ -107,8 +103,7 @@ class Backtester extends ConsoleApplication
 		}
 	}
 
-	private function runBacktestLoop(array $pairsForBacktest): void
-	{
+	private function runBacktestLoop(array $pairsForBacktest): void {
 		$repository = new CandleRepository($this->database);
 
 		foreach ($pairsForBacktest as $entry) {

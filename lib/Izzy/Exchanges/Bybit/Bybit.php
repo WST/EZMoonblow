@@ -85,14 +85,14 @@ class Bybit extends AbstractExchangeDriver
 
 		// Check for explicit "API key is invalid" or similar messages.
 		if (stripos($errorMessage, 'API key') !== false &&
-		    (stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'expired') !== false)) {
+			(stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'expired') !== false)) {
 			return true;
 		}
 
 		// Check for other authentication-related errors.
 		if (stripos($lowerErrorMessage, 'authentication') !== false ||
-		    stripos($lowerErrorMessage, 'unauthorized') !== false ||
-		    stripos($lowerErrorMessage, 'api key invalid') !== false) {
+			stripos($lowerErrorMessage, 'unauthorized') !== false ||
+			stripos($lowerErrorMessage, 'api key invalid') !== false) {
 			return true;
 		}
 

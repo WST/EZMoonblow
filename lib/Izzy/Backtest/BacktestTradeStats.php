@@ -73,8 +73,7 @@ readonly class BacktestTradeStats implements Stringable
 	 * @param int $simEnd Simulation end timestamp.
 	 * @return array{shortest: int, longest: int, average: int, idle: int}
 	 */
-	private static function computeDurationStats(array $durations, array $intervals, int $simStart, int $simEnd): array
-	{
+	private static function computeDurationStats(array $durations, array $intervals, int $simStart, int $simEnd): array {
 		$shortest = 0;
 		$longest = 0;
 		$average = 0;
@@ -116,8 +115,7 @@ readonly class BacktestTradeStats implements Stringable
 		];
 	}
 
-	public function __toString(): string
-	{
+	public function __toString(): string {
 		$h = ['Metric', 'Value'];
 		$rows = [
 			['Finished', (string) $this->finished],

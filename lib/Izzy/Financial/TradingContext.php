@@ -21,7 +21,8 @@ class TradingContext
 		private float $balance,
 		private float $margin,
 		private Money $currentPrice
-	) {}
+	) {
+	}
 
 	/**
 	 * Get the current account balance.

@@ -69,4 +69,4 @@ enum TableViewerColumnTypeEnum: string
 	public function toString(): string {
 		return $this->value;
 	}
-} 
+}

@@ -18,5 +18,8 @@
     "psr-4": {
       "Izzy\\": "lib/Izzy/"
     }
+  },
+  "require-dev": {
+    "friendsofphp/php-cs-fixer": "^3.64"
   }
 }

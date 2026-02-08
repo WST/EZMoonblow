@@ -16,8 +16,7 @@ trait ConsoleTableTrait
 	 * @param array<array<string>> $rows Table rows, each an array of cell values.
 	 * @return string The rendered table ready for output.
 	 */
-	protected function renderTable(string $title, array $headers, array $rows): string
-	{
+	protected function renderTable(string $title, array $headers, array $rows): string {
 		$colCount = count($headers);
 		$widths = array_map('strlen', $headers);
 		foreach ($rows as $row) {
@@ -75,8 +74,7 @@ trait ConsoleTableTrait
 	/**
 	 * Format a duration in seconds to a human-readable string (e.g. "5d 12h 30m").
 	 */
-	protected function formatDuration(int $seconds): string
-	{
+	protected function formatDuration(int $seconds): string {
 		if ($seconds < 0) {
 			return '0';
 		}

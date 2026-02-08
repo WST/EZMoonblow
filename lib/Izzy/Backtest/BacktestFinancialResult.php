@@ -20,20 +20,17 @@ readonly class BacktestFinancialResult implements Stringable
 	) {
 	}
 
-	public function getPnl(): float
-	{
+	public function getPnl(): float {
 		return $this->finalBalance - $this->initialBalance;
 	}
 
-	public function getPnlPercent(): float
-	{
+	public function getPnlPercent(): float {
 		return $this->initialBalance > 0
 			? ($this->getPnl() / $this->initialBalance) * 100
 			: 0.0;
 	}
 
-	public function __toString(): string
-	{
+	public function __toString(): string {
 		$pnl = $this->getPnl();
 		$pnlPercent = $this->getPnlPercent();
 		$h = ['Metric', 'Value'];

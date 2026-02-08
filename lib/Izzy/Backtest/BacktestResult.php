@@ -34,8 +34,7 @@ readonly class BacktestResult implements Stringable
 	) {
 	}
 
-	public function __toString(): string
-	{
+	public function __toString(): string {
 		$out = '';
 
 		// --- Period ---

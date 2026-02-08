@@ -75,8 +75,7 @@ readonly class BacktestRiskRatios implements Stringable
 		);
 	}
 
-	public function __toString(): string
-	{
+	public function __toString(): string {
 		$h = ['Metric', 'Value'];
 		$rows = [
 			['Sharpe Ratio', $this->sharpe !== null ? number_format($this->sharpe, 2) : 'N/A (zero volatility)'],
