@@ -34,4 +34,12 @@ class EZMoonblowDCAAlwaysLong extends AbstractDCAStrategy
 	public function shouldLong(): bool {
 		return true;
 	}
+
+	public function doesLong(): bool {
+		return true;
+	}
+
+	public function doesShort(): bool {
+		return false;
+	}
 }

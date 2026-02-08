@@ -38,4 +38,12 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 		// Buy when RSI shows oversold condition.
 		return $rsiSignal === 'oversold';
 	}
+
+	public function doesLong(): bool {
+		return true;
+	}
+
+	public function doesShort(): bool {
+		return false;
+	}
 }

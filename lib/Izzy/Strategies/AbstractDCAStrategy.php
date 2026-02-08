@@ -245,4 +245,55 @@ abstract class AbstractDCAStrategy extends Strategy
 
 		return $formattedNames[$paramName] ?? $paramName;
 	}
+
+	abstract public function doesLong(): bool;
+	abstract public function doesShort(): bool;
+
+	/**
+	 * Short-specific parameter names.
+	 * These are excluded from display when doesShort() returns false.
+	 */
+	private const array SHORT_PARAMS = [
+		'numberOfLevelsShort',
+		'entryVolumeShort',
+		'volumeMultiplierShort',
+		'priceDeviationShort',
+		'priceDeviationMultiplierShort',
+		'expectedProfitShort',
+	];
+
+	/**
+	 * Long-specific parameter names.
+	 * These are excluded from display when doesLong() returns false.
+	 */
+	private const array LONG_PARAMS = [
+		'numberOfLevels',
+		'entryVolume',
+		'volumeMultiplier',
+		'priceDeviation',
+		'priceDeviationMultiplier',
+		'expectedProfit',
+	];
+
+	/**
+	 * Get strategy parameters filtered by the directions this strategy supports.
+	 *
+	 * If the strategy does not short, Short-specific parameters are excluded.
+	 * If the strategy does not long, Long-specific parameters are excluded.
+	 * Common parameters (UseLimitOrders, offsetMode, alwaysMarketEntry, etc.)
+	 * are always included.
+	 *
+	 * @return array Filtered parameters suitable for display.
+	 */
+	public function getDisplayParameters(): array {
+		$excluded = [];
+		if (!$this->doesShort()) {
+			$excluded = array_merge($excluded, self::SHORT_PARAMS);
+		}
+		if (!$this->doesLong()) {
+			$excluded = array_merge($excluded, self::LONG_PARAMS);
+		}
+
+		return array_diff_key($this->params, array_flip($excluded));
+	}
 }

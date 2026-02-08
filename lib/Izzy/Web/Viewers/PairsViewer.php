@@ -27,14 +27,16 @@ class PairsViewer extends PageViewer
 				$pair['strategyParamsHtml'] = $this->renderStrategyParamsTable($pair['strategyParams'], $pair['strategyName']);
 			}
 
-			// Render DCA tables if available
+			// Render DCA tables only for directions the strategy actually supports.
 			if (isset($pair['dcaInfo'])) {
 				$pair['dcaTables'] = [];
 				$context = $pair['dcaInfo']['context'];
+				$doesLong = $pair['doesLong'] ?? true;
+				$doesShort = $pair['doesShort'] ?? false;
 
 				/** @var DCAOrderGrid $longGrid */
 				$longGrid = $pair['dcaInfo']['longGrid'];
-				if (!$longGrid->isEmpty()) {
+				if ($doesLong && !$longGrid->isEmpty()) {
 					$pair['dcaTables']['long'] = $this->renderDCAGridTable(
 						$longGrid,
 						$context,
@@ -44,7 +46,7 @@ class PairsViewer extends PageViewer
 
 				/** @var DCAOrderGrid $shortGrid */
 				$shortGrid = $pair['dcaInfo']['shortGrid'];
-				if (!$shortGrid->isEmpty()) {
+				if ($doesShort && !$shortGrid->isEmpty()) {
 					$pair['dcaTables']['short'] = $this->renderDCAGridTable(
 						$shortGrid,
 						$context,
@@ -137,6 +139,11 @@ class PairsViewer extends PageViewer
 				$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
 
 				if ($strategy instanceof AbstractDCAStrategy) {
+					// Use filtered parameters that respect doesLong/doesShort.
+					$data['strategyParams'] = $strategy->getDisplayParameters();
+					$data['doesLong'] = $strategy->doesLong();
+					$data['doesShort'] = $strategy->doesShort();
+
 					$dcaSettings = $strategy->getDCASettings();
 					$context = $strategy->getMarket()->getTradingContext();
 

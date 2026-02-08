@@ -14,4 +14,12 @@ class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 		// Buy when RSI shows oversold condition.
 		return $rsiSignal === 'overbought';
 	}
+
+	public function doesLong(): bool {
+		return true;
+	}
+
+	public function doesShort(): bool {
+		return true;
+	}
 }
