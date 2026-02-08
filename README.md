@@ -126,7 +126,6 @@ Use `/menu` for the most convenient experience:
 ## TODO
 
 * Docker support
-* Strategy backtesting
 * TA module
 * Support for more exchanges
 * Web management interface
