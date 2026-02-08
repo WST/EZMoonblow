@@ -4,6 +4,7 @@ namespace Izzy\Financial;
 
 use Exception;
 use Izzy\Chart\Chart;
+use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
@@ -100,6 +101,41 @@ class Market implements IMarket
 	 */
 	public function getCandles(): array {
 		return $this->candles;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function requestCandles(TimeFrameEnum $timeframe, int $startTime, int $endTime): ?array {
+		$runtimeRepo = new RuntimeCandleRepository($this->database);
+		$pair = $this->pair;
+
+		// Build a temporary pair with the requested timeframe for the repository query.
+		$queryPair = new Pair(
+			$pair->getTicker(),
+			$timeframe,
+			$pair->getExchangeName(),
+			$pair->getMarketType()
+		);
+
+		// Check if candles are already available.
+		if ($runtimeRepo->hasCandles($queryPair, $timeframe->value, $startTime, $endTime)) {
+			return $runtimeRepo->getCandles($queryPair, $startTime, $endTime);
+		}
+
+		// Candles not available — schedule async loading.
+		QueueTask::loadCandles(
+			$this->database,
+			$pair->getExchangeName(),
+			$pair->getTicker(),
+			$pair->getMarketType()->value,
+			$timeframe->value,
+			$startTime,
+			$endTime,
+			CandleStorageEnum::RUNTIME,
+		);
+
+		return null;
 	}
 
 	/**
