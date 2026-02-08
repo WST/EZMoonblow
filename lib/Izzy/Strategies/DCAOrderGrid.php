@@ -33,20 +33,30 @@ class DCAOrderGrid
 	private PositionDirectionEnum $direction;
 
 	/**
+	 * Whether to execute the entry order as a market order instead of a limit order.
+	 * When true, the entry is filled immediately at the current price and the position
+	 * starts in OPEN status; DCA averaging levels are still placed as limit orders.
+	 */
+	private bool $alwaysMarketEntry;
+
+	/**
 	 * Creates a new DCA order grid.
 	 *
 	 * @param DCAOffsetModeEnum $offsetMode How offsets should be calculated (default: FROM_ENTRY).
 	 * @param PositionDirectionEnum $direction Position direction (default: LONG).
 	 * @param float $expectedProfit Expected profit percentage (default: 0).
+	 * @param bool $alwaysMarketEntry Execute entry order as market instead of limit.
 	 */
 	public function __construct(
 		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY,
 		PositionDirectionEnum $direction = PositionDirectionEnum::LONG,
-		float $expectedProfit = 0.0
+		float $expectedProfit = 0.0,
+		bool $alwaysMarketEntry = false,
 	) {
 		$this->offsetMode = $offsetMode;
 		$this->direction = $direction;
 		$this->expectedProfit = $expectedProfit;
+		$this->alwaysMarketEntry = $alwaysMarketEntry;
 	}
 
 	/**
@@ -83,6 +93,7 @@ class DCAOrderGrid
 	 * @param float $expectedProfit
 	 * @param DCAOffsetModeEnum $offsetMode Offset calculation mode.
 	 * @param EntryVolumeModeEnum $volumeMode Volume interpretation mode.
+	 * @param bool $alwaysMarketEntry Execute entry order as market instead of limit.
 	 * @return self
 	 */
 	public static function fromParameters(
@@ -95,8 +106,9 @@ class DCAOrderGrid
 		float $expectedProfit,
 		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY,
 		EntryVolumeModeEnum $volumeMode = EntryVolumeModeEnum::ABSOLUTE_QUOTE,
+		bool $alwaysMarketEntry = false,
 	): self {
-		$grid = new self($offsetMode, $direction, $expectedProfit);
+		$grid = new self($offsetMode, $direction, $expectedProfit, $alwaysMarketEntry);
 
 		$volume = $entryVolume;
 		$currentDeviation = $priceDeviation; // Initial deviation for first averaging
@@ -214,6 +226,10 @@ class DCAOrderGrid
 
 	public function getDirection(): PositionDirectionEnum {
 		return $this->direction;
+	}
+
+	public function isAlwaysMarketEntry(): bool {
+		return $this->alwaysMarketEntry;
 	}
 
 	/**

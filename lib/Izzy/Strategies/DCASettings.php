@@ -49,6 +49,7 @@ class DCASettings
 	 * @param float $expectedProfitShort Expected profit for short trades.
 	 * @param EntryVolumeModeEnum $volumeModeShort How Short entry volume should be interpreted.
 	 * @param DCAOffsetModeEnum $offsetMode How price offsets should be calculated.
+	 * @param bool $alwaysMarketEntry Execute entry order as market instead of limit.
 	 */
 	public function __construct(
 		bool $useLimitOrders,
@@ -66,7 +67,8 @@ class DCASettings
 		float $priceDeviationMultiplierShort = 0.0,
 		float $expectedProfitShort = 0.0,
 		EntryVolumeModeEnum $volumeModeShort = EntryVolumeModeEnum::ABSOLUTE_QUOTE,
-		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY
+		DCAOffsetModeEnum $offsetMode = DCAOffsetModeEnum::FROM_ENTRY,
+		bool $alwaysMarketEntry = false,
 	) {
 		// Build the order grid for Long trades.
 		$this->longGrid = DCAOrderGrid::fromParameters(
@@ -78,7 +80,8 @@ class DCASettings
 			PositionDirectionEnum::LONG,
 			$expectedProfit,
 			$offsetMode,
-			$volumeMode
+			$volumeMode,
+			$alwaysMarketEntry,
 		);
 
 		// Build the order grid for Short trades.
@@ -92,7 +95,8 @@ class DCASettings
 				PositionDirectionEnum::SHORT,
 				$expectedProfitShort,
 				$offsetMode,
-				$volumeModeShort
+				$volumeModeShort,
+				$alwaysMarketEntry,
 			);
 		} else {
 			$this->shortGrid = new DCAOrderGrid($offsetMode, PositionDirectionEnum::SHORT, 0.0);
