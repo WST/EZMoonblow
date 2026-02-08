@@ -22,6 +22,7 @@ readonly class BacktestResult implements Stringable
 	 * @param BacktestTradeStats $trades Trade statistics.
 	 * @param BacktestRiskRatios|null $risk Risk ratios (null if insufficient data).
 	 * @param BacktestOpenPosition[] $openPositions Open/pending positions at end.
+	 * @param string $exchangeTicker Ticker as it appears on the exchange (e.g., "1000PEPEUSDT").
 	 */
 	public function __construct(
 		public Pair $pair,
@@ -31,6 +32,7 @@ readonly class BacktestResult implements Stringable
 		public BacktestTradeStats $trades,
 		public ?BacktestRiskRatios $risk,
 		public array $openPositions,
+		public string $exchangeTicker = '',
 	) {
 	}
 
@@ -47,14 +49,20 @@ readonly class BacktestResult implements Stringable
 
 		$simDurationDays = max(0, $this->simEndTime - $this->simStartTime) / 86400;
 		$h = ['Metric', 'Value'];
-		$out .= $this->renderTable('Period', $h, [
+		$periodRows = [
 			['Pair', "$ticker $marketType $timeframe ($exchangeName)"],
-			['Strategy', $strategyName],
+		];
+		if ($this->exchangeTicker !== '' && $this->exchangeTicker !== $ticker) {
+			$periodRows[] = ['Ticker on Exchange', $this->exchangeTicker];
+		}
+		$periodRows[] = ['Strategy', $strategyName];
+		$periodRows = array_merge($periodRows, [
 			['Status', $statusStr],
-			['Period start', $this->simStartTime > 0 ? date('Y-m-d H:i', $this->simStartTime) : 'N/A'],
-			['Period end', $this->simEndTime > 0 ? date('Y-m-d H:i', $this->simEndTime) : 'N/A'],
+			['Period Start', $this->simStartTime > 0 ? date('Y-m-d H:i', $this->simStartTime) : 'N/A'],
+			['Period End', $this->simEndTime > 0 ? date('Y-m-d H:i', $this->simEndTime) : 'N/A'],
 			['Duration', number_format($simDurationDays, 1) . ' days'],
 		]);
+		$out .= $this->renderTable('Period', $h, $periodRows);
 
 		// --- Financial ---
 		$out .= (string) $this->financial;

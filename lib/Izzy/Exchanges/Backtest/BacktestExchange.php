@@ -162,7 +162,7 @@ class BacktestExchange implements IExchangeDriver
 		return $market;
 	}
 
-	public function pairToTicker(IPair $pair): string {
+	public static function pairToTicker(IPair $pair): string {
 		return $pair->getBaseCurrency() . $pair->getQuoteCurrency();
 	}
 

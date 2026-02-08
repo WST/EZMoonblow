@@ -314,7 +314,7 @@
                     {% if component.extra_info and component.extra_info.exchange %}
                     <div class="component-detail">
                         <span class="detail-label">Exchange</span>
-                        <span class="detail-value">{{ component.extra_info.exchange }}</span>
+                        <span class="detail-value pair-exchange">{{ component.extra_info.exchange }}</span>
                     </div>
                     {% endif %}
                     {% if component.extra_info and component.extra_info.error %}

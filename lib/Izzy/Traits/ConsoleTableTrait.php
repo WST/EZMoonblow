@@ -18,15 +18,17 @@ trait ConsoleTableTrait
 	 */
 	protected function renderTable(string $title, array $headers, array $rows): string {
 		$colCount = count($headers);
-		$widths = array_map('strlen', $headers);
+
+		// Use mb_strwidth for visual width so multi-byte chars (e.g. →) are measured correctly.
+		$widths = array_map('mb_strwidth', $headers);
 		foreach ($rows as $row) {
 			foreach (array_keys($headers) as $i) {
 				$cell = isset($row[$i]) ? (string) $row[$i] : '';
-				$widths[$i] = max($widths[$i], strlen($cell));
+				$widths[$i] = max($widths[$i], mb_strwidth($cell));
 			}
 		}
 		$totalWidth = array_sum($widths) + 3 * $colCount;
-		$titleLen = strlen($title);
+		$titleLen = mb_strwidth($title);
 		$pad = $totalWidth >= $titleLen ? (int) floor(($totalWidth - $titleLen) / 2) : 0;
 
 		$out = PHP_EOL;
@@ -41,7 +43,7 @@ trait ConsoleTableTrait
 
 		$headerRow = '│';
 		foreach (array_keys($headers) as $i) {
-			$headerRow .= ' ' . str_pad($headers[$i], $widths[$i]) . ' │';
+			$headerRow .= ' ' . $this->mbStrPad($headers[$i], $widths[$i]) . ' │';
 		}
 		$out .= $headerRow . PHP_EOL;
 
@@ -56,7 +58,7 @@ trait ConsoleTableTrait
 			$line = '│';
 			foreach (array_keys($headers) as $i) {
 				$cell = isset($row[$i]) ? (string) $row[$i] : '';
-				$line .= ' ' . str_pad($cell, $widths[$i]) . ' │';
+				$line .= ' ' . $this->mbStrPad($cell, $widths[$i]) . ' │';
 			}
 			$out .= $line . PHP_EOL;
 		}
@@ -69,6 +71,19 @@ trait ConsoleTableTrait
 		$out .= $bot . PHP_EOL;
 
 		return $out;
+	}
+
+	/**
+	 * Multi-byte-safe str_pad: pads to the desired visual width,
+	 * accounting for multi-byte characters that occupy fewer display
+	 * columns than their byte length (e.g. "→" is 3 bytes but 1 column).
+	 */
+	private function mbStrPad(string $str, int $width, string $padChar = ' '): string {
+		$visualWidth = mb_strwidth($str);
+		if ($visualWidth >= $width) {
+			return $str;
+		}
+		return $str . str_repeat($padChar, $width - $visualWidth);
 	}
 
 	/**

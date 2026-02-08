@@ -7,10 +7,10 @@ use Izzy\System\Database\DatabaseMigrationManager;
 require dirname(__DIR__, 2).'/lib/common.php';
 
 try {
-    $migrationName = DatabaseMigrationManager::promptMigrationName();
-    $file = DatabaseMigrationManager::createMigration($migrationName);
-    echo "Created migration: $file\n";
+	$migrationName = DatabaseMigrationManager::promptMigrationName();
+	$file = DatabaseMigrationManager::createMigration($migrationName);
+	echo "Created migration: $file\n";
 } catch (Exception $e) {
-    echo "Error: ".$e->getMessage()."\n";
-    die(-1);
+	echo "Error: ".$e->getMessage()."\n";
+	die(-1);
 }

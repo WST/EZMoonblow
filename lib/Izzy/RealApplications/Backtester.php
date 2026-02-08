@@ -333,8 +333,15 @@ class Backtester extends ConsoleApplication
 			$pendingCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::PENDING->value]));
 
 			$lastClose = $lastCandle !== null ? $lastCandle->getClosePrice() : 0.0;
+			$firstOpen = !empty($candles) ? $candles[0]->getOpenPrice() : 0.0;
 			$simEndTime = $lastCandle !== null ? ((int) $lastCandle->getOpenTime() + $candleDuration - 1) : time();
 			$simStartTime = !empty($candles) ? (int) $candles[0]->getOpenTime() : $simEndTime;
+
+			// Resolve exchange-specific ticker (e.g., "1000PEPEUSDT" on Bybit).
+			$exchangeClass = "\\Izzy\\Exchanges\\$exchangeName\\$exchangeName";
+			$exchangeTicker = class_exists($exchangeClass) && method_exists($exchangeClass, 'pairToTicker')
+				? $exchangeClass::pairToTicker($pair)
+				: '';
 			$simDurationDays = max(0, $simEndTime - $simStartTime) / 86400;
 
 			// Collect open/pending positions.
@@ -406,6 +413,8 @@ class Backtester extends ConsoleApplication
 					finalBalance: $finalBalance,
 					maxDrawdown: $maxDrawdown,
 					liquidated: $liquidated,
+					coinPriceStart: $firstOpen,
+					coinPriceEnd: $lastClose,
 				),
 				trades: BacktestTradeStats::fromRawData(
 					durations: $tradeDurations,
@@ -425,6 +434,7 @@ class Backtester extends ConsoleApplication
 					simDurationDays: $simDurationDays,
 				),
 				openPositions: $openPositionDtos,
+				exchangeTicker: $exchangeTicker,
 			);
 			echo $result;
 		}

@@ -105,7 +105,7 @@ interface IExchangeDriver
 	 * @param IPair $pair Trading pair.
 	 * @return string Exchange-specific ticker (e.g., "BTCUSDT" for Bybit).
 	 */
-	public function pairToTicker(IPair $pair): string;
+	public static function pairToTicker(IPair $pair): string;
 
 	/**
 	 * Get spot wallet balance for a specific currency.

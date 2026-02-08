@@ -219,11 +219,26 @@ footer a:hover {
     font-size: 14px;
 }
 
+.pair-exchange {
+    font-size: 12px;
+    color: #666;
+    background-color: #f0f0f0;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+
 .pair-item-details {
     display: flex;
     gap: 10px;
     font-size: 12px;
     color: #666;
+}
+
+.pair-timeframe, .pair-market-type {
+    background-color: #e8f4fd;
+    color: #005599;
+    padding: 2px 6px;
+    border-radius: 3px;
 }
 
 .pairs-content {
@@ -598,8 +613,14 @@ footer a:hover {
 
 .pair-exchange {
     font-size: 12px;
+    color: #ffffff !important;
+    background-color: #c8b016 !important;
+    padding: 2px 6px;
+    border-radius: 3px;
+}
+.pair-status-monitoring {
+    background-color: #4c7ca1;
     color: #ffffff;
-    background-color: #c8b016;
     padding: 2px 6px;
     border-radius: 3px;
 }

@@ -417,7 +417,7 @@ class Bybit extends AbstractExchangeDriver
 	 *
 	 * Bybit uses tickers like "BTCUSDT" for pairs.
 	 */
-	public function pairToTicker(IPair $pair): string {
+	public static function pairToTicker(IPair $pair): string {
 		$multiplier = '';
 		if ($pair->isFutures()) {
 			$baseCurrency = $pair->getBaseCurrency();
@@ -425,6 +425,9 @@ class Bybit extends AbstractExchangeDriver
 				case 'PEPE':
 				case 'RATS':
 					$multiplier = '1000';
+					break;
+				case 'BABYDOGE':
+					$multiplier = '1000000';
 					break;
 			}
 		}
