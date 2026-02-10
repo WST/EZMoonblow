@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
     libevent-dev \
     libicu-dev \
     unzip \
+    rrdtool \
     && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions.

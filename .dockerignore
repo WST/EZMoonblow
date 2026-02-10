@@ -3,7 +3,7 @@
 .vscode
 .idea
 *.md
-docker-compose.yml
+docker-compose.yml.example
 Dockerfile
 .dockerignore
 node_modules
