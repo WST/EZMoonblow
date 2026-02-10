@@ -71,16 +71,16 @@ class Image
 		$this->foregroundColor = $this->color($r, $g, $b);
 	}
 
-	public function drawLine(int $x1, int $y1, int $x2, int $y2): void {
-		imageline($this->image, $x1, $y1, $x2, $y2, $this->foregroundColor);
+	public function drawLine(int|float $x1, int|float $y1, int|float $x2, int|float $y2): void {
+		imageline($this->image, (int)$x1, (int)$y1, (int)$x2, (int)$y2, $this->foregroundColor);
 	}
 
-	public function drawRectangle(int $x1, int $y1, int $x2, int $y2): void {
-		imagerectangle($this->image, $x1, $y1, $x2, $y2, $this->foregroundColor);
+	public function drawRectangle(int|float $x1, int|float $y1, int|float $x2, int|float $y2): void {
+		imagerectangle($this->image, (int)$x1, (int)$y1, (int)$x2, (int)$y2, $this->foregroundColor);
 	}
 
-	public function fillRectangle(int $x1, int $y1, int $x2, int $y2): void {
-		imagefilledrectangle($this->image, $x1, $y1, $x2, $y2, $this->foregroundColor);
+	public function fillRectangle(int|float $x1, int|float $y1, int|float $x2, int|float $y2): void {
+		imagefilledrectangle($this->image, (int)$x1, (int)$y1, (int)$x2, (int)$y2, $this->foregroundColor);
 	}
 
 	public function drawText(int $x, int $y, string $text): void {
