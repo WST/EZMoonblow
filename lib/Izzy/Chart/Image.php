@@ -125,7 +125,7 @@ class Image
 		return $this->height;
 	}
 
-	public function getPadding(string $side = null): int|array {
+	public function getPadding(?string $side = null): int|array {
 		if ($side === null) {
 			return $this->padding;
 		}
@@ -163,7 +163,7 @@ class Image
 		// Горизонтальные линии
 		$step = $this->chartArea['height'] / $horizontalLines;
 		for ($i = 0; $i <= $horizontalLines; $i++) {
-			$y = $this->chartArea['y'] + $i * $step;
+			$y = (int)($this->chartArea['y'] + $i * $step);
 			imageline(
 				$this->image,
 				$this->chartArea['x'],
@@ -177,7 +177,7 @@ class Image
 		// Вертикальные линии
 		$step = $this->chartArea['width'] / $verticalLines;
 		for ($i = 0; $i <= $verticalLines; $i++) {
-			$x = $this->chartArea['x'] + $i * $step;
+			$x = (int)($this->chartArea['x'] + $i * $step);
 			imageline(
 				$this->image,
 				$x,

@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y \
     git \
     curl \
     libpng-dev \
+    libfreetype6-dev \
     libonig-dev \
     libxml2-dev \
     libzip-dev \
@@ -15,7 +16,8 @@ RUN apt-get update && apt-get install -y \
     rrdtool \
     && rm -rf /var/lib/apt/lists/*
 
-# Install PHP extensions.
+# Configure and install PHP extensions.
+RUN docker-php-ext-configure gd --with-freetype
 RUN docker-php-ext-install \
     pdo_mysql \
     mbstring \
