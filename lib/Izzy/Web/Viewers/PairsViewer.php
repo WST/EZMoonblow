@@ -181,6 +181,13 @@ class PairsViewer extends PageViewer
 			]);
 		}
 
+		// Format parameter values (e.g. yes/no -> Yes/No) if the strategy supports it.
+		if ($strategyClass && method_exists($strategyClass, 'formatParameterValue')) {
+			foreach ($strategyParams as $key => $value) {
+				$strategyParams[$key] = $strategyClass::formatParameterValue($key, (string)$value);
+			}
+		}
+
 		return $viewer->setCaption('Strategy: ' . $strategyName)
 			->setDataFromArray($strategyParams)
 			->render();

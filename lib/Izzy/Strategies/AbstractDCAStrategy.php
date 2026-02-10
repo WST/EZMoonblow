@@ -235,6 +235,7 @@ abstract class AbstractDCAStrategy extends Strategy
 			'expectedProfit' => 'Expected profit percentage',
 			'UseLimitOrders' => 'Use limit orders instead of market orders',
 			'offsetMode' => 'Price offset calculation mode',
+			'alwaysMarketEntry' => 'Always execute entry order as market',
 			'numberOfLevelsShort' => 'Number of short DCA orders including the entry order',
 			'entryVolumeShort' => 'Initial short entry volume (USDT, %, %M, or base currency)',
 			'volumeMultiplierShort' => 'Short volume multiplier for each subsequent order',
@@ -244,6 +245,35 @@ abstract class AbstractDCAStrategy extends Strategy
 		];
 
 		return $formattedNames[$paramName] ?? $paramName;
+	}
+
+	/**
+	 * Format parameter value for human-readable display.
+	 * Converts boolean-like values (yes/no/1/0) to Yes/No,
+	 * enum values to their descriptions, etc.
+	 *
+	 * @param string $paramName Parameter name.
+	 * @param string $value Raw parameter value.
+	 * @return string Formatted parameter value.
+	 */
+	public static function formatParameterValue(string $paramName, string $value): string {
+		$booleanParams = ['UseLimitOrders', 'alwaysMarketEntry'];
+		if (in_array($paramName, $booleanParams)) {
+			return match (strtolower($value)) {
+				'yes', '1', 'true' => 'Yes',
+				'no', '0', 'false', '' => 'No',
+				default => $value,
+			};
+		}
+
+		if ($paramName === 'offsetMode') {
+			$mode = DCAOffsetModeEnum::tryFrom($value);
+			if ($mode !== null) {
+				return $mode->getDescription();
+			}
+		}
+
+		return $value;
 	}
 
 	abstract public function doesLong(): bool;
