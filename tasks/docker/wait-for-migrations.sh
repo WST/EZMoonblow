@@ -20,3 +20,5 @@ done
 
 echo "Migrations completed. Starting application..."
 
+# Replace this shell with the application process.
+exec "$@"

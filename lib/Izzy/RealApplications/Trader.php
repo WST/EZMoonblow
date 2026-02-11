@@ -49,11 +49,18 @@ class Trader extends ConsoleApplication
 			$this->logger->warning('No exchanges were found');
 		}
 
+		$exitCode = 0;
 		foreach ($updaters as $updater) {
 			$status = 0;
 			pcntl_waitpid($updater, $status);
+			if (pcntl_wifexited($status)) {
+				$childExitCode = pcntl_wexitstatus($status);
+				if ($childExitCode !== 0) {
+					$exitCode = $childExitCode;
+				}
+			}
 		}
 
-		return 0;
+		return $exitCode;
 	}
 }

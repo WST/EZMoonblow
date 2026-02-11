@@ -50,8 +50,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: ezmoonblow-trader
-    restart: unless-stopped
-    command: /app/tasks/docker/wait-for-migrations.sh && /app/trader.php
+    restart: "no"
+    command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/trader.php"]
     volumes:
       - ./config:/app/config:ro
       - ./logs:/app/logs
@@ -73,8 +73,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: ezmoonblow-analyzer
-    restart: unless-stopped
-    command: /app/tasks/docker/wait-for-migrations.sh && /app/analyzer.php
+    restart: "no"
+    command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/analyzer.php"]
     volumes:
       - ./config:/app/config:ro
       - ./logs:/app/logs
@@ -96,8 +96,8 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: ezmoonblow-notifier
-    restart: unless-stopped
-    command: /app/tasks/docker/wait-for-migrations.sh && /app/notifier.php
+    restart: "no"
+    command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/notifier.php"]
     volumes:
       - ./config:/app/config:ro
       - ./logs:/app/logs
@@ -119,8 +119,9 @@ services:
       context: .
       dockerfile: Dockerfile
     container_name: ezmoonblow-web
-    restart: unless-stopped
-    command: /app/tasks/docker/wait-for-migrations.sh && sh -c "cd /app/web && php -S 0.0.0.0:9090 router.php"
+    restart: "no"
+    command: ["/app/tasks/docker/wait-for-migrations.sh", "php", "-S", "0.0.0.0:9090", "router.php"]
+    working_dir: /app/web
     ports:
       - "9090:9090"
     volumes:
