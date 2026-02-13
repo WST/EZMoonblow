@@ -2,6 +2,7 @@
 
 namespace Izzy\System;
 
+use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TaskRecipientEnum;
 use Izzy\Enums\TaskStatusEnum;
@@ -92,6 +93,90 @@ class QueueTask extends SurrogatePKDatabaseRecord
 
 		// Saving the newly created task.
 		$task->save();
+	}
+
+	/**
+	 * Schedule a candle loading task for the Analyzer.
+	 *
+	 * @param Database $database Database instance.
+	 * @param string $exchange Exchange name.
+	 * @param string $ticker Pair ticker (e.g. "SOL/USDT").
+	 * @param string $marketType Market type value ('spot' or 'futures').
+	 * @param string $timeframe Timeframe value (e.g. "4h").
+	 * @param int $startTime Start timestamp (seconds).
+	 * @param int $endTime End timestamp (seconds).
+	 * @param CandleStorageEnum $storage Target storage table.
+	 */
+	public static function loadCandles(
+		Database $database,
+		string $exchange,
+		string $ticker,
+		string $marketType,
+		string $timeframe,
+		int $startTime,
+		int $endTime,
+		CandleStorageEnum $storage = CandleStorageEnum::RUNTIME,
+	): void {
+		$appName = Analyzer::getApplicationName();
+		$attributes = [
+			'exchange' => $exchange,
+			'pair' => $ticker,
+			'marketType' => $marketType,
+			'timeframe' => $timeframe,
+			'startTime' => $startTime,
+			'endTime' => $endTime,
+			'storage' => $storage->value,
+		];
+
+		// Deduplicate: check if an identical task already exists.
+		if (self::loadCandlesTaskAlreadyExists($database, $appName, $attributes)) {
+			return;
+		}
+
+		$row = [
+			self::FCreatedAt => time(),
+			self::FAttributes => json_encode($attributes),
+			self::FRecipient => $appName,
+			self::FSender => TaskRecipientEnum::TRADER->value,
+			self::FType => TaskTypeEnum::LOAD_CANDLES->value,
+			self::FStatus => TaskStatusEnum::PENDING->value,
+		];
+
+		$task = new self($database, $row);
+		$task->save();
+	}
+
+	/**
+	 * Check whether a LOAD_CANDLES task with identical attributes already exists.
+	 *
+	 * @param Database $database Database instance.
+	 * @param string $appName Recipient application name.
+	 * @param array $attributes Task attributes to match.
+	 * @return bool True if a matching task exists.
+	 */
+	private static function loadCandlesTaskAlreadyExists(Database $database, string $appName, array $attributes): bool {
+		$existingTasks = $database->selectAllRows(
+			self::getTableName(),
+			'*',
+			[self::FRecipient => $appName, self::FType => TaskTypeEnum::LOAD_CANDLES->value],
+		);
+
+		foreach ($existingTasks as $task) {
+			$taskAttributes = json_decode($task[self::FAttributes], true);
+			if (
+				($taskAttributes['exchange'] ?? '') === $attributes['exchange']
+				&& ($taskAttributes['pair'] ?? '') === $attributes['pair']
+				&& ($taskAttributes['marketType'] ?? '') === $attributes['marketType']
+				&& ($taskAttributes['timeframe'] ?? '') === $attributes['timeframe']
+				&& ($taskAttributes['startTime'] ?? 0) === $attributes['startTime']
+				&& ($taskAttributes['endTime'] ?? 0) === $attributes['endTime']
+				&& ($taskAttributes['storage'] ?? '') === $attributes['storage']
+			) {
+				return true;
+			}
+		}
+
+		return false;
 	}
 
 	/**
