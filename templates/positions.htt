@@ -207,12 +207,36 @@
         font-size: 11px;
     }
 
+    /* Finish reason badges */
+    .finish-reason-badge {
+        display: inline-block;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: bold;
+    }
+
+    .finish-reason-tp {
+        background-color: #e8f5e9;
+        color: #2e7d32;
+    }
+
+    .finish-reason-sl {
+        background-color: #ffebee;
+        color: #c62828;
+    }
+
+    .finish-reason-liquidation {
+        background-color: #fafafa;
+        color: #666;
+    }
+
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="positions-page">
-    <h1>Open Positions</h1>
+    <h1>Positions</h1>
 
     <!-- Statistics Section -->
     <div class="positions-section">
@@ -260,9 +284,12 @@
                     <th>Entry Price</th>
                     <th>Avg Entry Price</th>
                     <th>Current Price</th>
+                    <th>SL Price</th>
+                    <th>TP Price</th>
                     <th>PnL %</th>
                     <th>PnL</th>
                     <th>Status</th>
+                    <th>Finish Reason</th>
                     <th>Created</th>
                     <th>Updated</th>
                     <th>Finished</th>
@@ -290,6 +317,20 @@
                     <td class="number">{{ position.entryPrice.amount|number_format(2) }} {{ position.quoteCurrency }}</td>
                     <td class="number">{{ position.averageEntryPrice.amount|number_format(2) }} {{ position.quoteCurrency }}</td>
                     <td class="number">{{ position.currentPrice.amount|number_format(2) }} {{ position.quoteCurrency }}</td>
+                    <td class="number">
+                        {% if position.stopLossPrice %}
+                            {{ position.stopLossPrice.amount|number_format(2) }} {{ position.quoteCurrency }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
+                    <td class="number">
+                        {% if position.takeProfitPrice %}
+                            {{ position.takeProfitPrice.amount|number_format(2) }} {{ position.quoteCurrency }}
+                        {% else %}
+                            -
+                        {% endif %}
+                    </td>
                     <td class="number {% if position.unrealizedPnLPercent > 0 %}pnl-positive{% elseif position.unrealizedPnLPercent < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
                         {% if position.unrealizedPnLPercent > 0 %}+{% endif %}{{ position.unrealizedPnLPercent|number_format(2) }}%
                     </td>
@@ -309,6 +350,21 @@
                             <span class="status-badge status-error">Error</span>
                         {% else %}
                             {{ position.status.value }}
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if position.finishReason %}
+                            {% if position.finishReason.isTakeProfit %}
+                                <span class="finish-reason-badge finish-reason-tp">{{ position.finishReason.label }}</span>
+                            {% elseif position.finishReason.isStopLoss %}
+                                <span class="finish-reason-badge finish-reason-sl">{{ position.finishReason.label }}</span>
+                            {% elseif position.finishReason.isLiquidation %}
+                                <span class="finish-reason-badge finish-reason-liquidation">{{ position.finishReason.label }}</span>
+                            {% else %}
+                                {{ position.finishReason.label }}
+                            {% endif %}
+                        {% else %}
+                            -
                         {% endif %}
                     </td>
                     <td>{{ position.createdAtFormatted }}</td>

@@ -2,6 +2,8 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Strategies\StrategyValidationResult;
+
 interface IStrategy
 {
 	/**
@@ -45,4 +47,13 @@ interface IStrategy
 	 * @return string[]
 	 */
 	public function useIndicators(): array;
+
+	/**
+	 * Validate that exchange settings are compatible with this strategy.
+	 * Called before attempting to open positions and in the web UI.
+	 *
+	 * @param IMarket $market Market to validate against.
+	 * @return StrategyValidationResult Validation result with errors and warnings.
+	 */
+	public function validateExchangeSettings(IMarket $market): StrategyValidationResult;
 }

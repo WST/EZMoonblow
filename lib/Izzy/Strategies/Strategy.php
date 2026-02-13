@@ -82,4 +82,14 @@ abstract class Strategy implements IStrategy
 	public function useIndicators(): array {
 		return [];
 	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default implementation returns an empty (valid) result.
+	 * Subclasses should override to add specific checks.
+	 */
+	public function validateExchangeSettings(IMarket $market): StrategyValidationResult {
+		return new StrategyValidationResult();
+	}
 }

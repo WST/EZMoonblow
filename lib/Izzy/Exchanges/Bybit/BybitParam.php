@@ -38,6 +38,10 @@ class BybitParam
 
 	const string TPTriggerBy = 'tpTriggerBy';
 
+	const string StopLoss = 'stopLoss';
+
+	const string SLTriggerBy = 'slTriggerBy';
+
 	const string QtyStep = 'qtyStep';
 
 	const string LotSizeFilter = 'lotSizeFilter';
@@ -57,4 +61,6 @@ class BybitParam
 	const string End = 'end';
 
 	const string LastPrice = 'lastPrice';
+
+	const string TradeMode = 'tradeMode';
 }

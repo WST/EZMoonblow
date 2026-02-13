@@ -7,9 +7,11 @@ use ByBit\SDK\Enums\AccountType;
 use ByBit\SDK\Exceptions\HttpException;
 use Exception;
 use InvalidArgumentException;
+use Izzy\Enums\MarginModeEnum;
 use Izzy\Enums\OrderStatusEnum;
 use Izzy\Enums\OrderTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionModeEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\AbstractExchangeDriver;
@@ -662,6 +664,136 @@ class Bybit extends AbstractExchangeDriver
 			return true;
 		} catch (Throwable $e) {
 			return false;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setStopLoss(IMarket $market, Money $expectedPrice): bool {
+		$pair = $market->getPair();
+		try {
+			$this->api->positionApi()->setTradingStop([
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+				BybitParam::SLTriggerBy => BybitTPTriggerByEnum::LastPrice->value,
+				BybitParam::StopLoss => $expectedPrice->formatForOrder($this->getTickSize($market)),
+			]);
+			return true;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to set SL for {$market->getTicker()}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function partialClose(IMarket $market, Money $volume): bool {
+		$pair = $market->getPair();
+		try {
+			// Get the current position to determine direction.
+			$position = $this->getCurrentFuturesPosition($market);
+			if (!$position) {
+				$this->logger->error("Cannot partial close: no position found for {$market->getTicker()}");
+				return false;
+			}
+
+			// Reduce-only order: sell if long, buy if short.
+			$closeSide = $position->getDirection()->isLong() ? 'Sell' : 'Buy';
+
+			$params = [
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+				BybitParam::Side => $closeSide,
+				BybitParam::OrderType => OrderTypeEnum::MARKET->value,
+				BybitParam::Qty => $volume->formatForOrder($this->getQtyStep($market)),
+				BybitParam::IsReduceOnly => true,
+				BybitParam::PositionIdx => $this->getPositionIdxByDirection($position->getDirection()),
+			];
+
+			$response = $this->api->tradeApi()->placeOrder($params);
+
+			if (isset($response[BybitParam::OrderId])) {
+				$this->logger->info("Partial close on {$market->getTicker()}: closed {$volume->format()}");
+				return true;
+			}
+
+			$this->logger->error("Failed to partial close on {$market->getTicker()}: " . json_encode($response));
+			return false;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to partial close on {$market->getTicker()}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getMarginMode(IMarket $market): MarginModeEnum {
+		$pair = $market->getPair();
+		try {
+			$params = [
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+			];
+			$response = $this->api->positionApi()->getPositionInfo($params);
+			$positionList = $response[BybitParam::List] ?? [];
+			foreach ($positionList as $positionInfo) {
+				// tradeMode: 0 = cross, 1 = isolated
+				$tradeMode = (int)($positionInfo[BybitParam::TradeMode] ?? 0);
+				return $tradeMode === 1 ? MarginModeEnum::ISOLATED : MarginModeEnum::CROSS;
+			}
+			return MarginModeEnum::CROSS;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to get margin mode for {$market->getTicker()}: " . $e->getMessage());
+			return MarginModeEnum::CROSS;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getLeverage(IMarket $market): float {
+		$pair = $market->getPair();
+		try {
+			$params = [
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+			];
+			$response = $this->api->positionApi()->getPositionInfo($params);
+			$positionList = $response[BybitParam::List] ?? [];
+			foreach ($positionList as $positionInfo) {
+				return (float)($positionInfo['leverage'] ?? 1.0);
+			}
+			return 1.0;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to get leverage for {$market->getTicker()}: " . $e->getMessage());
+			return 1.0;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getPositionMode(IMarket $market): PositionModeEnum {
+		$pair = $market->getPair();
+		try {
+			$params = [
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+			];
+			$response = $this->api->positionApi()->getPositionInfo($params);
+			$positionList = $response[BybitParam::List] ?? [];
+			// Bybit returns 2 entries (positionIdx 1 and 2) in hedge mode,
+			// 1 entry (positionIdx 0) in one-way mode.
+			if (count($positionList) >= 2) {
+				return PositionModeEnum::HEDGE;
+			}
+			return PositionModeEnum::ONE_WAY;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to get position mode for {$market->getTicker()}: " . $e->getMessage());
+			return PositionModeEnum::ONE_WAY;
 		}
 	}
 
