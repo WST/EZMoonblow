@@ -127,6 +127,22 @@ interface IMarket
 	public function setTakeProfit(Money $expectedTPPrice): bool;
 
 	/**
+	 * Set or update stop-loss price for the current position.
+	 *
+	 * @param Money $expectedSLPrice Target stop-loss price.
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function setStopLoss(Money $expectedSLPrice): bool;
+
+	/**
+	 * Partially close an open position (reduce-only order).
+	 *
+	 * @param Money $volume Volume to close (in base currency).
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function partialClose(Money $volume): bool;
+
+	/**
 	 * Get the trading pair for this market.
 	 *
 	 * @return IPair Trading pair instance.

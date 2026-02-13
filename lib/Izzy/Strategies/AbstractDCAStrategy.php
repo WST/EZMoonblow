@@ -276,6 +276,29 @@ abstract class AbstractDCAStrategy extends Strategy
 		return $value;
 	}
 
+	/**
+	 * @inheritDoc
+	 *
+	 * DCA strategies require hedge position mode on futures exchanges.
+	 */
+	public function validateExchangeSettings(IMarket $market): StrategyValidationResult {
+		$result = parent::validateExchangeSettings($market);
+
+		// DCA strategies require hedge mode on futures.
+		if ($market->getMarketType()->isFutures()) {
+			$positionMode = $market->getExchange()->getPositionMode($market);
+			if (!$positionMode->isHedge()) {
+				$result->addError(
+					'DCA strategy requires Hedge position mode (Two-Way), '
+					. "but the exchange is configured as '{$positionMode->getLabel()}'. "
+					. 'Please switch to Hedge mode in exchange settings.'
+				);
+			}
+		}
+
+		return $result;
+	}
+
 	abstract public function doesLong(): bool;
 	abstract public function doesShort(): bool;
 

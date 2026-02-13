@@ -2,7 +2,9 @@
 
 namespace Izzy\Interfaces;
 
+use Izzy\Enums\MarginModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionModeEnum;
 use Izzy\Financial\Money;
 use Izzy\Financial\Order;
 use Izzy\System\Database\Database;
@@ -157,6 +159,24 @@ interface IExchangeDriver
 	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool;
 
 	/**
+	 * Set or update stop-loss order for a position.
+	 *
+	 * @param IMarket $market Market with the position.
+	 * @param Money $expectedPrice Target stop-loss price.
+	 * @return bool True on success, false on failure.
+	 */
+	public function setStopLoss(IMarket $market, Money $expectedPrice): bool;
+
+	/**
+	 * Partially close an open position (reduce-only order).
+	 *
+	 * @param IMarket $market Market with the position.
+	 * @param Money $volume Volume to close (in base currency).
+	 * @return bool True on success, false on failure.
+	 */
+	public function partialClose(IMarket $market, Money $volume): bool;
+
+	/**
 	 * Get the database instance used by this exchange driver.
 	 * @return Database Database instance.
 	 */
@@ -197,6 +217,30 @@ interface IExchangeDriver
 	 * @return Order|false Order object or false if not found.
 	 */
 	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false;
+
+	/**
+	 * Get the current margin mode for a market.
+	 *
+	 * @param IMarket $market Market to check.
+	 * @return MarginModeEnum Current margin mode.
+	 */
+	public function getMarginMode(IMarket $market): MarginModeEnum;
+
+	/**
+	 * Get the current leverage for a market.
+	 *
+	 * @param IMarket $market Market to check.
+	 * @return float Current leverage multiplier (e.g. 10.0 for 10x).
+	 */
+	public function getLeverage(IMarket $market): float;
+
+	/**
+	 * Get the position mode for a market (hedge or one-way).
+	 *
+	 * @param IMarket $market Market to check.
+	 * @return PositionModeEnum Current position mode.
+	 */
+	public function getPositionMode(IMarket $market): PositionModeEnum;
 
 	/**
 	 * Get the minimum quantity step for an instrument.

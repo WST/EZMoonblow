@@ -81,6 +81,41 @@ interface IStoredPosition extends IPosition
 	public function sellAdditional(Money $dcaAmount): void;
 
 	/**
+	 * Get the stop-loss price for this position.
+	 * @return Money|null Stop-loss price, or null if not set.
+	 */
+	public function getStopLossPrice(): ?Money;
+
+	/**
+	 * Set the stop-loss price for this position.
+	 * @param Money|null $price Stop-loss price, or null to clear.
+	 * @return void
+	 */
+	public function setStopLossPrice(?Money $price): void;
+
+	/**
+	 * Get the expected stop-loss distance from entry (percentage).
+	 * @return float Expected stop-loss distance in percent (positive number).
+	 */
+	public function getExpectedStopLossPercent(): float;
+
+	/**
+	 * Set the expected stop-loss distance from entry (percentage).
+	 * @param float $expectedStopLossPercent Stop-loss distance in percent (positive number).
+	 * @return void
+	 */
+	public function setExpectedStopLossPercent(float $expectedStopLossPercent): void;
+
+	/**
+	 * Update the stop-loss order based on current position state.
+	 * Recalculates SL price from average entry and expected SL percent,
+	 * and moves the SL order on the exchange if needed.
+	 * @param IMarket $market Market instance for exchange operations.
+	 * @return void
+	 */
+	public function updateStopLoss(IMarket $market): void;
+
+	/**
 	 * Set the expected profit percentage for take-profit calculation.
 	 * @param float $expectedProfitPercent Expected profit in percent.
 	 * @return void
@@ -92,6 +127,19 @@ interface IStoredPosition extends IPosition
 	 * @return float Expected profit in percent.
 	 */
 	public function getExpectedProfitPercent(): float;
+
+	/**
+	 * Get the take-profit price for this position.
+	 * @return Money|null Take-profit price, or null if not set.
+	 */
+	public function getTakeProfitPrice(): ?Money;
+
+	/**
+	 * Set the take-profit price for this position.
+	 * @param Money|null $price Take-profit price, or null to clear.
+	 * @return void
+	 */
+	public function setTakeProfitPrice(?Money $price): void;
 
 	/**
 	 * Update the take-profit order based on current position state.
