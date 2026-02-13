@@ -76,7 +76,7 @@ class SystemHeartbeat
 			self::FPid => $this->pid,
 			self::FStartedAt => $this->startedAt,
 			self::FExtraInfo => null,
-			self::FMemoryUsage => memory_get_usage(),
+			self::FMemoryUsage => self::getRssMemoryUsage(),
 		];
 
 		if ($existingRecord) {
@@ -101,7 +101,7 @@ class SystemHeartbeat
 		$data = [
 			self::FLastHeartbeat => time(),
 			self::FStatus => self::STATUS_RUNNING,
-			self::FMemoryUsage => memory_get_usage(),
+			self::FMemoryUsage => self::getRssMemoryUsage(),
 		];
 
 		if ($extraInfo !== null) {
@@ -295,6 +295,24 @@ class SystemHeartbeat
 		}
 
 		return implode(' ', $parts);
+	}
+
+	/**
+	 * Get the resident set size (RSS) of the current process.
+	 * Reads VmRSS from /proc/self/status on Linux, falls back to memory_get_usage(true).
+	 *
+	 * @return int Memory usage in bytes.
+	 */
+	public static function getRssMemoryUsage(): int {
+		$statusFile = '/proc/self/status';
+		if (is_readable($statusFile)) {
+			$contents = file_get_contents($statusFile);
+			if ($contents !== false && preg_match('/VmRSS:\s+(\d+)\s+kB/', $contents, $matches)) {
+				return (int)$matches[1] * 1024;
+			}
+		}
+
+		return memory_get_usage(true);
 	}
 
 	/**
