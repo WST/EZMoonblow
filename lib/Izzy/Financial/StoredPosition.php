@@ -40,7 +40,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	/** Ids of the related orders on the Exchange */
 	const string FEntryOrderIdOnExchange = 'position_entry_order_id_on_exchange';
 	const string FTPOrderIdOnExchange = 'position_tp_order_id_on_exchange';
-	const string FSLOrderIdOnExchange = 'position_tp_order_id_on_exchange';
+	const string FSLOrderIdOnExchange = 'position_sl_order_id_on_exchange';
 
 	/** Important timestamps */
 	const string FCreatedAt = 'position_created_at';
@@ -50,12 +50,9 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	/** TP and SL */
 	const string FExpectedProfitPercent = 'position_expected_profit_percent';
 	const string FExpectedTakeProfitPrice = 'position_expected_tp_price';
-
-	/**
-	 * Reason of finishing the position. Always null if the position is still active.
-	 * @var PositionFinishReasonEnum|null
-	 */
-	private ?PositionFinishReasonEnum $finishReason = null;
+	const string FExpectedStopLossPercent = 'position_expected_sl_percent';
+	const string FStopLossPrice = 'position_stop_loss_price';
+	const string FFinishReason = 'position_finish_reason';
 
 	/**
 	 * Builds a Position object from a database row.
@@ -592,7 +589,103 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @return Money|null Take profit price, or null if not set.
 	 */
 	public function getTakeProfitPrice(): ?Money {
-		return Money::from($this->row[self::FExpectedTakeProfitPrice]);
+		$value = $this->row[self::FExpectedTakeProfitPrice] ?? null;
+		return $value !== null ? Money::from($value) : null;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getStopLossPrice(): ?Money {
+		$value = $this->row[self::FStopLossPrice] ?? null;
+		return $value !== null ? Money::from($value) : null;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setStopLossPrice(?Money $price): void {
+		$this->row[self::FStopLossPrice] = $price?->getAmount();
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getExpectedStopLossPercent(): float {
+		return floatval($this->row[self::FExpectedStopLossPercent] ?? 0);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setExpectedStopLossPercent(float $expectedStopLossPercent): void {
+		$this->row[self::FExpectedStopLossPercent] = $expectedStopLossPercent;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function updateStopLoss(IMarket $market): void {
+		$averageEntryPrice = $this->getAverageEntryPrice();
+		if ($averageEntryPrice === null || $averageEntryPrice->getAmount() <= 0) {
+			return;
+		}
+
+		// Do not set SL when expected percentage is zero.
+		$expectedSLPercent = $this->getExpectedStopLossPercent();
+		if (abs($expectedSLPercent) < 0.0001) {
+			return;
+		}
+
+		// SL is on the losing side: opposite to TP direction.
+		// For LONG, SL is below entry; for SHORT, SL is above entry.
+		$direction = $this->getDirection();
+		$expectedSLPrice = $averageEntryPrice->modifyByPercentWithDirection(-$expectedSLPercent, $direction);
+
+		// Sanity check: SL price must be positive.
+		if ($expectedSLPrice->getAmount() <= 0) {
+			Logger::getLogger()->warning(
+				"Skipping SL update for {$this->getTicker()}: computed SL price would be non-positive "
+				. "(entry={$averageEntryPrice->getAmount()}, direction={$direction->value}, percent={$expectedSLPercent})"
+			);
+			return;
+		}
+
+		// Current SL price on the exchange (may be unset on first update).
+		$currentSLPrice = $this->getStopLossPrice();
+		if ($currentSLPrice === null) {
+			$market->setStopLoss($expectedSLPrice);
+			$this->setStopLossPrice($expectedSLPrice);
+			return;
+		}
+
+		// If the prices are different enough, we should move the SL order.
+		$diff = abs($currentSLPrice->getPercentDifference($expectedSLPrice));
+		if ($diff > 0.1) {
+			$market->setStopLoss($expectedSLPrice);
+			$this->setStopLossPrice($expectedSLPrice);
+		}
+	}
+
+	/**
+	 * Get the finish reason for this position.
+	 * @return PositionFinishReasonEnum|null Finish reason, or null if not finished or unknown.
+	 */
+	public function getFinishReason(): ?PositionFinishReasonEnum {
+		$value = $this->row[self::FFinishReason] ?? null;
+		if ($value === null) {
+			return null;
+		}
+		return PositionFinishReasonEnum::tryFrom($value);
+	}
+
+	/**
+	 * Set the finish reason for this position.
+	 * @param PositionFinishReasonEnum|null $reason Finish reason, or null to clear.
+	 * @return void
+	 */
+	public function setFinishReason(?PositionFinishReasonEnum $reason): void {
+		$this->row[self::FFinishReason] = $reason?->value;
 	}
 
 	/**

@@ -4,6 +4,7 @@ namespace Izzy\Financial;
 
 use Exception;
 use Izzy\Chart\Chart;
+use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
@@ -17,6 +18,7 @@ use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IStrategy;
 use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
+use Izzy\Strategies\StrategyValidationResult;
 use Izzy\System\Database\Database;
 use Izzy\System\QueueTask;
 use Izzy\Traits\HasMarketTypeTrait;
@@ -81,6 +83,21 @@ class Market implements IMarket
 	private ?int $cachedPriceTimestamp = null;
 
 	/**
+	 * Last strategy validation result (for web UI access).
+	 */
+	private ?StrategyValidationResult $lastValidationResult = null;
+
+	/**
+	 * Timestamp when the last validation was performed.
+	 */
+	private int $lastValidationTimestamp = 0;
+
+	/**
+	 * How often to re-validate exchange settings (in seconds).
+	 */
+	private const int VALIDATION_CACHE_TTL = 600; // 10 minutes
+
+	/**
 	 * Price cache TTL in seconds.
 	 */
 	private const int PRICE_CACHE_TTL = 10;
@@ -100,6 +117,41 @@ class Market implements IMarket
 	 */
 	public function getCandles(): array {
 		return $this->candles;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function requestCandles(TimeFrameEnum $timeframe, int $startTime, int $endTime): ?array {
+		$runtimeRepo = new RuntimeCandleRepository($this->database);
+		$pair = $this->pair;
+
+		// Build a temporary pair with the requested timeframe for the repository query.
+		$queryPair = new Pair(
+			$pair->getTicker(),
+			$timeframe,
+			$pair->getExchangeName(),
+			$pair->getMarketType()
+		);
+
+		// Check if candles are already available.
+		if ($runtimeRepo->hasCandles($queryPair, $timeframe->value, $startTime, $endTime)) {
+			return $runtimeRepo->getCandles($queryPair, $startTime, $endTime);
+		}
+
+		// Candles not available — schedule async loading.
+		QueueTask::loadCandles(
+			$this->database,
+			$pair->getExchangeName(),
+			$pair->getTicker(),
+			$pair->getMarketType()->value,
+			$timeframe->value,
+			$startTime,
+			$endTime,
+			CandleStorageEnum::RUNTIME,
+		);
+
+		return null;
 	}
 
 	/**
@@ -200,6 +252,43 @@ class Market implements IMarket
 	 */
 	public function getStrategy(): ?IStrategy {
 		return $this->strategy;
+	}
+
+	/**
+	 * Get the last strategy validation result.
+	 * Available after processTrading() or runValidation() has been called.
+	 *
+	 * @return StrategyValidationResult|null Validation result, or null if not yet validated.
+	 */
+	public function getValidationResult(): ?StrategyValidationResult {
+		return $this->lastValidationResult;
+	}
+
+	/**
+	 * Run strategy validation against exchange settings.
+	 * Results are cached for VALIDATION_CACHE_TTL seconds to avoid
+	 * excessive API calls to the exchange on every trading cycle.
+	 *
+	 * @param bool $force Force re-validation, ignoring the cache.
+	 * @return StrategyValidationResult Validation result.
+	 */
+	public function runValidation(bool $force = false): StrategyValidationResult {
+		// Return cached result if still fresh.
+		if (!$force
+			&& $this->lastValidationResult !== null
+			&& (time() - $this->lastValidationTimestamp) < self::VALIDATION_CACHE_TTL
+		) {
+			return $this->lastValidationResult;
+		}
+
+		$strategy = $this->getStrategy();
+		if (!$strategy) {
+			$this->lastValidationResult = new StrategyValidationResult();
+		} else {
+			$this->lastValidationResult = $strategy->validateExchangeSettings($this);
+		}
+		$this->lastValidationTimestamp = time();
+		return $this->lastValidationResult;
 	}
 
 	/**
@@ -567,6 +656,31 @@ class Market implements IMarket
 			return;
 		}
 
+		// Validate exchange settings before trading.
+		// Results are cached (see VALIDATION_CACHE_TTL), so this does not
+		// hit the exchange API on every cycle.
+		$previousResult = $this->lastValidationResult;
+		$validation = $this->runValidation();
+
+		// Log messages only when the result has just been refreshed
+		// (i.e. it is a different object from the previous one) to
+		// avoid spamming the same errors every minute.
+		$isNewResult = ($validation !== $previousResult);
+
+		if (!$validation->isValid()) {
+			if ($isNewResult) {
+				foreach ($validation->getErrors() as $error) {
+					$this->exchange->getLogger()->error("Strategy validation failed for $this: $error");
+				}
+			}
+			return; // Do not attempt to trade.
+		}
+		if ($isNewResult) {
+			foreach ($validation->getWarnings() as $warning) {
+				$this->exchange->getLogger()->warning("Strategy warning for $this: $warning");
+			}
+		}
+
 		// Is trading enabled for this Pair?
 		if (!$this->pair->isTradingEnabled()) {
 			$this->exchange->getLogger()->info("Trading is disabled for $this");
@@ -911,5 +1025,27 @@ class Market implements IMarket
 	public function setTakeProfit(Money $expectedTPPrice): bool {
 		$this->exchange->getLogger()->debug("Updating TP on $this, setting to $expectedTPPrice");
 		return $this->exchange->setTakeProfit($this, $expectedTPPrice);
+	}
+
+	/**
+	 * Set stop-loss price.
+	 *
+	 * @param Money $expectedSLPrice Expected stop-loss price.
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function setStopLoss(Money $expectedSLPrice): bool {
+		$this->exchange->getLogger()->debug("Updating SL on $this, setting to $expectedSLPrice");
+		return $this->exchange->setStopLoss($this, $expectedSLPrice);
+	}
+
+	/**
+	 * Partially close an open position.
+	 *
+	 * @param Money $volume Volume to close (in base currency).
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function partialClose(Money $volume): bool {
+		$this->exchange->getLogger()->debug("Partial close on $this, volume $volume");
+		return $this->exchange->partialClose($this, $volume);
 	}
 }

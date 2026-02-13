@@ -5,6 +5,32 @@ body {
     color: #333;
 }
 
+/*
+header {
+    background-color: #142447;
+    background-image:
+        linear-gradient(rgba(0, 0, 0, 0.1) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 0, 0, 0.1) 1px, transparent 1px);
+    background-size: 10px 10px;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+}
+
+nav {
+    background: #020024;
+    padding: 8px 20px;
+    text-align: center;
+}
+
+nav.gradient {
+    background: #020024;
+    background: linear-gradient(0deg,rgba(2, 0, 36, 1) 0%, rgba(9, 9, 121, 1) 54%, rgba(40, 48, 133, 1) 55%, rgba(54, 96, 194, 1) 100%);
+    padding: 8px 20px;
+    text-align: center;
+}
+*/
+
 header {
     background-color: #003366;
     color: white;
@@ -618,9 +644,60 @@ footer a:hover {
     padding: 2px 6px;
     border-radius: 3px;
 }
-.pair-status-monitoring {
-    background-color: #4c7ca1;
+
+/* Strategy validation banners */
+.strategy-error-banner {
+    background-color: #d32f2f;
     color: #ffffff;
-    padding: 2px 6px;
-    border-radius: 3px;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+.strategy-error-banner strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.strategy-error-banner ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.strategy-error-banner ul li {
+    margin-bottom: 4px;
+}
+
+.strategy-warning-banner {
+    background-color: #f57c00;
+    color: #ffffff;
+    padding: 12px 16px;
+    border-radius: 6px;
+    margin-bottom: 15px;
+    font-size: 13px;
+}
+
+.strategy-warning-banner strong {
+    display: block;
+    margin-bottom: 6px;
+    font-size: 14px;
+}
+
+.strategy-warning-banner ul {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.strategy-warning-banner ul li {
+    margin-bottom: 4px;
+}
+
+/* Error indicator dot in sidebar */
+.pair-error-dot {
+    color: #d32f2f;
+    font-size: 10px;
+    vertical-align: middle;
+    margin-left: 4px;
 }

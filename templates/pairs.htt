@@ -18,6 +18,9 @@
                             <div class="pair-item" data-pair-id="{{ loop.index0 }}">
                                 <div class="pair-item-header">
                                     <span class="pair-ticker">{{ pair.ticker }}</span>
+                                    {% if pair.validationErrors is defined %}
+                                        <span class="pair-error-dot" title="Strategy validation error">●</span>
+                                    {% endif %}
                                     <span class="pair-exchange">{{ pair.exchange }}</span>
                                 </div>
                                 <div class="pair-item-details">
@@ -42,6 +45,28 @@
                             <div class="pair-header">
                                 <h2>{{ pair.ticker }}&nbsp;— {{ pair.exchange }}</h2>
                             </div>
+
+                            {% if pair.validationErrors is defined %}
+                                <div class="strategy-error-banner">
+                                    <strong>Strategy Error</strong>
+                                    <ul>
+                                        {% for error in pair.validationErrors %}
+                                            <li>{{ error }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
+
+                            {% if pair.validationWarnings is defined %}
+                                <div class="strategy-warning-banner">
+                                    <strong>Warning</strong>
+                                    <ul>
+                                        {% for warning in pair.validationWarnings %}
+                                            <li>{{ warning }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            {% endif %}
 
                             <!-- Chart and DCA grid -->
                             <div class="chart-and-dca">

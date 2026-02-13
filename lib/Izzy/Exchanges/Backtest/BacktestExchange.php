@@ -3,7 +3,9 @@
 namespace Izzy\Exchanges\Backtest;
 
 use Izzy\Configuration\ExchangeConfiguration;
+use Izzy\Enums\MarginModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionModeEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Financial\BacktestStoredPosition;
 use Izzy\Financial\Market;
@@ -31,6 +33,13 @@ class BacktestExchange implements IExchangeDriver
 	private int $orderIdCounter = 0;
 	/** @var int Current simulation timestamp (candle time) for position created_at. */
 	private int $simulationTime = 0;
+
+	/** Simulated margin mode. */
+	private MarginModeEnum $backtestMarginMode = MarginModeEnum::CROSS;
+	/** Simulated leverage. */
+	private float $backtestLeverage = 1.0;
+	/** Simulated position mode. */
+	private PositionModeEnum $backtestPositionMode = PositionModeEnum::HEDGE;
 
 	/** @var array<string, list<array{orderId: string, price: float, volumeBase: float, direction: PositionDirectionEnum}>> Pending limit orders (grid levels) per market. */
 	private array $pendingLimitOrders = [];
@@ -291,6 +300,34 @@ class BacktestExchange implements IExchangeDriver
 		return true;
 	}
 
+	/**
+	 * @inheritDoc
+	 */
+	public function setStopLoss(IMarket $market, Money $expectedPrice): bool {
+		// In backtesting, SL is simulated by the backtest runner checking price vs SL level.
+		return true;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function partialClose(IMarket $market, Money $volume): bool {
+		$position = $market->getStoredPosition();
+		if (!$position instanceof BacktestStoredPosition) {
+			return false;
+		}
+		$currentVolume = $position->getVolume()->getAmount();
+		$closeVolume = $volume->getAmount();
+		if ($closeVolume >= $currentVolume) {
+			return false;
+		}
+		$newVolume = $currentVolume - $closeVolume;
+		$position->setVolume(Money::from($newVolume, $market->getPair()->getBaseCurrency()));
+		$position->save();
+		$this->logger->backtestProgress("  PARTIAL CLOSE {$market->getTicker()} -{$closeVolume} -> vol {$newVolume}");
+		return true;
+	}
+
 	public function getDatabase(): Database {
 		return $this->database;
 	}
@@ -321,6 +358,48 @@ class BacktestExchange implements IExchangeDriver
 
 	public function getTickSize(IMarket $market): string {
 		return '0.01';
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getMarginMode(IMarket $market): MarginModeEnum {
+		return $this->backtestMarginMode;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getLeverage(IMarket $market): float {
+		return $this->backtestLeverage;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getPositionMode(IMarket $market): PositionModeEnum {
+		return $this->backtestPositionMode;
+	}
+
+	/**
+	 * Override margin mode for backtest scenarios.
+	 */
+	public function setBacktestMarginMode(MarginModeEnum $mode): void {
+		$this->backtestMarginMode = $mode;
+	}
+
+	/**
+	 * Override leverage for backtest scenarios.
+	 */
+	public function setBacktestLeverage(float $leverage): void {
+		$this->backtestLeverage = $leverage;
+	}
+
+	/**
+	 * Override position mode for backtest scenarios.
+	 */
+	public function setBacktestPositionMode(PositionModeEnum $mode): void {
+		$this->backtestPositionMode = $mode;
 	}
 
 	/**

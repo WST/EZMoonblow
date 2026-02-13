@@ -8,11 +8,17 @@ enum TaskTypeEnum: string
 
 	case TELEGRAM_WANT_NEW_POSITION = 'Want New Position';
 
+	case LOAD_CANDLES = 'Load Candles';
+
 	public function isDrawCandlestickChart(): bool {
 		return $this === self::DRAW_CANDLESTICK_CHART;
 	}
 
 	public function isTelegramWantNewPosition(): bool {
 		return $this === self::TELEGRAM_WANT_NEW_POSITION;
+	}
+
+	public function isLoadCandles(): bool {
+		return $this === self::LOAD_CANDLES;
 	}
 }

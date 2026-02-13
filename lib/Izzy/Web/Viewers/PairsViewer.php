@@ -7,6 +7,7 @@ use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Financial\Pair;
 use Izzy\Strategies\AbstractDCAStrategy;
+use Izzy\Strategies\AbstractSingleEntryStrategy;
 use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -132,11 +133,23 @@ class PairsViewer extends PageViewer
 			'chartKey' => $pair->getChartKey(),
 		];
 
-		// If strategy is configured, try to get DCA grid info for display.
+		// If strategy is configured, try to get strategy info for display.
 		if ($pair->getStrategyName()) {
 			$market = $exchange->createMarket($pair);
 			if ($market) {
 				$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
+
+				// Run exchange settings validation directly on the strategy.
+				// PairsViewer creates its own strategy instance (not stored in Market),
+				// so we call validateExchangeSettings() on the strategy itself.
+				// No caching needed — this runs once per web request.
+				$validation = $strategy->validateExchangeSettings($market);
+				if (!$validation->isValid()) {
+					$data['validationErrors'] = $validation->getErrors();
+				}
+				if (!empty($validation->getWarnings())) {
+					$data['validationWarnings'] = $validation->getWarnings();
+				}
 
 				if ($strategy instanceof AbstractDCAStrategy) {
 					// Use filtered parameters that respect doesLong/doesShort.
@@ -161,6 +174,10 @@ class PairsViewer extends PageViewer
 						'expectedProfitShort' => $dcaSettings->getShortGrid()->getExpectedProfit(),
 						'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
 					];
+				} elseif ($strategy instanceof AbstractSingleEntryStrategy) {
+					$data['strategyParams'] = $strategy->getDisplayParameters();
+					$data['doesLong'] = $strategy->doesLong();
+					$data['doesShort'] = $strategy->doesShort();
 				}
 			}
 		}

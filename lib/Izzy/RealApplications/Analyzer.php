@@ -3,10 +3,14 @@
 namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\AbstractCandleRepository;
+use Izzy\Financial\CandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
+use Izzy\Financial\RuntimeCandleRepository;
 use Izzy\System\QueueTask;
 
 /**
@@ -190,7 +194,11 @@ class Analyzer extends ConsoleApplication
 		}
 	}
 
+	/**
+	 * Cleanup stale chart files and old runtime candles.
+	 */
 	private function cleanup(): void {
+		// Remove old chart files (older than 1 hour).
 		$files = glob(IZZY_CHARTS."/*.png");
 		foreach ($files as $file) {
 			$mtime = filemtime($file);
@@ -198,6 +206,11 @@ class Analyzer extends ConsoleApplication
 				unlink($file);
 			}
 		}
+
+		// Remove runtime candles older than 7 days.
+		$runtimeRepo = new RuntimeCandleRepository($this->database);
+		$sevenDaysAgo = time() - 7 * 24 * 3600;
+		$runtimeRepo->deleteOlderThan($sevenDaysAgo);
 	}
 
 	protected function processTask(QueueTask $task): void {
@@ -211,7 +224,84 @@ class Analyzer extends ConsoleApplication
 			return;
 		}
 
+		// Task is to load candles from exchange.
+		if ($taskType->isLoadCandles()) {
+			$this->handleLoadCandlesTask($task->getAttributes());
+			$task->remove();
+			return;
+		}
+
 		$this->logger->warning("Got an unknown task type: $taskType->value");
+	}
+
+	/**
+	 * Handle a LOAD_CANDLES task: fetch candles from exchange and save to the target repository.
+	 *
+	 * @param array $attributes Task attributes containing exchange, pair, marketType, timeframe, startTime, endTime, storage.
+	 */
+	private function handleLoadCandlesTask(array $attributes): void {
+		$exchangeName = $attributes['exchange'];
+		$ticker = $attributes['pair'];
+		$marketType = MarketTypeEnum::from($attributes['marketType']);
+		$timeframe = TimeFrameEnum::from($attributes['timeframe']);
+		$startTime = (int)$attributes['startTime'];
+		$endTime = (int)$attributes['endTime'];
+		$storage = CandleStorageEnum::from($attributes['storage'] ?? CandleStorageEnum::RUNTIME->value);
+
+		$pair = new Pair($ticker, $timeframe, $exchangeName, $marketType);
+		$this->logger->info("Loading candles for $pair ($marketType->value, $timeframe->value) on $exchangeName, storage: $storage->value");
+
+		// Select the target repository based on storage type.
+		$repository = $this->createCandleRepository($storage);
+
+		// Connect to the exchange.
+		$exchange = $this->configuration->connectExchange($this, $exchangeName);
+		if (!$exchange) {
+			$this->logger->error("Failed to connect to exchange $exchangeName for candle loading.");
+			return;
+		}
+
+		// Load candles in chunks (same approach as Backtester::loadCandles).
+		$limit = 1000;
+		$startTimeMs = $startTime * 1000;
+		$endTimeMs = $endTime * 1000;
+		$chunkEndMs = $endTimeMs;
+		$totalSaved = 0;
+
+		while (true) {
+			$candles = $exchange->getCandles($pair, $limit, (int)$startTimeMs, (int)$chunkEndMs);
+			if (empty($candles)) {
+				break;
+			}
+			$saved = $repository->saveCandles(
+				$exchangeName,
+				$ticker,
+				$marketType->value,
+				$timeframe->value,
+				$candles
+			);
+			$totalSaved += $saved;
+			$oldestOpenTimeMs = $candles[0]->getOpenTime() * 1000;
+			if ($oldestOpenTimeMs <= $startTimeMs || count($candles) < $limit) {
+				break;
+			}
+			$chunkEndMs = $oldestOpenTimeMs - 1;
+		}
+
+		$this->logger->info("Saved $totalSaved candles for $ticker $timeframe->value ($storage->value storage).");
+	}
+
+	/**
+	 * Create the appropriate candle repository for the given storage type.
+	 *
+	 * @param CandleStorageEnum $storage Target storage.
+	 * @return AbstractCandleRepository Repository instance.
+	 */
+	private function createCandleRepository(CandleStorageEnum $storage): AbstractCandleRepository {
+		return match ($storage) {
+			CandleStorageEnum::RUNTIME => new RuntimeCandleRepository($this->database),
+			CandleStorageEnum::BACKTEST => new CandleRepository($this->database),
+		};
 	}
 
 	private function handleDrawCandlestickChartTask($attributes): void {

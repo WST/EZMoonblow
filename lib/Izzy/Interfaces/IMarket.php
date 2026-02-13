@@ -4,6 +4,7 @@ namespace Izzy\Interfaces;
 
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Money;
 use Izzy\Financial\TradingContext;
 use Izzy\Strategies\DCAOrderGrid;
@@ -127,6 +128,22 @@ interface IMarket
 	public function setTakeProfit(Money $expectedTPPrice): bool;
 
 	/**
+	 * Set or update stop-loss price for the current position.
+	 *
+	 * @param Money $expectedSLPrice Target stop-loss price.
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function setStopLoss(Money $expectedSLPrice): bool;
+
+	/**
+	 * Partially close an open position (reduce-only order).
+	 *
+	 * @param Money $volume Volume to close (in base currency).
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function partialClose(Money $volume): bool;
+
+	/**
 	 * Get the trading pair for this market.
 	 *
 	 * @return IPair Trading pair instance.
@@ -164,4 +181,16 @@ interface IMarket
 	 * @return IStoredPosition|false Current position or false if none exists.
 	 */
 	public function getCurrentPosition(): IStoredPosition|false;
+
+	/**
+	 * Request candles for the given timeframe and time range.
+	 * Returns candles immediately if available, or schedules an async loading task
+	 * and returns null (data will be ready on the next Analyzer cycle).
+	 *
+	 * @param TimeFrameEnum $timeframe Desired timeframe.
+	 * @param int $startTime Start timestamp (seconds), inclusive.
+	 * @param int $endTime End timestamp (seconds), inclusive.
+	 * @return ICandle[]|null Array of candles if available, null if loading is in progress.
+	 */
+	public function requestCandles(TimeFrameEnum $timeframe, int $startTime, int $endTime): ?array;
 }
