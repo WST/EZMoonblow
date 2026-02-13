@@ -281,7 +281,12 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 		// Check isolated margin mode.
 		if ($this->useIsolatedMargin) {
 			$marginMode = $exchange->getMarginMode($market);
-			if (!$marginMode->isIsolated()) {
+			if ($marginMode === null) {
+				$result->addWarning(
+					'Could not verify margin mode on the exchange (API error). '
+					. 'Strategy expects Isolated margin mode.'
+				);
+			} elseif (!$marginMode->isIsolated()) {
 				$result->addError(
 					'Strategy requires Isolated margin mode, '
 					. "but the exchange is configured as '{$marginMode->getLabel()}'. "
@@ -292,7 +297,12 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 
 		// Check leverage vs SL distance.
 		$leverage = $exchange->getLeverage($market);
-		if ($leverage > 0) {
+		if ($leverage === null) {
+			$result->addWarning(
+				'Could not verify leverage on the exchange (API error). '
+				. 'Cannot check if stop-loss distance is safe for the current leverage.'
+			);
+		} elseif ($leverage > 0) {
 			$maxLossBeforeLiquidation = 100.0 / $leverage;
 			if ($this->stopLossPercent >= $maxLossBeforeLiquidation) {
 				$result->addError(

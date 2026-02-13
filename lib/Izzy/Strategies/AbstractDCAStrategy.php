@@ -287,7 +287,12 @@ abstract class AbstractDCAStrategy extends Strategy
 		// DCA strategies require hedge mode on futures.
 		if ($market->getMarketType()->isFutures()) {
 			$positionMode = $market->getExchange()->getPositionMode($market);
-			if (!$positionMode->isHedge()) {
+			if ($positionMode === null) {
+				$result->addWarning(
+					'Could not verify position mode on the exchange (API error). '
+					. 'DCA strategy requires Hedge mode (Two-Way) to function correctly.'
+				);
+			} elseif (!$positionMode->isHedge()) {
 				$result->addError(
 					'DCA strategy requires Hedge position mode (Two-Way), '
 					. "but the exchange is configured as '{$positionMode->getLabel()}'. "

@@ -222,25 +222,25 @@ interface IExchangeDriver
 	 * Get the current margin mode for a market.
 	 *
 	 * @param IMarket $market Market to check.
-	 * @return MarginModeEnum Current margin mode.
+	 * @return MarginModeEnum|null Current margin mode, or null if unable to determine (e.g. API error).
 	 */
-	public function getMarginMode(IMarket $market): MarginModeEnum;
+	public function getMarginMode(IMarket $market): ?MarginModeEnum;
 
 	/**
 	 * Get the current leverage for a market.
 	 *
 	 * @param IMarket $market Market to check.
-	 * @return float Current leverage multiplier (e.g. 10.0 for 10x).
+	 * @return float|null Current leverage multiplier (e.g. 10.0 for 10x), or null if unable to determine.
 	 */
-	public function getLeverage(IMarket $market): float;
+	public function getLeverage(IMarket $market): ?float;
 
 	/**
 	 * Get the position mode for a market (hedge or one-way).
 	 *
 	 * @param IMarket $market Market to check.
-	 * @return PositionModeEnum Current position mode.
+	 * @return PositionModeEnum|null Current position mode, or null if unable to determine (e.g. API error).
 	 */
-	public function getPositionMode(IMarket $market): PositionModeEnum;
+	public function getPositionMode(IMarket $market): ?PositionModeEnum;
 
 	/**
 	 * Get the minimum quantity step for an instrument.

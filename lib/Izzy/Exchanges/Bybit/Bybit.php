@@ -77,24 +77,30 @@ class Bybit extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Check if an exception represents an API key authentication error.
+	 * Check if an exception represents an API key or access error
+	 * that will not resolve itself (invalid key, expired key, wrong IP, etc.).
+	 *
 	 * @param Exception $e Exception to check.
-	 * @return bool True if the exception is related to invalid API credentials, false otherwise.
+	 * @return bool True if the exception is a permanent credential/access error, false otherwise.
 	 */
 	private function isApiKeyError(Exception $e): bool {
-		$errorMessage = $e->getMessage();
-		$lowerErrorMessage = strtolower($errorMessage);
+		$lowerMessage = strtolower($e->getMessage());
 
-		// Check for explicit "API key is invalid" or similar messages.
-		if (stripos($errorMessage, 'API key') !== false &&
-			(stripos($errorMessage, 'invalid') !== false || stripos($errorMessage, 'expired') !== false)) {
+		// Invalid or expired API key.
+		if (str_contains($lowerMessage, 'api key') &&
+			(str_contains($lowerMessage, 'invalid') || str_contains($lowerMessage, 'expired'))) {
 			return true;
 		}
 
-		// Check for other authentication-related errors.
-		if (stripos($lowerErrorMessage, 'authentication') !== false ||
-			stripos($lowerErrorMessage, 'unauthorized') !== false ||
-			stripos($lowerErrorMessage, 'api key invalid') !== false) {
+		// IP address not whitelisted for this API key.
+		if (str_contains($lowerMessage, 'unmatched ip')) {
+			return true;
+		}
+
+		// Generic authentication failures.
+		if (str_contains($lowerMessage, 'authentication') ||
+			str_contains($lowerMessage, 'unauthorized') ||
+			str_contains($lowerMessage, 'api key invalid')) {
 			return true;
 		}
 
@@ -730,7 +736,7 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function getMarginMode(IMarket $market): MarginModeEnum {
+	public function getMarginMode(IMarket $market): ?MarginModeEnum {
 		$pair = $market->getPair();
 		try {
 			$params = [
@@ -741,20 +747,20 @@ class Bybit extends AbstractExchangeDriver
 			$positionList = $response[BybitParam::List] ?? [];
 			foreach ($positionList as $positionInfo) {
 				// tradeMode: 0 = cross, 1 = isolated
-				$tradeMode = (int)($positionInfo[BybitParam::TradeMode] ?? 0);
+				$tradeMode = (int)($positionInfo['tradeMode'] ?? 0);
 				return $tradeMode === 1 ? MarginModeEnum::ISOLATED : MarginModeEnum::CROSS;
 			}
 			return MarginModeEnum::CROSS;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to get margin mode for {$market->getTicker()}: " . $e->getMessage());
-			return MarginModeEnum::CROSS;
+			return null;
 		}
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getLeverage(IMarket $market): float {
+	public function getLeverage(IMarket $market): ?float {
 		$pair = $market->getPair();
 		try {
 			$params = [
@@ -769,14 +775,14 @@ class Bybit extends AbstractExchangeDriver
 			return 1.0;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to get leverage for {$market->getTicker()}: " . $e->getMessage());
-			return 1.0;
+			return null;
 		}
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getPositionMode(IMarket $market): PositionModeEnum {
+	public function getPositionMode(IMarket $market): ?PositionModeEnum {
 		$pair = $market->getPair();
 		try {
 			$params = [
@@ -793,7 +799,7 @@ class Bybit extends AbstractExchangeDriver
 			return PositionModeEnum::ONE_WAY;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to get position mode for {$market->getTicker()}: " . $e->getMessage());
-			return PositionModeEnum::ONE_WAY;
+			return null;
 		}
 	}
 
