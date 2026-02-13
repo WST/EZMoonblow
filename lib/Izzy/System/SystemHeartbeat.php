@@ -35,6 +35,7 @@ class SystemHeartbeat
 	const FPid = 'heartbeat_pid';
 	const FStartedAt = 'heartbeat_started_at';
 	const FExtraInfo = 'heartbeat_extra_info';
+	const FMemoryUsage = 'heartbeat_memory_usage';
 
 	/** Status constants. */
 	public const STATUS_RUNNING = 'Running';
@@ -75,6 +76,7 @@ class SystemHeartbeat
 			self::FPid => $this->pid,
 			self::FStartedAt => $this->startedAt,
 			self::FExtraInfo => null,
+			self::FMemoryUsage => memory_get_usage(),
 		];
 
 		if ($existingRecord) {
@@ -99,6 +101,7 @@ class SystemHeartbeat
 		$data = [
 			self::FLastHeartbeat => time(),
 			self::FStatus => self::STATUS_RUNNING,
+			self::FMemoryUsage => memory_get_usage(),
 		];
 
 		if ($extraInfo !== null) {
@@ -210,6 +213,8 @@ class SystemHeartbeat
 			$extraInfo = json_decode($row[self::FExtraInfo], true);
 		}
 
+		$memoryUsage = isset($row[self::FMemoryUsage]) ? (int)$row[self::FMemoryUsage] : null;
+
 		return [
 			'component_name' => $row[self::FComponentName],
 			'status' => $row[self::FStatus],
@@ -220,6 +225,8 @@ class SystemHeartbeat
 			'uptime' => $uptime,
 			'health' => $health,
 			'extra_info' => $extraInfo,
+			'memory_usage' => $memoryUsage,
+			'memory_usage_formatted' => self::formatMemoryUsage($memoryUsage),
 		];
 	}
 
@@ -288,6 +295,29 @@ class SystemHeartbeat
 		}
 
 		return implode(' ', $parts);
+	}
+
+	/**
+	 * Format memory usage in bytes as human-readable string.
+	 *
+	 * @param int|null $bytes Memory usage in bytes.
+	 * @return string Formatted memory usage string.
+	 */
+	public static function formatMemoryUsage(?int $bytes): string {
+		if ($bytes === null || $bytes === 0) {
+			return '-';
+		}
+
+		$units = ['B', 'KB', 'MB', 'GB'];
+		$index = 0;
+		$value = (float)$bytes;
+
+		while ($value >= 1024 && $index < count($units) - 1) {
+			$value /= 1024;
+			$index++;
+		}
+
+		return round($value, 1) . ' ' . $units[$index];
 	}
 
 	/**
