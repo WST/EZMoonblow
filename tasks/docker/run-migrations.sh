@@ -6,6 +6,9 @@ set -e
 
 MIGRATION_MARKER="/app/migration_marker/.migrations-complete"
 
+# Remove old marker from previous runs so other services wait for fresh migrations.
+rm -f "$MIGRATION_MARKER"
+
 echo "Starting database migrations..."
 
 # Wait for MySQL to be ready.
