@@ -44,6 +44,11 @@ class BacktestExchange implements IExchangeDriver
 	/** @var array<string, list<array{orderId: string, price: float, volumeBase: float, direction: PositionDirectionEnum}>> Pending limit orders (grid levels) per market. */
 	private array $pendingLimitOrders = [];
 
+	/** @var array<string, string> Tick size overrides per market key. */
+	private array $tickSizes = [];
+	/** @var array<string, string> Qty step overrides per market key. */
+	private array $qtySteps = [];
+
 	public function __construct(
 		Database $database,
 		Logger $logger,
@@ -311,7 +316,7 @@ class BacktestExchange implements IExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function partialClose(IMarket $market, Money $volume): bool {
+	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
 		$position = $market->getStoredPosition();
 		if (!$position instanceof BacktestStoredPosition) {
 			return false;
@@ -321,10 +326,24 @@ class BacktestExchange implements IExchangeDriver
 		if ($closeVolume >= $currentVolume) {
 			return false;
 		}
+
+		// Credit realized PnL from the closed portion to virtual balance.
+		// Use the explicit close price if provided (e.g. exact BL trigger level),
+		// otherwise fall back to the current simulated market price.
+		$currentPrice = $closePrice ?? $this->getCurrentPrice($market);
+		$entryPrice = $position->getAverageEntryPrice();
+		if ($currentPrice !== null && $entryPrice !== null) {
+			$pnl = $position->getDirection()->isLong()
+				? $closeVolume * ($currentPrice->getAmount() - $entryPrice->getAmount())
+				: $closeVolume * ($entryPrice->getAmount() - $currentPrice->getAmount());
+			$this->creditBalance($pnl);
+			$label = $isBreakevenLock ? 'BREAKEVEN LOCK' : 'PARTIAL CLOSE';
+			$this->logger->backtestProgress("  $label {$market->getTicker()} -{$closeVolume} PnL " . number_format($pnl, 2) . " USDT -> balance " . number_format($this->virtualBalance, 2) . " USDT");
+		}
+
 		$newVolume = $currentVolume - $closeVolume;
 		$position->setVolume(Money::from($newVolume, $market->getPair()->getBaseCurrency()));
 		$position->save();
-		$this->logger->backtestProgress("  PARTIAL CLOSE {$market->getTicker()} -{$closeVolume} -> vol {$newVolume}");
 		return true;
 	}
 
@@ -353,11 +372,29 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 	public function getQtyStep(IMarket $market): string {
-		return '0.0001';
+		$key = $this->marketKey($market);
+		return $this->qtySteps[$key] ?? '0.0001';
 	}
 
 	public function getTickSize(IMarket $market): string {
-		return '0.01';
+		$key = $this->marketKey($market);
+		return $this->tickSizes[$key] ?? '0.0001';
+	}
+
+	/**
+	 * Set the tick size for a specific market.
+	 * Should be called by the Backtester after fetching the real value from the exchange.
+	 */
+	public function setTickSize(IMarket $market, string $tickSize): void {
+		$this->tickSizes[$this->marketKey($market)] = $tickSize;
+	}
+
+	/**
+	 * Set the qty step for a specific market.
+	 * Should be called by the Backtester after fetching the real value from the exchange.
+	 */
+	public function setQtyStep(IMarket $market, string $qtyStep): void {
+		$this->qtySteps[$this->marketKey($market)] = $qtyStep;
 	}
 
 	/**

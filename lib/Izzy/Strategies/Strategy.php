@@ -2,6 +2,7 @@
 
 namespace Izzy\Strategies;
 
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
 
@@ -91,5 +92,15 @@ abstract class Strategy implements IStrategy
 	 */
 	public function validateExchangeSettings(IMarket $market): StrategyValidationResult {
 		return new StrategyValidationResult();
+	}
+
+	/**
+	 * Timeframes needed by this strategy beyond the market's native timeframe.
+	 * Used by the backtester to pre-load historical candles.
+	 *
+	 * @return TimeFrameEnum[]
+	 */
+	public static function requiredTimeframes(): array {
+		return [];
 	}
 }

@@ -9,6 +9,7 @@ use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Exchanges\Backtest\BacktestExchange;
 use Izzy\Indicators\IndicatorFactory;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IExchangeDriver;
@@ -123,7 +124,6 @@ class Market implements IMarket
 	 * @inheritDoc
 	 */
 	public function requestCandles(TimeFrameEnum $timeframe, int $startTime, int $endTime): ?array {
-		$runtimeRepo = new RuntimeCandleRepository($this->database);
 		$pair = $this->pair;
 
 		// Build a temporary pair with the requested timeframe for the repository query.
@@ -133,6 +133,17 @@ class Market implements IMarket
 			$pair->getExchangeName(),
 			$pair->getMarketType()
 		);
+
+		// In backtest mode, load directly from the candles table (historical data).
+		// The async queue is not running during backtests, so we read synchronously
+		// from the same repository that Backtester::loadCandles() writes to.
+		if ($this->exchange instanceof BacktestExchange) {
+			$candleRepo = new CandleRepository($this->database);
+			return $candleRepo->getCandles($queryPair, $startTime, $endTime);
+		}
+
+		// Runtime mode: check the runtime_candles table first.
+		$runtimeRepo = new RuntimeCandleRepository($this->database);
 
 		// Check if candles are already available.
 		if ($runtimeRepo->hasCandles($queryPair, $timeframe->value, $startTime, $endTime)) {
@@ -997,7 +1008,7 @@ class Market implements IMarket
 		$position->setAverageEntryPrice($entryPrice);
 
 		// For backtest: use simulation time instead of wallclock time.
-		if ($this->exchange instanceof \Izzy\Exchanges\Backtest\BacktestExchange) {
+		if ($this->exchange instanceof BacktestExchange) {
 			$simTime = $this->exchange->getSimulationTime();
 			if ($simTime > 0) {
 				$position->setCreatedAt($simTime);
@@ -1045,10 +1056,12 @@ class Market implements IMarket
 	 * Partially close an open position.
 	 *
 	 * @param Money $volume Volume to close (in base currency).
+	 * @param bool $isBreakevenLock Whether this partial close is part of a Breakeven Lock operation.
+	 * @param Money|null $closePrice Price for PnL calculation in backtesting (see IExchangeDriver).
 	 * @return bool True if successful, false otherwise.
 	 */
-	public function partialClose(Money $volume): bool {
+	public function partialClose(Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
 		$this->exchange->getLogger()->debug("Partial close on $this, volume $volume");
-		return $this->exchange->partialClose($this, $volume);
+		return $this->exchange->partialClose($this, $volume, $isBreakevenLock, $closePrice);
 	}
 }

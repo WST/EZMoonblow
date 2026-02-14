@@ -20,7 +20,7 @@ class StrategyFactory
 		'EZMoonblowDCA' => EZMoonblowDCA::class,
 		'EZMoonblowDCAWithShorts' => EZMoonblowDCAWithShorts::class,
 		'EZMoonblowDCAAlwaysLong' => EZMoonblowDCAAlwaysLong::class,
-		// Add more strategies here as they are implemented
+		'EZMoonblowSE' => EZMoonblowSE::class,
 	];
 
 	/**
