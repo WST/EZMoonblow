@@ -499,6 +499,12 @@ class Bybit extends AbstractExchangeDriver
 			'New' => OrderStatusEnum::NewOrder,
 			'PartiallyFilled' => OrderStatusEnum::PartiallyFilled,
 			'Filled' => OrderStatusEnum::Filled,
+			'Cancelled' => OrderStatusEnum::Cancelled,
+			'Rejected' => OrderStatusEnum::Rejected,
+			'Untriggered' => OrderStatusEnum::Untriggered,
+			'Triggered' => OrderStatusEnum::Triggered,
+			'Deactivated' => OrderStatusEnum::Deactivated,
+			'PartiallyFilledCanceled' => OrderStatusEnum::PartiallyFilledCanceled,
 		};
 	}
 
