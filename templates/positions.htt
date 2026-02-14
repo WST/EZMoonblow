@@ -331,11 +331,23 @@
                             -
                         {% endif %}
                     </td>
-                    <td class="number {% if position.unrealizedPnLPercent > 0 %}pnl-positive{% elseif position.unrealizedPnLPercent < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
-                        {% if position.unrealizedPnLPercent > 0 %}+{% endif %}{{ position.unrealizedPnLPercent|number_format(2) }}%
+                    <td class="number">
+                        {% if position.status.isOpen or position.status.isFinished %}
+                            <span class="{% if position.unrealizedPnLPercent > 0 %}pnl-positive{% elseif position.unrealizedPnLPercent < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
+                                {% if position.unrealizedPnLPercent > 0 %}+{% endif %}{{ position.unrealizedPnLPercent|number_format(2) }}%
+                            </span>
+                        {% else %}
+                            —
+                        {% endif %}
                     </td>
-                    <td class="number {% if position.unrealizedPnL.amount > 0 %}pnl-positive{% elseif position.unrealizedPnL.amount < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
-                        {% if position.unrealizedPnL.amount > 0 %}+{% endif %}{{ position.unrealizedPnL.amount|number_format(2) }} {{ position.quoteCurrency }}
+                    <td class="number">
+                        {% if position.status.isOpen or position.status.isFinished %}
+                            <span class="{% if position.unrealizedPnL.amount > 0 %}pnl-positive{% elseif position.unrealizedPnL.amount < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
+                                {% if position.unrealizedPnL.amount > 0 %}+{% endif %}{{ position.unrealizedPnL.amount|number_format(2) }} {{ position.quoteCurrency }}
+                            </span>
+                        {% else %}
+                            —
+                        {% endif %}
                     </td>
                     <td>
                         {% if position.status.isOpen %}

@@ -59,8 +59,8 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 
 		$this->stopLossPercent = (float)str_replace('%', '', $this->params['stopLossPercent'] ?? '2');
 		$this->takeProfitPercent = (float)str_replace('%', '', $this->params['takeProfitPercent'] ?? '3');
-		$this->useIsolatedMargin = ($this->params['useIsolatedMargin'] ?? 'no') === 'yes';
-		$this->breakevenLockEnabled = ($this->params['breakevenLockEnabled'] ?? 'no') === 'yes';
+		$this->useIsolatedMargin = filter_var($this->params['useIsolatedMargin'] ?? false, FILTER_VALIDATE_BOOLEAN);
+		$this->breakevenLockEnabled = filter_var($this->params['breakevenLockEnabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
 		$this->breakevenLockClosePercent = (float)($this->params['breakevenLockClosePercent'] ?? 50);
 		$this->breakevenLockTriggerPercent = (float)($this->params['breakevenLockTriggerPercent'] ?? 50);
 	}

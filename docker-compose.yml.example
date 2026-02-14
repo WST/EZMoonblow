@@ -43,6 +43,8 @@ services:
       - ezmoonblow-network
     environment:
       - TZ=Asia/Yerevan
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Trading component.
   trader:
@@ -68,6 +70,8 @@ services:
       - ezmoonblow-network
     environment:
       - TZ=Asia/Yerevan
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Analysis component.
   analyzer:
@@ -93,6 +97,8 @@ services:
       - ezmoonblow-network
     environment:
       - TZ=Asia/Yerevan
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Notifications component.
   notifier:
@@ -118,6 +124,8 @@ services:
       - ezmoonblow-network
     environment:
       - TZ=Asia/Yerevan
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   # Web interface.
   web:
@@ -148,6 +156,8 @@ services:
       - ezmoonblow-network
     environment:
       - TZ=Asia/Yerevan
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
 volumes:
   mysql_data:

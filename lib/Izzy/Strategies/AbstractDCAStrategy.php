@@ -25,7 +25,7 @@ abstract class AbstractDCAStrategy extends Strategy
 	 */
 	private function initializeDCASettings(): void {
 		/** Use limit orders */
-		$useLimitOrders = ($this->params['UseLimitOrders'] == 'yes');
+		$useLimitOrders = filter_var($this->params['UseLimitOrders'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 		/** Long parameters */
 		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;
@@ -48,7 +48,7 @@ abstract class AbstractDCAStrategy extends Strategy
 		$offsetMode = DCAOffsetModeEnum::tryFrom($offsetModeParam) ?? DCAOffsetModeEnum::FROM_ENTRY;
 
 		/** Always execute entry order as market instead of limit */
-		$alwaysMarketEntry = ($this->params['alwaysMarketEntry'] ?? 'no') === 'yes';
+		$alwaysMarketEntry = filter_var($this->params['alwaysMarketEntry'] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 		// Parse entry volume for Long (supports: "140", "5%", "5%M", "0.002 BTC")
 		$parsedVolume = EntryVolumeParser::parse($entryVolumeRaw);
