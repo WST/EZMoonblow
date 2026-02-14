@@ -87,6 +87,37 @@ trait ConsoleTableTrait
 	}
 
 	/**
+	 * Render two pre-rendered tables side by side, separated by a gap.
+	 *
+	 * @param string $left  The left table (as rendered by renderTable()).
+	 * @param string $right The right table (as rendered by renderTable()).
+	 * @param int $gap Number of space characters between the tables.
+	 * @return string Both tables merged line-by-line.
+	 */
+	protected function renderTablesSideBySide(string $left, string $right, int $gap = 3): string {
+		$leftLines = explode(PHP_EOL, rtrim($left, PHP_EOL));
+		$rightLines = explode(PHP_EOL, rtrim($right, PHP_EOL));
+
+		// Find the visual width of the widest left line (strip ANSI codes for measurement).
+		$maxLeftWidth = 0;
+		foreach ($leftLines as $line) {
+			$clean = preg_replace('/\033\[[0-9;]*m/', '', $line);
+			$maxLeftWidth = max($maxLeftWidth, mb_strwidth($clean));
+		}
+
+		$totalLines = max(count($leftLines), count($rightLines));
+		$out = '';
+		for ($i = 0; $i < $totalLines; $i++) {
+			$l = $leftLines[$i] ?? '';
+			$r = $rightLines[$i] ?? '';
+			$cleanL = preg_replace('/\033\[[0-9;]*m/', '', $l);
+			$pad = $maxLeftWidth - mb_strwidth($cleanL);
+			$out .= $l . str_repeat(' ', max(0, $pad) + $gap) . $r . PHP_EOL;
+		}
+		return $out;
+	}
+
+	/**
 	 * Format a duration in seconds to a human-readable string (e.g. "5d 12h 30m").
 	 */
 	protected function formatDuration(int $seconds): string {

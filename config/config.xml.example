@@ -47,6 +47,21 @@
 			</spot>
 			<futures>
 				<pair ticker="SOL/USDT" timeframe="15m" trade="no" leverage="5" />
+				<pair ticker="XRP/USDT" timeframe="1h" trade="no" leverage="10">
+					<strategy name="EZMoonblowSE" backtest_days="365" backtest_initial_balance="10000">
+						<param name="entryVolume" value="5%"/>
+						<param name="stopLossPercent" value="2%"/>
+						<param name="takeProfitPercent" value="3%"/>
+						<param name="useIsolatedMargin" value="yes"/>
+						<param name="breakevenLockEnabled" value="yes"/>
+						<param name="breakevenLockTriggerPercent" value="50"/>
+						<param name="breakevenLockClosePercent" value="50"/>
+						<param name="emaFastPeriod" value="50"/>
+						<param name="emaSlowPeriod" value="200"/>
+						<param name="rsiOversold" value="30"/>
+						<param name="rsiOverbought" value="70"/>
+					</strategy>
+				</pair>
 			</futures>
 		</exchange>
 		<exchange name="Gate" key="..." secret="..." enabled="no" demo="yes">

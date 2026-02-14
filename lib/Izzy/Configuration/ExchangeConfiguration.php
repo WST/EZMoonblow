@@ -105,6 +105,7 @@ class ExchangeConfiguration
 			$timeframe = TimeFrameEnum::from($pairElement->getAttribute('timeframe'));
 			$trade = $pairElement->getAttribute('trade');
 			$notify = $pairElement->getAttribute('notify');
+			$leverageAttr = $pairElement->getAttribute('leverage');
 
 			$pair = new Pair(
 				$ticker,
@@ -114,6 +115,9 @@ class ExchangeConfiguration
 			);
 			$pair->setTradingEnabled($trade == 'yes');
 			$pair->setNotificationsEnabled($notify !== 'no');
+			if ($leverageAttr !== '' && is_numeric($leverageAttr)) {
+				$pair->setLeverage((float)$leverageAttr);
+			}
 
 			// Parse strategy configuration
 			$strategyConfig = $this->parseStrategyConfig($pairElement);

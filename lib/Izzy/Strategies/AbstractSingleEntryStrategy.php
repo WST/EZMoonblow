@@ -166,11 +166,33 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 
 		// 1. Partially close the position.
 		$currentVolume = $position->getVolume();
-		$closeVolume = Money::from($currentVolume->getAmount() * ($this->breakevenLockClosePercent / 100));
-		if (!$market->partialClose($closeVolume)) {
+		$closeAmount = $currentVolume->getAmount() * ($this->breakevenLockClosePercent / 100);
+		$closeVolume = Money::from($closeAmount, $currentVolume->getCurrency());
+
+		// Compute the exact trigger price (breakevenLockTriggerPercent% of the way
+		// from entry to TP). In backtesting, the simulated tick can overshoot this
+		// level significantly; using the exact trigger price keeps PnL realistic,
+		// similar to how TP/SL hits use the order price rather than the tick price.
+		$entryPrice = $position->getAverageEntryPrice();
+		$tpPrice = $position->getTakeProfitPrice();
+		$closePrice = null;
+		if ($entryPrice !== null && $tpPrice !== null) {
+			$triggerAmount = $entryPrice->getAmount()
+				+ ($tpPrice->getAmount() - $entryPrice->getAmount())
+				* ($this->breakevenLockTriggerPercent / 100);
+			$closePrice = Money::from($triggerAmount, $entryPrice->getCurrency());
+		}
+
+		if (!$market->partialClose($closeVolume, isBreakevenLock: true, closePrice: $closePrice)) {
 			$logger->error("Breakeven Lock: failed to partially close position on {$market->getTicker()}");
 			return;
 		}
+
+		// Sync the in-memory position volume with the reduced value saved by
+		// partialClose(). Without this, the subsequent $position->save() would
+		// overwrite the DB with the stale (pre-close) volume.
+		$newVolume = Money::from($currentVolume->getAmount() - $closeAmount, $currentVolume->getCurrency());
+		$position->setVolume($newVolume);
 
 		// 2. Move SL to just below entry (for LONG) or just above entry (for SHORT).
 		// Bybit requires SL to be on the loss side — it cannot be at or above entry
@@ -214,8 +236,10 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 	/**
 	 * Check if Breakeven Lock has already been executed for this position.
 	 *
-	 * We use a simple heuristic: if the SL price is at or above entry (for LONG)
-	 * or at or below entry (for SHORT), the lock has been executed.
+	 * After execution, SL is placed 1 tick from entry.  We detect this by
+	 * checking whether the distance between SL and entry is within 2 ticks.
+	 * This is more reliable than a fixed-percentage threshold because the
+	 * tick size varies by instrument (e.g. 0.01 for XRP, 0.10 for BTC).
 	 */
 	private function isBreakevenLockExecuted(IStoredPosition $position): bool {
 		$slPrice = $position->getStopLossPrice();
@@ -223,19 +247,12 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 			return false;
 		}
 		$entryPrice = $position->getAverageEntryPrice();
-		$direction = $position->getDirection();
+		$tickSize = (float)$this->market->getExchange()->getTickSize($this->market);
+		$diff = abs($slPrice->getAmount() - $entryPrice->getAmount());
 
-		// After Breakeven Lock, SL is placed 1 tick below entry (LONG) or above entry (SHORT).
-		// We consider the lock executed if SL is within 0.1% of entry on the loss side.
-		$diffPercent = abs($slPrice->getPercentDifference($entryPrice));
-
-		if ($direction->isLong()) {
-			// For LONG: SL near or above entry means lock is done.
-			return $slPrice->getAmount() >= $entryPrice->getAmount() || $diffPercent < 0.1;
-		} else {
-			// For SHORT: SL near or below entry means lock is done.
-			return $slPrice->getAmount() <= $entryPrice->getAmount() || $diffPercent < 0.1;
-		}
+		// After Breakeven Lock, SL is exactly 1 tick from entry.
+		// Allow up to 2 ticks as tolerance.
+		return $diff <= $tickSize * 2;
 	}
 
 	/**

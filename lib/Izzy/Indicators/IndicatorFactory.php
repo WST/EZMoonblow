@@ -19,7 +19,8 @@ class IndicatorFactory
 	private static array $indicators = [
 		'Izzy\Indicators\RSI' => RSI::class,
 		'RSI' => RSI::class,
-		// Add more indicators here as they are implemented
+		'Izzy\Indicators\EMA' => EMA::class,
+		'EMA' => EMA::class,
 	];
 
 	/**

@@ -3,17 +3,20 @@
 namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\Backtest\BacktestDirectionStats;
 use Izzy\Backtest\BacktestFinancialResult;
 use Izzy\Backtest\BacktestOpenPosition;
 use Izzy\Backtest\BacktestResult;
 use Izzy\Backtest\BacktestRiskRatios;
 use Izzy\Backtest\BacktestTradeStats;
+use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Exchanges\Backtest\BacktestExchange;
 use Izzy\Financial\BacktestStoredPosition;
 use Izzy\Financial\CandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
+use Izzy\Strategies\StrategyFactory;
 use Izzy\System\Logger;
 
 class Backtester extends ConsoleApplication
@@ -73,6 +76,39 @@ class Backtester extends ConsoleApplication
 				$chunkEndMs = $oldestOpenTimeMs - 1;
 			}
 			$this->logger->info("Saved $totalSaved candles for $ticker $timeframe $marketType");
+
+			// Load additional timeframes required by the strategy (e.g. daily candles for EMA).
+			$strategyName = $pair->getStrategyName();
+			if ($strategyName) {
+				$strategyClass = StrategyFactory::getStrategyClass($strategyName);
+				if ($strategyClass !== null) {
+					$additionalTimeframes = $strategyClass::requiredTimeframes();
+					foreach ($additionalTimeframes as $tf) {
+						$tfValue = $tf->value;
+						if ($tfValue === $timeframe) {
+							continue; // Already loaded above.
+						}
+						$this->logger->info("Loading additional timeframe candles: $ticker $tfValue $marketType ($exchangeName) for $days days");
+						$tfPair = new Pair($ticker, $tf, $exchangeName, $pair->getMarketType());
+						$tfChunkEndMs = $endTimeMs;
+						$tfTotalSaved = 0;
+						while (true) {
+							$tfCandles = $exchange->getCandles($tfPair, $limit, (int) $startTimeMs, (int) $tfChunkEndMs);
+							if (empty($tfCandles)) {
+								break;
+							}
+							$saved = $repository->saveCandles($exchangeName, $ticker, $marketType, $tfValue, $tfCandles);
+							$tfTotalSaved += $saved;
+							$oldestMs = $tfCandles[0]->getOpenTime() * 1000;
+							if ($oldestMs <= $startTimeMs || count($tfCandles) < $limit) {
+								break;
+							}
+							$tfChunkEndMs = $oldestMs - 1;
+						}
+						$this->logger->info("Saved $tfTotalSaved candles for $ticker $tfValue $marketType");
+					}
+				}
+			}
 		}
 	}
 
@@ -126,6 +162,16 @@ class Backtester extends ConsoleApplication
 				$exchangeConfig,
 				$initialBalance
 			);
+
+			// Configure the virtual exchange to match pair/strategy settings.
+			if ($pair->getLeverage() !== null) {
+				$backtestExchange->setBacktestLeverage($pair->getLeverage());
+			}
+			$strategyParams = $pair->getStrategyParams();
+			if (filter_var($strategyParams['useIsolatedMargin'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
+				$backtestExchange->setBacktestMarginMode(\Izzy\Enums\MarginModeEnum::ISOLATED);
+			}
+
 			$endTime = time();
 			$startTime = $endTime - $days * 24 * 3600;
 			$candles = $repository->getCandles($pair, $startTime, $endTime);
@@ -146,6 +192,18 @@ class Backtester extends ConsoleApplication
 			if (!$market) {
 				continue;
 			}
+
+			// Fetch real instrument parameters (tick size, qty step) from the
+			// exchange so that the backtest simulation uses realistic values
+			// instead of hardcoded defaults.
+			$realExchange = $entry['exchange'];
+			try {
+				$backtestExchange->setTickSize($market, $realExchange->getTickSize($market));
+				$backtestExchange->setQtyStep($market, $realExchange->getQtyStep($market));
+			} catch (\Throwable $e) {
+				$this->logger->warning("Could not fetch instrument info from {$exchangeName}: " . $e->getMessage());
+			}
+
 			$market->initializeConfiguredIndicators();
 			$market->initializeStrategy();
 			$market->initializeIndicators();
@@ -283,18 +341,47 @@ class Backtester extends ConsoleApplication
 							continue;
 						}
 						$position->markFinished($tickTime);
+						$position->setFinishReason(PositionFinishReasonEnum::TAKE_PROFIT_MARKET);
 						$position->save();
 						$backtestExchange->creditBalance($profit);
 						$backtestExchange->clearPendingLimitOrders($market);
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$dir = $position->getDirection()->value;
-						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT -> balance " . number_format($balanceAfter, 2) . " USDT");
+						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
+					}
+
+					// --- 5.5. Check Stop-Loss hits ---
+					// Re-fetch positions (some may have been closed by TP above).
+					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+					foreach ($openPositions as $position) {
+						$slPrice = $position->getStopLossPrice();
+						if ($slPrice === null) {
+							continue;
+						}
+						$sl = $slPrice->getAmount();
+						$hit = $position->getDirection()->isLong()
+							? ($tickPrice <= $sl)
+							: ($tickPrice >= $sl);
+						if (!$hit) {
+							continue;
+						}
+						// Close at SL price.
+						$position->setCurrentPrice($slPrice);
+						$pnl = $position->getUnrealizedPnL()->getAmount();
+						$position->markFinished($tickTime);
+						$position->setFinishReason(PositionFinishReasonEnum::STOP_LOSS_MARKET);
+						$position->save();
+						$backtestExchange->creditBalance($pnl);
+						$backtestExchange->clearPendingLimitOrders($market);
+						$dir = $position->getDirection()->value;
+						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
+						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 					}
 
 					// --- 6. Liquidation check ---
 					$balance = $backtestExchange->getVirtualBalance()->getAmount();
 					$unrealizedPnl = 0.0;
-					// Re-fetch positions (some may have been closed by TP above).
+					// Re-fetch positions (some may have been closed by TP or SL above).
 					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
 					foreach ($openPositions as $position) {
 						$vol = $position->getVolume()->getAmount();
@@ -376,23 +463,80 @@ class Backtester extends ConsoleApplication
 			$tradeIntervals = [];
 			$wins = 0;
 			$losses = 0;
+
+			// Per-direction tracking.
+			$longDurations = [];
+			$longWins = 0;
+			$longLosses = 0;
+			$longBL = 0;
+			$shortDurations = [];
+			$shortWins = 0;
+			$shortLosses = 0;
+			$shortBL = 0;
+
 			foreach ($finishedPositions as $pos) {
 				$created = $pos->getCreatedAt();
 				$finished = $pos->getFinishedAt();
-				if ($created > 0 && $finished > 0) {
-					$tradeDurations[] = $finished - $created;
+				$duration = ($created > 0 && $finished > 0) ? $finished - $created : null;
+				if ($duration !== null) {
+					$tradeDurations[] = $duration;
 					$tradeIntervals[] = [$created, $finished];
 				}
-				$tp = $pos->getTakeProfitPrice();
-				if ($tp !== null) {
+				// Determine close price based on how the position was closed.
+				$finishReason = $pos->getFinishReason();
+				$closePrice = null;
+				if ($finishReason !== null && $finishReason->isTakeProfit()) {
+					$closePrice = $pos->getTakeProfitPrice()?->getAmount();
+				} elseif ($finishReason !== null && $finishReason->isStopLoss()) {
+					$closePrice = $pos->getStopLossPrice()?->getAmount();
+				} else {
+					// Fallback for positions without FinishReason (legacy TP-only path).
+					$closePrice = $pos->getTakeProfitPrice()?->getAmount();
+				}
+				if ($closePrice !== null) {
 					$vol = $pos->getVolume()->getAmount();
 					$entry = $pos->getAverageEntryPrice()->getAmount();
-					$tpAmount = $tp->getAmount();
-					$pnl = $pos->getDirection()->isLong()
-						? $vol * ($tpAmount - $entry)
-						: $vol * ($entry - $tpAmount);
+					$isLong = $pos->getDirection()->isLong();
+					$pnl = $isLong
+						? $vol * ($closePrice - $entry)
+						: $vol * ($entry - $closePrice);
 					$tradePnls[] = $pnl;
 					$pnl > 0 ? $wins++ : $losses++;
+
+					// Detect Breakeven Lock: SL-closed position where SL is
+					// very close to entry (within 0.1%), meaning BL was executed.
+					$isBL = false;
+					if ($finishReason !== null && $finishReason->isStopLoss() && $entry > 0) {
+						$slPrice = $pos->getStopLossPrice()?->getAmount();
+						if ($slPrice !== null) {
+							$diff = abs($slPrice - $entry) / $entry;
+							$isBL = $diff < 0.001;
+						}
+					}
+
+					if ($isLong) {
+						if ($duration !== null) {
+							$longDurations[] = $duration;
+						}
+						if ($finishReason !== null && $finishReason->isTakeProfit()) {
+							$longWins++;
+						} elseif ($isBL) {
+							$longBL++;
+						} else {
+							$longLosses++;
+						}
+					} else {
+						if ($duration !== null) {
+							$shortDurations[] = $duration;
+						}
+						if ($finishReason !== null && $finishReason->isTakeProfit()) {
+							$shortWins++;
+						} elseif ($isBL) {
+							$shortBL++;
+						} else {
+							$shortLosses++;
+						}
+					}
 				}
 			}
 			// Include open/pending positions: they cover time from created_at until simulation end.
@@ -435,6 +579,20 @@ class Backtester extends ConsoleApplication
 				),
 				openPositions: $openPositionDtos,
 				exchangeTicker: $exchangeTicker,
+				longStats: BacktestDirectionStats::fromRawData(
+					label: 'Longs',
+					durations: $longDurations,
+					wins: $longWins,
+					losses: $longLosses,
+					breakevenLocks: $longBL,
+				),
+				shortStats: BacktestDirectionStats::fromRawData(
+					label: 'Shorts',
+					durations: $shortDurations,
+					wins: $shortWins,
+					losses: $shortLosses,
+					breakevenLocks: $shortBL,
+				),
 			);
 			echo $result;
 		}
