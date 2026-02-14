@@ -23,6 +23,8 @@ readonly class BacktestResult implements Stringable
 	 * @param BacktestRiskRatios|null $risk Risk ratios (null if insufficient data).
 	 * @param BacktestOpenPosition[] $openPositions Open/pending positions at end.
 	 * @param string $exchangeTicker Ticker as it appears on the exchange (e.g., "1000PEPEUSDT").
+	 * @param BacktestDirectionStats|null $longStats Per-direction stats for longs.
+	 * @param BacktestDirectionStats|null $shortStats Per-direction stats for shorts.
 	 */
 	public function __construct(
 		public Pair $pair,
@@ -33,6 +35,8 @@ readonly class BacktestResult implements Stringable
 		public ?BacktestRiskRatios $risk,
 		public array $openPositions,
 		public string $exchangeTicker = '',
+		public ?BacktestDirectionStats $longStats = null,
+		public ?BacktestDirectionStats $shortStats = null,
 	) {
 	}
 
@@ -69,6 +73,14 @@ readonly class BacktestResult implements Stringable
 
 		// --- Trades ---
 		$out .= (string) $this->trades;
+
+		// --- Longs / Shorts (side by side) ---
+		if ($this->longStats !== null && $this->shortStats !== null) {
+			$out .= $this->renderTablesSideBySide(
+				(string) $this->longStats,
+				(string) $this->shortStats,
+			);
+		}
 
 		// --- Risk Ratios ---
 		if ($this->risk !== null) {

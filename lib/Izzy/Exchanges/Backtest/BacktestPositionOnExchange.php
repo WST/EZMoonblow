@@ -38,7 +38,15 @@ class BacktestPositionOnExchange extends AbstractPositionOnExchange
 	}
 
 	public function getCurrentPrice(): Money {
-		return $this->storedPosition->getCurrentPrice();
+		// In backtest mode, return the actual simulated tick price from the exchange
+		// rather than the stale price stored in the database. This is critical
+		// because StoredPosition::updateInfo() overwrites the position's current
+		// price with the value returned here; using the DB price would undo the
+		// fresh tick price set earlier in updateInfo(), preventing Breakeven Lock
+		// and other price-dependent logic from seeing the real current price.
+		$exchange = $this->market->getExchange();
+		$livePrice = $exchange->getCurrentPrice($this->market);
+		return $livePrice ?? $this->storedPosition->getCurrentPrice();
 	}
 
 	public function getAverageEntryPrice(): Money {

@@ -701,7 +701,7 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function partialClose(IMarket $market, Money $volume): bool {
+	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
 		$pair = $market->getPair();
 		try {
 			// Get the current position to determine direction.

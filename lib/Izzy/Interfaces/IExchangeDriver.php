@@ -172,9 +172,14 @@ interface IExchangeDriver
 	 *
 	 * @param IMarket $market Market with the position.
 	 * @param Money $volume Volume to close (in base currency).
+	 * @param bool $isBreakevenLock Whether this partial close is part of a Breakeven Lock operation.
+	 * @param Money|null $closePrice Price to use for PnL calculation in backtesting. In live trading
+	 *                               a market order fills at market price, but in backtesting the
+	 *                               simulated tick may overshoot the trigger level significantly.
+	 *                               Passing the exact trigger price produces realistic results.
 	 * @return bool True on success, false on failure.
 	 */
-	public function partialClose(IMarket $market, Money $volume): bool;
+	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool;
 
 	/**
 	 * Get the database instance used by this exchange driver.

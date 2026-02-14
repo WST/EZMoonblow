@@ -79,6 +79,12 @@ class Pair implements IPair
 	private ?float $backtestInitialBalance = null;
 
 	/**
+	 * Leverage multiplier from config (e.g. 10.0 for 10x); null if not specified.
+	 * @var float|null
+	 */
+	private ?float $leverage = null;
+
+	/**
 	 * Constructor for creating a new trading pair.
 	 *
 	 * @param string $ticker Trading pair ticker (e.g., "BTC/USDT"), including “/” is important.
@@ -355,6 +361,24 @@ class Pair implements IPair
 	 */
 	public function setBacktestInitialBalance(?float $balance): void {
 		$this->backtestInitialBalance = $balance;
+	}
+
+	/**
+	 * Get the leverage multiplier from config, or null if not specified.
+	 *
+	 * @return float|null Leverage multiplier (e.g. 10.0 for 10x).
+	 */
+	public function getLeverage(): ?float {
+		return $this->leverage;
+	}
+
+	/**
+	 * Set the leverage multiplier.
+	 *
+	 * @param float|null $leverage Leverage multiplier or null.
+	 */
+	public function setLeverage(?float $leverage): void {
+		$this->leverage = $leverage;
 	}
 
 	/**
