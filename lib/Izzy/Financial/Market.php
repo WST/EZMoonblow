@@ -932,7 +932,6 @@ class Market implements IMarket
 
 		$entryLevel = array_shift($orderMap);
 		$entryPrice = $this->getCurrentPrice();
-		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
 
 		if ($grid->isAlwaysMarketEntry()) {
 			// Market entry: execute the entry order immediately at the current market price.
@@ -943,10 +942,11 @@ class Market implements IMarket
 			// Clear any stale limit orders from a previous grid before placing new ones.
 			$this->removeLimitOrders();
 
-			// Place a market order for the entry via the exchange driver.
-			// exchange->openPosition(price=null) sends a market order and creates
-			// the StoredPosition with status OPEN and correct TP settings.
-			$success = $this->exchange->openPosition($this, $direction, $entryVolume, null, $takeProfitPercent);
+			// Pass volume in quote currency (USDT). Bybit::openPosition expects quote
+			// currency and converts to base internally. Do NOT pre-convert here, otherwise
+			// the amount will be divided by price twice, inflating the position size.
+			$entryVolumeQuote = Money::from($entryLevel['volume']);
+			$success = $this->exchange->openPosition($this, $direction, $entryVolumeQuote, null, $takeProfitPercent);
 			if (!$success) {
 				return false;
 			}
@@ -963,6 +963,9 @@ class Market implements IMarket
 		}
 
 		// Limit entry: the entry order is placed as a limit order at the current price.
+		// placeLimitOrder expects volume in base currency, so we convert here.
+		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
+
 		// The position starts in PENDING status and transitions to OPEN when the
 		// exchange fills the entry order.
 		$orderIdOnExchange = $this->placeLimitOrder($entryVolume, $entryPrice, $direction, $takeProfitPercent);
