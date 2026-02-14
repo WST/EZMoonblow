@@ -172,12 +172,15 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 			return;
 		}
 
-		// 2. Move SL to entry price (+ 1 qty step to cover fees).
+		// 2. Move SL to just below entry (for LONG) or just above entry (for SHORT).
+		// Bybit requires SL to be on the loss side — it cannot be at or above entry
+		// for LONG, or at or below entry for SHORT. We nudge it by 1 tick into the
+		// loss zone. This is still effectively breakeven because the partial close
+		// above already locked in profit that covers this minimal slippage.
 		$entryPrice = $position->getAverageEntryPrice();
-		$qtyStep = (float)$market->getExchange()->getTickSize($market);
+		$tickSize = (float)$market->getExchange()->getTickSize($market);
 		$direction = $position->getDirection();
-		// Nudge SL slightly in favor: for LONG, SL is above entry; for SHORT, SL is below entry.
-		$offset = $direction->isLong() ? $qtyStep : -$qtyStep;
+		$offset = $direction->isLong() ? -$tickSize : $tickSize;
 		$newSLPrice = Money::from($entryPrice->getAmount() + $offset, $entryPrice->getCurrency());
 
 		if (!$market->setStopLoss($newSLPrice)) {
@@ -222,12 +225,16 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 		$entryPrice = $position->getAverageEntryPrice();
 		$direction = $position->getDirection();
 
+		// After Breakeven Lock, SL is placed 1 tick below entry (LONG) or above entry (SHORT).
+		// We consider the lock executed if SL is within 0.1% of entry on the loss side.
+		$diffPercent = abs($slPrice->getPercentDifference($entryPrice));
+
 		if ($direction->isLong()) {
-			// For LONG: SL at or above entry means lock is done.
-			return $slPrice->getAmount() >= $entryPrice->getAmount();
+			// For LONG: SL near or above entry means lock is done.
+			return $slPrice->getAmount() >= $entryPrice->getAmount() || $diffPercent < 0.1;
 		} else {
-			// For SHORT: SL at or below entry means lock is done.
-			return $slPrice->getAmount() <= $entryPrice->getAmount();
+			// For SHORT: SL near or below entry means lock is done.
+			return $slPrice->getAmount() <= $entryPrice->getAmount() || $diffPercent < 0.1;
 		}
 	}
 
@@ -274,7 +281,12 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 		// Check isolated margin mode.
 		if ($this->useIsolatedMargin) {
 			$marginMode = $exchange->getMarginMode($market);
-			if (!$marginMode->isIsolated()) {
+			if ($marginMode === null) {
+				$result->addWarning(
+					'Could not verify margin mode on the exchange (API error). '
+					. 'Strategy expects Isolated margin mode.'
+				);
+			} elseif (!$marginMode->isIsolated()) {
 				$result->addError(
 					'Strategy requires Isolated margin mode, '
 					. "but the exchange is configured as '{$marginMode->getLabel()}'. "
@@ -285,7 +297,12 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 
 		// Check leverage vs SL distance.
 		$leverage = $exchange->getLeverage($market);
-		if ($leverage > 0) {
+		if ($leverage === null) {
+			$result->addWarning(
+				'Could not verify leverage on the exchange (API error). '
+				. 'Cannot check if stop-loss distance is safe for the current leverage.'
+			);
+		} elseif ($leverage > 0) {
 			$maxLossBeforeLiquidation = 100.0 / $leverage;
 			if ($this->stopLossPercent >= $maxLossBeforeLiquidation) {
 				$result->addError(

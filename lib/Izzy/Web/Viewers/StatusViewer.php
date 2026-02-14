@@ -82,6 +82,8 @@ class StatusViewer extends PageViewer
 					'uptime_formatted' => '-',
 					'health' => 'unknown',
 					'extra_info' => null,
+					'memory_usage' => null,
+					'memory_usage_formatted' => '-',
 				];
 			}
 		}

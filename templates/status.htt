@@ -311,6 +311,10 @@
                         <span class="detail-label">PID</span>
                         <span class="detail-value">{{ component.pid ?: '-' }}</span>
                     </div>
+                    <div class="component-detail">
+                        <span class="detail-label">Memory</span>
+                        <span class="detail-value">{{ component.memory_usage_formatted }}</span>
+                    </div>
                     {% if component.extra_info and component.extra_info.exchange %}
                     <div class="component-detail">
                         <span class="detail-label">Exchange</span>

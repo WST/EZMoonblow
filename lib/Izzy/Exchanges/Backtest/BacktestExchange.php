@@ -363,21 +363,21 @@ class BacktestExchange implements IExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function getMarginMode(IMarket $market): MarginModeEnum {
+	public function getMarginMode(IMarket $market): ?MarginModeEnum {
 		return $this->backtestMarginMode;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getLeverage(IMarket $market): float {
+	public function getLeverage(IMarket $market): ?float {
 		return $this->backtestLeverage;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function getPositionMode(IMarket $market): PositionModeEnum {
+	public function getPositionMode(IMarket $market): ?PositionModeEnum {
 		return $this->backtestPositionMode;
 	}
 
