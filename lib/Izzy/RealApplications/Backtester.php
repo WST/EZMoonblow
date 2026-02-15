@@ -363,7 +363,9 @@ class Backtester extends ConsoleApplication
 						}
 					}
 
-					// Reload positions from DB after DCA fills / new opens.
+					// Load open/pending positions from DB once per tick.
+					// TP/SL/Liquidation checks below filter this array in-memory
+					// instead of re-querying the database (saves ~2 SELECTs per tick).
 					$where = [
 						BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
 						BacktestStoredPosition::FTicker => $market->getTicker(),
@@ -371,6 +373,10 @@ class Backtester extends ConsoleApplication
 						BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 					];
 					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+
+					// Track which positions get closed by TP/SL so we can
+					// exclude them in subsequent checks without re-querying DB.
+					$closedPositionIds = [];
 
 					// --- 5. Check Take-Profit hits ---
 					foreach ($openPositions as $position) {
@@ -396,15 +402,18 @@ class Backtester extends ConsoleApplication
 						$position->save();
 						$backtestExchange->creditBalance($profit);
 						$backtestExchange->clearPendingLimitOrders($market);
+						$closedPositionIds[] = spl_object_id($position);
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$dir = $position->getDirection()->value;
 						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 					}
 
 					// --- 5.5. Check Stop-Loss hits ---
-					// Re-fetch positions (some may have been closed by TP above).
-					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+					// Use the same in-memory array, skipping positions already closed by TP.
 					foreach ($openPositions as $position) {
+						if (in_array(spl_object_id($position), $closedPositionIds, true)) {
+							continue;
+						}
 						$slPrice = $position->getStopLossPrice();
 						if ($slPrice === null) {
 							continue;
@@ -424,17 +433,20 @@ class Backtester extends ConsoleApplication
 						$position->save();
 						$backtestExchange->creditBalance($pnl);
 						$backtestExchange->clearPendingLimitOrders($market);
+						$closedPositionIds[] = spl_object_id($position);
 						$dir = $position->getDirection()->value;
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 					}
 
 					// --- 6. Liquidation check ---
+					// Use the same in-memory array, skipping closed positions.
 					$balance = $backtestExchange->getVirtualBalance()->getAmount();
 					$unrealizedPnl = 0.0;
-					// Re-fetch positions (some may have been closed by TP or SL above).
-					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
 					foreach ($openPositions as $position) {
+						if (in_array(spl_object_id($position), $closedPositionIds, true)) {
+							continue;
+						}
 						$vol = $position->getVolume()->getAmount();
 						$entry = $position->getAverageEntryPrice()->getAmount();
 						if ($position->getDirection()->isLong()) {
@@ -647,6 +659,11 @@ class Backtester extends ConsoleApplication
 			);
 			echo $result;
 		}
+
+		// Print DB query stats to help profile and optimize SQL usage.
+		$queryStats = Logger::getLogger()->getQueryStats();
+		$totalSec = number_format($queryStats['totalMs'] / 1000, 2);
+		echo "\n\033[90mDB stats: {$queryStats['count']} queries, {$totalSec}s total query time\033[0m\n";
 	}
 
 }

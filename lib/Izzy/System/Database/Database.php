@@ -5,6 +5,7 @@ namespace Izzy\System\Database;
 use Exception;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IDatabaseEntity;
+use Izzy\System\Logger;
 use Izzy\System\QueueTask;
 use PDO;
 use PDOException;
@@ -33,6 +34,9 @@ class Database
 
 	/** @var string Error message from the last operation */
 	private string $errorMessage = '';
+
+	/** @var array<string, string[]> Cache for getFieldList() to avoid repeated SHOW COLUMNS queries. */
+	private array $fieldListCache = [];
 
 	/**
 	 * Initialize database connection parameters.
@@ -80,10 +84,12 @@ class Database
 	 * @return array|null Associative array of the row data or null if no results
 	 */
 	public function queryOneRow(string $sql): ?array {
+		$t0 = hrtime(true);
 		$statement = $this->pdo->query($sql);
 		if (!$statement)
 			return null;
 		$row = $statement->fetch(PDO::FETCH_ASSOC);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
 		return $row !== false ? $row : null;
 	}
 
@@ -93,10 +99,13 @@ class Database
 	 * @return array Array of associative arrays representing the rows
 	 */
 	public function queryAllRows(string $sql): array {
+		$t0 = hrtime(true);
 		$statement = $this->pdo->query($sql);
 		if (!$statement)
 			return [];
-		return $statement->fetchAll(PDO::FETCH_ASSOC);
+		$result = $statement->fetchAll(PDO::FETCH_ASSOC);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -168,11 +177,14 @@ class Database
 		}
 
 		// Use prepared statement for parameterized queries
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
+			Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
 			return null;
 		}
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
 		return $row !== false ? $row : null;
 	}
 
@@ -218,11 +230,15 @@ class Database
 		}
 
 		// Use prepared statement for parameterized queries
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
+			Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
 			return [];
 		}
-		return $stmt->fetchAll(PDO::FETCH_ASSOC);
+		$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -242,7 +258,10 @@ class Database
 	 * @return false|int Number of affected rows or false if query failed
 	 */
 	public function exec(string $sql): false|int {
-		return $this->pdo->exec($sql);
+		$t0 = hrtime(true);
+		$result = $this->pdo->exec($sql);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -380,8 +399,11 @@ class Database
 		);
 
 		// Prepare and execute the statement with the data
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
-		return $stmt->execute($data);
+		$result = $stmt->execute($data);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -404,8 +426,11 @@ class Database
 			implode(', ', $escapedColumns),
 			implode(', ', $placeholders)
 		);
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
-		return $stmt->execute($data);
+		$result = $stmt->execute($data);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -432,8 +457,11 @@ class Database
 		$sql = "UPDATE `".$table."` SET ".implode(', ', $setClauses)." WHERE ".$whereClause;
 
 		// Prepare and execute with combined parameters (data + where parameters)
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
-		return $stmt->execute(array_merge($data, $whereParams));
+		$result = $stmt->execute(array_merge($data, $whereParams));
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -450,8 +478,11 @@ class Database
 		$sql = sprintf("DELETE FROM `%s` WHERE %s", $table, $whereClause);
 
 		// Prepare and execute the statement
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
-		return $stmt->execute($whereParams);
+		$result = $stmt->execute($whereParams);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		return $result;
 	}
 
 	/**
@@ -472,12 +503,15 @@ class Database
 		}
 
 		// Use prepared statement for parameterized queries
+		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
+			Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
 			return 0;
 		}
 
 		$result = $stmt->fetch(PDO::FETCH_ASSOC);
+		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
 		return $result ? (int)$result['count'] : 0;
 	}
 
@@ -521,11 +555,19 @@ class Database
 	}
 
 	public function getFieldList($table): array {
+		// Cache field lists to avoid repeated SHOW COLUMNS queries.
+		// This is especially important during backtests where save() is called
+		// thousands of times per table, and the schema never changes mid-run.
+		if (isset($this->fieldListCache[$table])) {
+			return $this->fieldListCache[$table];
+		}
+
 		$result = [];
 		$columns = $this->queryAllRows("SHOW COLUMNS FROM `$table`");
 		foreach ($columns as $column) {
 			$result[] = $column['Field'];
 		}
+		$this->fieldListCache[$table] = $result;
 		return $result;
 	}
 
