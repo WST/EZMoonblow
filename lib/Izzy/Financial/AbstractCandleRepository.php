@@ -98,6 +98,56 @@ abstract class AbstractCandleRepository
 	}
 
 	/**
+	 * Get the open_time of the most recent candle in the given range.
+	 *
+	 * @param IPair $pair Trading pair.
+	 * @param string $timeframe Timeframe value.
+	 * @param int $startTime Unix timestamp (seconds), inclusive.
+	 * @param int $endTime Unix timestamp (seconds), inclusive.
+	 * @return int|null Latest open_time, or null if no candles exist.
+	 */
+	public function getLatestCandleTime(IPair $pair, string $timeframe, int $startTime, int $endTime): ?int {
+		$p = $this->getColumnPrefix();
+		$exchange = $this->database->quote($pair->getExchangeName());
+		$ticker = $this->database->quote($pair->getTicker());
+		$marketType = $this->database->quote($pair->getMarketType()->value);
+		$tf = $this->database->quote($timeframe);
+		$start = (int)$startTime;
+		$end = (int)$endTime;
+		$where = "{$p}exchange_name = $exchange AND {$p}ticker = $ticker AND {$p}market_type = $marketType AND {$p}timeframe = $tf AND {$p}open_time >= $start AND {$p}open_time <= $end";
+		$row = $this->database->selectOneRow($this->getTable(), "MAX({$p}open_time) AS latest", $where);
+		if ($row === false || $row['latest'] === null) {
+			return null;
+		}
+		return (int)$row['latest'];
+	}
+
+	/**
+	 * Get the open_time of the earliest candle in the given range.
+	 *
+	 * @param IPair $pair Trading pair.
+	 * @param string $timeframe Timeframe value.
+	 * @param int $startTime Unix timestamp (seconds), inclusive.
+	 * @param int $endTime Unix timestamp (seconds), inclusive.
+	 * @return int|null Earliest open_time, or null if no candles exist.
+	 */
+	public function getEarliestCandleTime(IPair $pair, string $timeframe, int $startTime, int $endTime): ?int {
+		$p = $this->getColumnPrefix();
+		$exchange = $this->database->quote($pair->getExchangeName());
+		$ticker = $this->database->quote($pair->getTicker());
+		$marketType = $this->database->quote($pair->getMarketType()->value);
+		$tf = $this->database->quote($timeframe);
+		$start = (int)$startTime;
+		$end = (int)$endTime;
+		$where = "{$p}exchange_name = $exchange AND {$p}ticker = $ticker AND {$p}market_type = $marketType AND {$p}timeframe = $tf AND {$p}open_time >= $start AND {$p}open_time <= $end";
+		$row = $this->database->selectOneRow($this->getTable(), "MIN({$p}open_time) AS earliest", $where);
+		if ($row === false || $row['earliest'] === null) {
+			return null;
+		}
+		return (int)$row['earliest'];
+	}
+
+	/**
 	 * Delete candles older than the given timestamp.
 	 *
 	 * @param int $olderThan Unix timestamp (seconds). Candles with open_time < this value are deleted.

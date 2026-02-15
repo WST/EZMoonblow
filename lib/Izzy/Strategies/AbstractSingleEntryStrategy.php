@@ -3,6 +3,7 @@
 namespace Izzy\Strategies;
 
 use Izzy\Enums\EntryVolumeModeEnum;
+use Izzy\Enums\MarginModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
@@ -295,7 +296,7 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 
 		$exchange = $market->getExchange();
 
-		// Check isolated margin mode.
+		// Check isolated margin mode; attempt to switch automatically if needed.
 		if ($this->useIsolatedMargin) {
 			$marginMode = $exchange->getMarginMode($market);
 			if ($marginMode === null) {
@@ -304,11 +305,15 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 					. 'Strategy expects Isolated margin mode.'
 				);
 			} elseif (!$marginMode->isIsolated()) {
-				$result->addError(
-					'Strategy requires Isolated margin mode, '
-					. "but the exchange is configured as '{$marginMode->getLabel()}'. "
-					. 'Please switch to Isolated margin in exchange settings.'
-				);
+				// Attempt to switch to Isolated automatically.
+				$switched = $exchange->switchMarginMode($market, MarginModeEnum::ISOLATED);
+				if (!$switched) {
+					$result->addError(
+						'Strategy requires Isolated margin mode, '
+						. "but the exchange is configured as '{$marginMode->getLabel()}'. "
+						. 'Automatic switch failed. Please switch to Isolated margin in exchange settings.'
+					);
+				}
 			}
 		}
 

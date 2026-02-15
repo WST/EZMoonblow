@@ -184,13 +184,13 @@ class Analyzer extends ConsoleApplication
 			$this->processTasks();
 
 			// Generate balance charts every 10 minutes.
-			if ($iteration % 10 == 0) {
+			if ($iteration % 60 == 0) {
 				$this->cleanup();
 				$this->generateBalanceCharts();
 			}
 
 			$iteration++;
-			$this->interruptibleSleep(60);
+			$this->interruptibleSleep(10);
 		}
 	}
 

@@ -55,6 +55,15 @@ class Bybit extends AbstractExchangeDriver
 	protected array $tickSizes = [];
 
 	/**
+	 * Cached margin modes per symbol after a successful switch.
+	 * Prevents repeated API calls when the exchange driver already
+	 * knows the mode was changed during this session.
+	 * Key: symbol string, value: MarginModeEnum.
+	 * @var array<string, MarginModeEnum>
+	 */
+	protected array $marginModeCache = [];
+
+	/**
 	 * @inheritDoc
 	 */
 	public function connect(): bool {
@@ -744,22 +753,87 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	public function getMarginMode(IMarket $market): ?MarginModeEnum {
 		$pair = $market->getPair();
+		$symbol = $pair->getExchangeTicker($this);
+
+		// Return cached value if we already switched during this session.
+		if (isset($this->marginModeCache[$symbol])) {
+			return $this->marginModeCache[$symbol];
+		}
+
 		try {
 			$params = [
 				BybitParam::Category => $this->getBybitCategory($pair),
-				BybitParam::Symbol => $pair->getExchangeTicker($this),
+				BybitParam::Symbol => $symbol,
 			];
 			$response = $this->api->positionApi()->getPositionInfo($params);
 			$positionList = $response[BybitParam::List] ?? [];
 			foreach ($positionList as $positionInfo) {
 				// tradeMode: 0 = cross, 1 = isolated
-				$tradeMode = (int)($positionInfo['tradeMode'] ?? 0);
+				$tradeMode = (int)($positionInfo[BybitParam::TradeMode] ?? 0);
 				return $tradeMode === 1 ? MarginModeEnum::ISOLATED : MarginModeEnum::CROSS;
 			}
-			return MarginModeEnum::CROSS;
+			// Empty position list — symbol may not have been traded yet on this
+			// account. Cannot determine margin mode; return null so that the
+			// validation produces a warning instead of a hard error.
+			$this->logger->warning("getMarginMode: empty position list for {$market->getTicker()}, cannot determine margin mode");
+			return null;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to get margin mode for {$market->getTicker()}: " . $e->getMessage());
 			return null;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Switches margin mode for a symbol on Bybit via /v5/position/switch-isolated.
+	 * The API requires buyLeverage and sellLeverage to be equal, so we read the
+	 * current leverage from the position info first.
+	 */
+	public function switchMarginMode(IMarket $market, MarginModeEnum $mode): bool {
+		$pair = $market->getPair();
+		$symbol = $pair->getExchangeTicker($this);
+		// Already switched during this session — skip the API call.
+		if (isset($this->marginModeCache[$symbol]) && $this->marginModeCache[$symbol] === $mode) {
+			return true;
+		}
+
+		// Strategy 1: per-symbol switch (classic accounts).
+		try {
+			$currentLeverage = $this->getLeverage($market) ?? 1.0;
+			$leverageStr = (string)$currentLeverage;
+
+			$params = [
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $symbol,
+				BybitParam::TradeMode => $mode->isIsolated() ? 1 : 0,
+				BybitParam::BuyLeverage => $leverageStr,
+				BybitParam::SellLeverage => $leverageStr,
+			];
+
+			$this->logger->info("Switching margin mode to {$mode->getLabel()} for $symbol (leverage=$leverageStr)");
+			$this->api->positionApi()->switchCrossIsolatedMargin($params);
+			$this->logger->info("Successfully switched margin mode to {$mode->getLabel()} for $symbol");
+			$this->marginModeCache[$symbol] = $mode;
+			return true;
+		} catch (Throwable $e) {
+			$this->logger->warning("Per-symbol margin switch failed for $symbol: " . $e->getMessage());
+		}
+
+		// Strategy 2: account-level switch (Unified Trading Account).
+		// On UTA, /v5/position/switch-isolated is forbidden; use
+		// /v5/account/set-margin-mode instead. This changes the margin
+		// mode for the entire account, not just one symbol.
+		try {
+			$accountMode = $mode->isIsolated() ? 'ISOLATED_MARGIN' : 'REGULAR_MARGIN';
+			$this->logger->info("Attempting account-level margin mode switch to $accountMode (UTA fallback)");
+			$this->api->accountApi()->setMarginMode(['setMarginMode' => $accountMode]);
+			$this->logger->info("Successfully switched account margin mode to $accountMode");
+			$this->marginModeCache[$symbol] = $mode;
+			return true;
+		} catch (Throwable $e) {
+			$this->logger->error("Account-level margin switch also failed: " . $e->getMessage());
+			return false;
 		}
 	}
 
@@ -778,7 +852,9 @@ class Bybit extends AbstractExchangeDriver
 			foreach ($positionList as $positionInfo) {
 				return (float)($positionInfo['leverage'] ?? 1.0);
 			}
-			return 1.0;
+			// Empty position list — cannot determine leverage.
+			$this->logger->warning("getLeverage: empty position list for {$market->getTicker()}, cannot determine leverage");
+			return null;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to get leverage for {$market->getTicker()}: " . $e->getMessage());
 			return null;
@@ -797,6 +873,11 @@ class Bybit extends AbstractExchangeDriver
 			];
 			$response = $this->api->positionApi()->getPositionInfo($params);
 			$positionList = $response[BybitParam::List] ?? [];
+			if (empty($positionList)) {
+				// Empty position list — cannot determine position mode.
+				$this->logger->warning("getPositionMode: empty position list for {$market->getTicker()}, cannot determine position mode");
+				return null;
+			}
 			// Bybit returns 2 entries (positionIdx 1 and 2) in hedge mode,
 			// 1 entry (positionIdx 0) in one-way mode.
 			if (count($positionList) >= 2) {

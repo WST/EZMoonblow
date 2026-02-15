@@ -63,4 +63,8 @@ class BybitParam
 	const string LastPrice = 'lastPrice';
 
 	const string TradeMode = 'tradeMode';
+
+	const string BuyLeverage = 'buyLeverage';
+
+	const string SellLeverage = 'sellLeverage';
 }

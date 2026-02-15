@@ -440,6 +440,16 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 	/**
+	 * @inheritDoc
+	 *
+	 * Backtesting does not interact with real exchanges.
+	 */
+	public function switchMarginMode(IMarket $market, MarginModeEnum $mode): bool {
+		$this->backtestMarginMode = $mode;
+		return true;
+	}
+
+	/**
 	 * Credit balance (e.g. when a position is closed at profit).
 	 */
 	public function creditBalance(float $amount): void {
