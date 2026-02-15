@@ -207,10 +207,12 @@ class Analyzer extends ConsoleApplication
 			}
 		}
 
-		// Remove runtime candles older than 7 days.
+		// Remove runtime candles older than 400 days.
+		// Strategies may need up to 250 daily candles for EMA(200), so we keep
+		// a generous margin to avoid repeatedly re-fetching historical data.
 		$runtimeRepo = new RuntimeCandleRepository($this->database);
-		$sevenDaysAgo = time() - 7 * 24 * 3600;
-		$runtimeRepo->deleteOlderThan($sevenDaysAgo);
+		$retentionPeriod = time() - 400 * 24 * 3600;
+		$runtimeRepo->deleteOlderThan($retentionPeriod);
 	}
 
 	protected function processTask(QueueTask $task): void {
