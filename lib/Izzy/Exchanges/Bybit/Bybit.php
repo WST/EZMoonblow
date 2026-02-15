@@ -441,10 +441,23 @@ class Bybit extends AbstractExchangeDriver
 			switch ($baseCurrency) {
 				case 'PEPE':
 				case 'RATS':
+				case 'BONK':
+				case 'CAT':
+				case 'FLOKI':
+				case 'LUNC':
+				case 'TOSHI':
+				case 'TURBO':
+				case 'XEC':
 					$multiplier = '1000';
+					break;
+				case 'SATS':
+					$multiplier = '10000';
 					break;
 				case 'BABYDOGE':
 					$multiplier = '1000000';
+					break;
+				case 'SHIB':
+					return 'SHIB1000USDT';
 					break;
 			}
 		}

@@ -180,6 +180,68 @@ final class Logger
 		}
 	}
 
+	// ------------------------------------------------------------------
+	// Slow query log
+	// ------------------------------------------------------------------
+
+	/** Threshold in milliseconds. Queries slower than this are logged. */
+	private const float SLOW_QUERY_THRESHOLD_MS = 50.0;
+
+	/** @var string|null Resolved path to the slow query log file (lazy-initialized). */
+	private ?string $slowQueryLogFile = null;
+
+	/** @var int Total number of queries executed since the process started. */
+	private int $queryCount = 0;
+
+	/** @var float Total time spent in database queries (milliseconds). */
+	private float $queryTotalMs = 0.0;
+
+	/**
+	 * Log a database query if it exceeds the slow query threshold.
+	 * Always accumulates stats (query count and total time) regardless of threshold.
+	 * Writes strictly to a file — never to stdout — to avoid polluting CLI output.
+	 *
+	 * @param string $sql  The SQL query text (or a summary of it).
+	 * @param float  $ms   Execution time in milliseconds.
+	 */
+	public function logQuery(string $sql, float $ms): void {
+		$this->queryCount++;
+		$this->queryTotalMs += $ms;
+
+		if ($ms < self::SLOW_QUERY_THRESHOLD_MS) {
+			return;
+		}
+
+		// Lazy-init the log file path.
+		if ($this->slowQueryLogFile === null) {
+			$logDir = IZZY_ROOT . '/logs';
+			if (!is_dir($logDir)) {
+				mkdir($logDir, 0755, true);
+			}
+			$this->slowQueryLogFile = $logDir . '/slow-queries.log';
+		}
+
+		$timestamp = date('Y-m-d H:i:s');
+		$msFormatted = number_format($ms, 1);
+		// Truncate very long queries to keep the log readable.
+		$sqlTruncated = mb_strlen($sql) > 500 ? mb_substr($sql, 0, 500) . '...' : $sql;
+		$line = "$timestamp [{$msFormatted}ms] $sqlTruncated";
+		file_put_contents($this->slowQueryLogFile, $line . "\n", FILE_APPEND | LOCK_EX);
+	}
+
+	/**
+	 * Get accumulated query statistics.
+	 * Useful for profiling at the end of a run (e.g. backtests).
+	 *
+	 * @return array{count: int, totalMs: float}
+	 */
+	public function getQueryStats(): array {
+		return [
+			'count' => $this->queryCount,
+			'totalMs' => $this->queryTotalMs,
+		];
+	}
+
 	/**
 	 * Get the singleton logger instance.
 	 * @return self Logger instance.

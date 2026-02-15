@@ -13,6 +13,7 @@ use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Exchanges\Backtest\BacktestExchange;
 use Izzy\Financial\BacktestStoredPosition;
+use Izzy\Financial\Candle;
 use Izzy\Financial\CandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
@@ -242,7 +243,8 @@ class Backtester extends ConsoleApplication
 			 *
 			 * On EVERY tick we execute the full trading cycle:
 			 *   1. Set simulation time and current market price
-			 *   2. Recalculate indicators (they see the latest candle slice)
+			 *   2. Recalculate indicators (current candle is a partial snapshot —
+			 *      only reflects OHLC state at this tick, not the final values)
 			 *   3. Call processTrading() — checks for existing position,
 			 *      fires entry signals, executes DCA updatePosition, etc.
 			 *   4. Fill any pending DCA limit orders whose price is reached
@@ -262,7 +264,6 @@ class Backtester extends ConsoleApplication
 				foreach ($slice as $c) {
 					$c->setMarket($market);
 				}
-				$market->setCandles($slice);
 				$currentCandle = $candles[$i];
 				$lastCandle = $currentCandle;
 				$candleTime = (int) $currentCandle->getOpenTime();
@@ -271,6 +272,7 @@ class Backtester extends ConsoleApplication
 				$highPrice = $currentCandle->getHighPrice();
 				$lowPrice = $currentCandle->getLowPrice();
 				$closePrice = $currentCandle->getClosePrice();
+				$candleVolume = $currentCandle->getVolume();
 				$isBullish = $closePrice >= $openPrice;
 
 				// Build 4 ticks: [time, price] pairs that approximate the price path.
@@ -288,7 +290,56 @@ class Backtester extends ConsoleApplication
 						[$candleTime + $candleDuration - 1,              $closePrice],
 					];
 
+				/*
+				 * PARTIAL CANDLE SNAPSHOTS — lookahead bias prevention.
+				 *
+				 * Without this, the current candle in the slice already has its
+				 * final high/low/close at every tick, so indicators (EMA, RSI, etc.)
+				 * would "see the future" — e.g. RSI computed from the final close
+				 * of a candle that hasn't actually closed yet.
+				 *
+				 * We create 4 progressive snapshots that reflect how the candle
+				 * looks at each phase of its formation:
+				 *
+				 *   Bullish (close >= open): open → low → high → close
+				 *     Phase 0 (open):  O=open  H=open  L=open  C=open  — just opened.
+				 *     Phase 1 (low):   O=open  H=open  L=low   C=low   — dipped to low.
+				 *     Phase 2 (high):  O=open  H=high  L=low   C=high  — rallied to high.
+				 *     Phase 3 (close): O=open  H=high  L=low   C=close — fully formed.
+				 *
+				 *   Bearish (close < open): open → high → low → close
+				 *     Phase 0 (open):  O=open  H=open  L=open  C=open  — just opened.
+				 *     Phase 1 (high):  O=open  H=high  L=open  C=high  — rallied to high.
+				 *     Phase 2 (low):   O=open  H=high  L=low   C=low   — dropped to low.
+				 *     Phase 3 (close): O=open  H=high  L=low   C=close — fully formed.
+				 *
+				 * Before each tick, the last candle in the slice is replaced with
+				 * the corresponding partial snapshot, then indicators are recalculated.
+				 * Volume is distributed proportionally: 0%, 25%, 75%, 100%.
+				 */
+				$partialCandles = $isBullish
+					? [
+						new Candle($candleTime, $openPrice, $openPrice, $openPrice, $openPrice, 0.0, $market),
+						new Candle($candleTime, $openPrice, $openPrice, $lowPrice,  $lowPrice,  $candleVolume * 0.25, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $highPrice, $candleVolume * 0.75, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $closePrice, $candleVolume, $market),
+					]
+					: [
+						new Candle($candleTime, $openPrice, $openPrice, $openPrice, $openPrice, 0.0, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $openPrice, $highPrice, $candleVolume * 0.25, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $lowPrice,  $candleVolume * 0.75, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $closePrice, $candleVolume, $market),
+					];
+
+				$sliceLastIdx = count($slice) - 1;
+				$tickIdx = 0;
 				foreach ($ticks as [$tickTime, $tickPrice]) {
+					// Replace the last candle with a partial snapshot so that
+					// indicators only see the candle's state at this tick phase.
+					$slice[$sliceLastIdx] = $partialCandles[$tickIdx];
+					$market->setCandles($slice);
+					$tickIdx++;
+
 					// --- 1. Set simulation time and price ---
 					$backtestExchange->setSimulationTime($tickTime);
 					$log->setBacktestSimulationTime($tickTime);
@@ -312,7 +363,9 @@ class Backtester extends ConsoleApplication
 						}
 					}
 
-					// Reload positions from DB after DCA fills / new opens.
+					// Load open/pending positions from DB once per tick.
+					// TP/SL/Liquidation checks below filter this array in-memory
+					// instead of re-querying the database (saves ~2 SELECTs per tick).
 					$where = [
 						BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
 						BacktestStoredPosition::FTicker => $market->getTicker(),
@@ -320,6 +373,10 @@ class Backtester extends ConsoleApplication
 						BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 					];
 					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+
+					// Track which positions get closed by TP/SL so we can
+					// exclude them in subsequent checks without re-querying DB.
+					$closedPositionIds = [];
 
 					// --- 5. Check Take-Profit hits ---
 					foreach ($openPositions as $position) {
@@ -345,15 +402,18 @@ class Backtester extends ConsoleApplication
 						$position->save();
 						$backtestExchange->creditBalance($profit);
 						$backtestExchange->clearPendingLimitOrders($market);
+						$closedPositionIds[] = spl_object_id($position);
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$dir = $position->getDirection()->value;
 						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 					}
 
 					// --- 5.5. Check Stop-Loss hits ---
-					// Re-fetch positions (some may have been closed by TP above).
-					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+					// Use the same in-memory array, skipping positions already closed by TP.
 					foreach ($openPositions as $position) {
+						if (in_array(spl_object_id($position), $closedPositionIds, true)) {
+							continue;
+						}
 						$slPrice = $position->getStopLossPrice();
 						if ($slPrice === null) {
 							continue;
@@ -373,17 +433,20 @@ class Backtester extends ConsoleApplication
 						$position->save();
 						$backtestExchange->creditBalance($pnl);
 						$backtestExchange->clearPendingLimitOrders($market);
+						$closedPositionIds[] = spl_object_id($position);
 						$dir = $position->getDirection()->value;
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 					}
 
 					// --- 6. Liquidation check ---
+					// Use the same in-memory array, skipping closed positions.
 					$balance = $backtestExchange->getVirtualBalance()->getAmount();
 					$unrealizedPnl = 0.0;
-					// Re-fetch positions (some may have been closed by TP or SL above).
-					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
 					foreach ($openPositions as $position) {
+						if (in_array(spl_object_id($position), $closedPositionIds, true)) {
+							continue;
+						}
 						$vol = $position->getVolume()->getAmount();
 						$entry = $position->getAverageEntryPrice()->getAmount();
 						if ($position->getDirection()->isLong()) {
@@ -596,6 +659,11 @@ class Backtester extends ConsoleApplication
 			);
 			echo $result;
 		}
+
+		// Print DB query stats to help profile and optimize SQL usage.
+		$queryStats = Logger::getLogger()->getQueryStats();
+		$totalSec = number_format($queryStats['totalMs'] / 1000, 2);
+		echo "\n\033[90mDB stats: {$queryStats['count']} queries, {$totalSec}s total query time\033[0m\n";
 	}
 
 }

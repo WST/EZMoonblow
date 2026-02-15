@@ -22,8 +22,20 @@ require IZZY_ROOT.'/vendor/autoload.php';
 // Configuration files location.
 const IZZY_CONFIG = IZZY_ROOT.'/config';
 
-// Main configuration file name.
-const IZZY_CONFIG_XML = IZZY_CONFIG.'/config.xml';
+// Allow overriding the configuration file via --config CLI option.
+// This is supported by all components: trader, analyzer, notifier,
+// backtester, migrations, etc.
+$cliOptions = getopt('', ['config:']);
+if (isset($cliOptions['config'])) {
+	$configPath = $cliOptions['config'];
+	// Resolve relative paths from the current working directory.
+	if (!str_starts_with($configPath, '/')) {
+		$configPath = getcwd().'/'.$configPath;
+	}
+	define('IZZY_CONFIG_XML', $configPath);
+} else {
+	define('IZZY_CONFIG_XML', IZZY_CONFIG.'/config.xml');
+}
 
 // RRD databases location.
 const IZZY_RRD = IZZY_ROOT.'/rrd';

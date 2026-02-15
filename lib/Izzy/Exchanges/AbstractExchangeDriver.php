@@ -46,6 +46,12 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	/** @var Logger Logger instance for logging operations. */
 	protected Logger $logger;
 
+	/** Timestamp of the last chart update. */
+	private int $lastChartUpdate = 0;
+
+	/** Minimum interval between chart updates (seconds). */
+	private const int CHART_UPDATE_INTERVAL = 300;
+
 	/**
 	 * Constructor for the exchange driver.
 	 *
@@ -133,9 +139,13 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$this->logger->info("Updating market data for {$this->getName()}");
 		$this->updateMarkets();
 
-		// Update charts for all markets.
-		$this->logger->info("Updating charts for all markets on {$this->getName()}");
-		$this->updateCharts();
+		// Update charts periodically (every 5 minutes, not every cycle).
+		$now = time();
+		if ($now - $this->lastChartUpdate >= self::CHART_UPDATE_INTERVAL) {
+			$this->logger->info("Updating charts for all markets on {$this->getName()}");
+			$this->updateCharts();
+			$this->lastChartUpdate = $now;
+		}
 
 		// Default sleep time of 60 seconds.
 		return 60;
