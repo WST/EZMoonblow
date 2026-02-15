@@ -144,19 +144,59 @@ class Market implements IMarket
 
 		// Runtime mode: check the runtime_candles table first.
 		$runtimeRepo = new RuntimeCandleRepository($this->database);
+		$tfValue = $timeframe->value;
+		$tfSeconds = $timeframe->toSeconds();
 
-		// Check if candles are already available.
-		if ($runtimeRepo->hasCandles($queryPair, $timeframe->value, $startTime, $endTime)) {
+		$latestStored = $runtimeRepo->getLatestCandleTime($queryPair, $tfValue, $startTime, $endTime);
+
+		if ($latestStored !== null) {
+			// Candles exist. Check two things:
+			// 1) Freshness: is the latest candle recent enough?
+			// 2) Completeness: does historical data go back far enough?
+
+			// 1) Fresh end: latest stored candle should be no more than one
+			//    timeframe period behind the requested end.
+			$isStale = ($latestStored + $tfSeconds < $endTime);
+			if ($isStale) {
+				QueueTask::loadCandles(
+					$this->database,
+					$pair->getExchangeName(),
+					$pair->getTicker(),
+					$pair->getMarketType()->value,
+					$tfValue,
+					$latestStored, // only fetch from the last known candle onward
+					$endTime,
+					CandleStorageEnum::RUNTIME,
+				);
+			}
+
+			// 2) Complete start: earliest stored candle should be close to the
+			//    requested start. If it is more than 2 timeframe periods away,
+			//    historical data is incomplete — schedule a backfill.
+			$earliestStored = $runtimeRepo->getEarliestCandleTime($queryPair, $tfValue, $startTime, $endTime);
+			if ($earliestStored !== null && ($earliestStored - $startTime) > $tfSeconds * 2) {
+				QueueTask::loadCandles(
+					$this->database,
+					$pair->getExchangeName(),
+					$pair->getTicker(),
+					$pair->getMarketType()->value,
+					$tfValue,
+					$startTime,
+					$earliestStored, // only fetch the missing historical part
+					CandleStorageEnum::RUNTIME,
+				);
+			}
+
 			return $runtimeRepo->getCandles($queryPair, $startTime, $endTime);
 		}
 
-		// Candles not available — schedule async loading.
+		// No candles at all — schedule full loading.
 		QueueTask::loadCandles(
 			$this->database,
 			$pair->getExchangeName(),
 			$pair->getTicker(),
 			$pair->getMarketType()->value,
-			$timeframe->value,
+			$tfValue,
 			$startTime,
 			$endTime,
 			CandleStorageEnum::RUNTIME,

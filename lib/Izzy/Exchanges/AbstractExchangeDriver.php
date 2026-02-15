@@ -269,4 +269,13 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	public function getExchangeConfiguration(): ExchangeConfiguration {
 		return $this->config;
 	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default: not supported. Override in exchange-specific drivers.
+	 */
+	public function switchMarginMode(IMarket $market, \Izzy\Enums\MarginModeEnum $mode): bool {
+		return false;
+	}
 }

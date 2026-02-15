@@ -232,6 +232,18 @@ interface IExchangeDriver
 	public function getMarginMode(IMarket $market): ?MarginModeEnum;
 
 	/**
+	 * Switch margin mode for a market (e.g. from Cross to Isolated or vice versa).
+	 *
+	 * Not all exchanges support this operation. The default implementation
+	 * returns false (not supported).
+	 *
+	 * @param IMarket $market Market to switch margin mode for.
+	 * @param MarginModeEnum $mode Target margin mode.
+	 * @return bool True if the switch succeeded, false otherwise.
+	 */
+	public function switchMarginMode(IMarket $market, MarginModeEnum $mode): bool;
+
+	/**
 	 * Get the current leverage for a market.
 	 *
 	 * @param IMarket $market Market to check.

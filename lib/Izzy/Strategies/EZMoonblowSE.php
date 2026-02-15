@@ -5,7 +5,9 @@ namespace Izzy\Strategies;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Indicators\EMA;
 use Izzy\Indicators\RSI;
+use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
+use Izzy\System\Logger;
 
 /**
  * Single-entry strategy that combines a daily EMA trend filter
@@ -71,8 +73,10 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @inheritDoc
 	 */
 	public function shouldLong(): bool {
+		$log = Logger::getLogger();
 		$dailyCandles = $this->getDailyCandles();
 		if ($dailyCandles === null || empty($dailyCandles)) {
+			$log->debug("[LONG] No daily candles available");
 			return false;
 		}
 
@@ -81,12 +85,22 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
 
 		if (empty($emaFast) || empty($emaSlow)) {
+			$log->debug("[LONG] EMA arrays empty (fast=" . count($emaFast) . ", slow=" . count($emaSlow) . ")");
 			return false;
 		}
 
 		$latestEmaFast = end($emaFast);
 		$latestEmaSlow = end($emaSlow);
 		$latestDailyClose = end($closePrices);
+
+		$log->debug(sprintf(
+			"[LONG] close=%.8f | EMA(%d)=%.8f | EMA(%d)=%.8f | fast>slow=%s | close>fast=%s",
+			$latestDailyClose,
+			$this->emaFastPeriod, $latestEmaFast,
+			$this->emaSlowPeriod, $latestEmaSlow,
+			$latestEmaFast > $latestEmaSlow ? 'YES' : 'NO',
+			$latestDailyClose > $latestEmaFast ? 'YES' : 'NO',
+		));
 
 		// Trend filter: EMA(fast) > EMA(slow) AND close above EMA(fast).
 		if ($latestEmaFast <= $latestEmaSlow) {
@@ -103,8 +117,10 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @inheritDoc
 	 */
 	public function shouldShort(): bool {
+		$log = Logger::getLogger();
 		$dailyCandles = $this->getDailyCandles();
 		if ($dailyCandles === null || empty($dailyCandles)) {
+			$log->debug("[SHORT] No daily candles available");
 			return false;
 		}
 
@@ -113,12 +129,22 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
 
 		if (empty($emaFast) || empty($emaSlow)) {
+			$log->debug("[SHORT] EMA arrays empty (fast=" . count($emaFast) . ", slow=" . count($emaSlow) . ")");
 			return false;
 		}
 
 		$latestEmaFast = end($emaFast);
 		$latestEmaSlow = end($emaSlow);
 		$latestDailyClose = end($closePrices);
+
+		$log->debug(sprintf(
+			"[SHORT] close=%.8f | EMA(%d)=%.8f | EMA(%d)=%.8f | fast<slow=%s | close<fast=%s",
+			$latestDailyClose,
+			$this->emaFastPeriod, $latestEmaFast,
+			$this->emaSlowPeriod, $latestEmaSlow,
+			$latestEmaFast < $latestEmaSlow ? 'YES' : 'NO',
+			$latestDailyClose < $latestEmaFast ? 'YES' : 'NO',
+		));
 
 		// Trend filter: EMA(fast) < EMA(slow) AND close below EMA(fast).
 		if ($latestEmaFast >= $latestEmaSlow) {
@@ -153,12 +179,16 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * Request daily candles for EMA calculation.
 	 * Uses lastCandle time instead of wall-clock time to avoid look-ahead bias in backtests.
 	 *
-	 * @return \Izzy\Interfaces\ICandle[]|null Array of daily candles or null if still loading.
+	 * @return ICandle[]|null Array of daily candles or null if still loading.
 	 */
 	private function getDailyCandles(): ?array {
 		$endTime = (int)$this->market->lastCandle()->getOpenTime();
 		$startTime = $endTime - self::DAILY_CANDLES_COUNT * TimeFrameEnum::TF_1DAY->toSeconds();
-		return $this->market->requestCandles(TimeFrameEnum::TF_1DAY, $startTime, $endTime);
+		$candles = $this->market->requestCandles(TimeFrameEnum::TF_1DAY, $startTime, $endTime);
+		$count = $candles !== null ? count($candles) : 'null';
+		$need = self::DAILY_CANDLES_COUNT;
+		Logger::getLogger()->debug("[EMA] getDailyCandles: need=$need, got=$count, range=" . date('Y-m-d', $startTime) . " → " . date('Y-m-d', $endTime));
+		return $candles;
 	}
 
 	// ------------------------------------------------------------------
@@ -173,18 +203,26 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @return bool True if RSI crosses above the threshold.
 	 */
 	private function rsiCrossesAbove(float $threshold): bool {
-		$result = $this->market->getIndicatorResult('RSI');
-		if ($result === null) {
+		$log = Logger::getLogger();
+		$result = $this->market->getIndicatorResult(RSI::getName());
+		if (is_null($result)) {
+			$log->debug("[RSI↑] No RSI data available");
 			return false;
 		}
 		$values = $result->getValues();
 		$count = count($values);
 		if ($count < 2) {
+			$log->debug("[RSI↑] Not enough RSI values (count=$count)");
 			return false;
 		}
 		$previous = $values[$count - 2];
 		$current = $values[$count - 1];
-		return $previous < $threshold && $current >= $threshold;
+		$cross = $previous < $threshold && $current >= $threshold;
+		$log->debug(sprintf(
+			"[RSI↑] prev=%.2f → cur=%.2f | threshold=%.1f | cross=%s",
+			$previous, $current, $threshold, $cross ? 'YES — SIGNAL!' : 'no'
+		));
+		return $cross;
 	}
 
 	/**
@@ -195,18 +233,26 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @return bool True if RSI crosses below the threshold.
 	 */
 	private function rsiCrossesBelow(float $threshold): bool {
-		$result = $this->market->getIndicatorResult('RSI');
-		if ($result === null) {
+		$log = Logger::getLogger();
+		$result = $this->market->getIndicatorResult(RSI::getName());
+		if (is_null($result)) {
+			$log->debug("[RSI↓] No RSI data available");
 			return false;
 		}
 		$values = $result->getValues();
 		$count = count($values);
 		if ($count < 2) {
+			$log->debug("[RSI↓] Not enough RSI values (count=$count)");
 			return false;
 		}
 		$previous = $values[$count - 2];
 		$current = $values[$count - 1];
-		return $previous > $threshold && $current <= $threshold;
+		$cross = $previous > $threshold && $current <= $threshold;
+		$log->debug(sprintf(
+			"[RSI↓] prev=%.2f → cur=%.2f | threshold=%.1f | cross=%s",
+			$previous, $current, $threshold, $cross ? 'YES — SIGNAL!' : 'no'
+		));
+		return $cross;
 	}
 
 	// ------------------------------------------------------------------
@@ -218,10 +264,10 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 */
 	public static function formatParameterName(string $paramName): string {
 		$names = [
-			'emaFastPeriod' => 'EMA fast period (daily trend)',
-			'emaSlowPeriod' => 'EMA slow period (daily trend)',
-			'rsiOversold' => 'RSI oversold threshold',
-			'rsiOverbought' => 'RSI overbought threshold',
+			'emaFastPeriod' => 'EMA fast period (1D)',
+			'emaSlowPeriod' => 'EMA slow period (1D)',
+			'rsiOversold' => 'RSI oversold threshold (1H)',
+			'rsiOverbought' => 'RSI overbought threshold (1H)',
 		];
 		return $names[$paramName] ?? parent::formatParameterName($paramName);
 	}
