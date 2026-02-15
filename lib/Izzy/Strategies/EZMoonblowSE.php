@@ -182,7 +182,11 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @return ICandle[]|null Array of daily candles or null if still loading.
 	 */
 	private function getDailyCandles(): ?array {
-		$endTime = (int)$this->market->lastCandle()->getOpenTime();
+		$candles = $this->market->getCandles();
+		if (empty($candles)) {
+			return null;
+		}
+		$endTime = (int)end($candles)->getOpenTime();
 		$startTime = $endTime - self::DAILY_CANDLES_COUNT * TimeFrameEnum::TF_1DAY->toSeconds();
 		$candles = $this->market->requestCandles(TimeFrameEnum::TF_1DAY, $startTime, $endTime);
 		$count = $candles !== null ? count($candles) : 'null';
