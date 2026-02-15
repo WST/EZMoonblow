@@ -12,7 +12,7 @@ if (!function_exists('pcntl_exec')) {
 }
 
 // Load configuration.
-$config = new Configuration(IZZY_CONFIG.'/config.xml');
+$config = new Configuration(IZZY_CONFIG_XML);
 
 // MySQL access credentials.
 $dbHost = $config->getDatabaseHost();

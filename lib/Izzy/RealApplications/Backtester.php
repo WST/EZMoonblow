@@ -13,6 +13,7 @@ use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Exchanges\Backtest\BacktestExchange;
 use Izzy\Financial\BacktestStoredPosition;
+use Izzy\Financial\Candle;
 use Izzy\Financial\CandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
@@ -242,7 +243,8 @@ class Backtester extends ConsoleApplication
 			 *
 			 * On EVERY tick we execute the full trading cycle:
 			 *   1. Set simulation time and current market price
-			 *   2. Recalculate indicators (they see the latest candle slice)
+			 *   2. Recalculate indicators (current candle is a partial snapshot —
+			 *      only reflects OHLC state at this tick, not the final values)
 			 *   3. Call processTrading() — checks for existing position,
 			 *      fires entry signals, executes DCA updatePosition, etc.
 			 *   4. Fill any pending DCA limit orders whose price is reached
@@ -262,7 +264,6 @@ class Backtester extends ConsoleApplication
 				foreach ($slice as $c) {
 					$c->setMarket($market);
 				}
-				$market->setCandles($slice);
 				$currentCandle = $candles[$i];
 				$lastCandle = $currentCandle;
 				$candleTime = (int) $currentCandle->getOpenTime();
@@ -271,6 +272,7 @@ class Backtester extends ConsoleApplication
 				$highPrice = $currentCandle->getHighPrice();
 				$lowPrice = $currentCandle->getLowPrice();
 				$closePrice = $currentCandle->getClosePrice();
+				$candleVolume = $currentCandle->getVolume();
 				$isBullish = $closePrice >= $openPrice;
 
 				// Build 4 ticks: [time, price] pairs that approximate the price path.
@@ -288,7 +290,56 @@ class Backtester extends ConsoleApplication
 						[$candleTime + $candleDuration - 1,              $closePrice],
 					];
 
+				/*
+				 * PARTIAL CANDLE SNAPSHOTS — lookahead bias prevention.
+				 *
+				 * Without this, the current candle in the slice already has its
+				 * final high/low/close at every tick, so indicators (EMA, RSI, etc.)
+				 * would "see the future" — e.g. RSI computed from the final close
+				 * of a candle that hasn't actually closed yet.
+				 *
+				 * We create 4 progressive snapshots that reflect how the candle
+				 * looks at each phase of its formation:
+				 *
+				 *   Bullish (close >= open): open → low → high → close
+				 *     Phase 0 (open):  O=open  H=open  L=open  C=open  — just opened.
+				 *     Phase 1 (low):   O=open  H=open  L=low   C=low   — dipped to low.
+				 *     Phase 2 (high):  O=open  H=high  L=low   C=high  — rallied to high.
+				 *     Phase 3 (close): O=open  H=high  L=low   C=close — fully formed.
+				 *
+				 *   Bearish (close < open): open → high → low → close
+				 *     Phase 0 (open):  O=open  H=open  L=open  C=open  — just opened.
+				 *     Phase 1 (high):  O=open  H=high  L=open  C=high  — rallied to high.
+				 *     Phase 2 (low):   O=open  H=high  L=low   C=low   — dropped to low.
+				 *     Phase 3 (close): O=open  H=high  L=low   C=close — fully formed.
+				 *
+				 * Before each tick, the last candle in the slice is replaced with
+				 * the corresponding partial snapshot, then indicators are recalculated.
+				 * Volume is distributed proportionally: 0%, 25%, 75%, 100%.
+				 */
+				$partialCandles = $isBullish
+					? [
+						new Candle($candleTime, $openPrice, $openPrice, $openPrice, $openPrice, 0.0, $market),
+						new Candle($candleTime, $openPrice, $openPrice, $lowPrice,  $lowPrice,  $candleVolume * 0.25, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $highPrice, $candleVolume * 0.75, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $closePrice, $candleVolume, $market),
+					]
+					: [
+						new Candle($candleTime, $openPrice, $openPrice, $openPrice, $openPrice, 0.0, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $openPrice, $highPrice, $candleVolume * 0.25, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $lowPrice,  $candleVolume * 0.75, $market),
+						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $closePrice, $candleVolume, $market),
+					];
+
+				$sliceLastIdx = count($slice) - 1;
+				$tickIdx = 0;
 				foreach ($ticks as [$tickTime, $tickPrice]) {
+					// Replace the last candle with a partial snapshot so that
+					// indicators only see the candle's state at this tick phase.
+					$slice[$sliceLastIdx] = $partialCandles[$tickIdx];
+					$market->setCandles($slice);
+					$tickIdx++;
+
 					// --- 1. Set simulation time and price ---
 					$backtestExchange->setSimulationTime($tickTime);
 					$log->setBacktestSimulationTime($tickTime);

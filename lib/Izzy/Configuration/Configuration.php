@@ -39,7 +39,7 @@ class Configuration
 	 * @return static Configuration instance loaded from the default config file.
 	 */
 	public static function getInstance(): static {
-		return new self(IZZY_CONFIG."/config.xml");
+		return new self(IZZY_CONFIG_XML);
 	}
 
 	/**

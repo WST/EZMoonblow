@@ -108,7 +108,7 @@ class PairsViewer extends PageViewer
 			if ($exchange->getName() === $exchangeName) {
 				// Get exchange configuration from XML
 				$document = new \DOMDocument();
-				$document->load(IZZY_CONFIG . "/config.xml");
+				$document->load(IZZY_CONFIG_XML);
 				$xpath = new \DOMXPath($document);
 
 				$exchangeElement = $xpath->query("//exchanges/exchange[@name='$exchangeName']")->item(0);
