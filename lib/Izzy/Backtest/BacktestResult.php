@@ -3,6 +3,7 @@
 namespace Izzy\Backtest;
 
 use Izzy\Financial\Pair;
+use Izzy\Strategies\StrategyFactory;
 use Izzy\Traits\ConsoleTableTrait;
 use Stringable;
 
@@ -67,6 +68,21 @@ readonly class BacktestResult implements Stringable
 			['Duration', number_format($simDurationDays, 1) . ' days'],
 		]);
 		$out .= $this->renderTable('Period', $h, $periodRows);
+
+		// --- Strategy Parameters ---
+		$strategyParams = $this->pair->getStrategyParams();
+		if (!empty($strategyParams) && $strategyName) {
+			$strategyClass = StrategyFactory::getStrategyClass($strategyName);
+			$paramHeaders = ['Parameter', 'Config key', 'Value'];
+			$paramRows = [];
+			foreach ($strategyParams as $key => $value) {
+				$humanName = $strategyClass !== null
+					? $strategyClass::formatParameterName($key)
+					: $key;
+				$paramRows[] = [$humanName, $key, $value];
+			}
+			$out .= $this->renderTable('Strategy Parameters', $paramHeaders, $paramRows);
+		}
 
 		// --- Financial ---
 		$out .= (string) $this->financial;

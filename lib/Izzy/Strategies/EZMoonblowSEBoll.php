@@ -24,21 +24,29 @@ use Izzy\System\Logger;
  * good fit for ranging / sideways-trending instruments.
  *
  * Long entry conditions:
- *   - Daily close > EMA(slow) on 1D (uptrend territory)
+ *   - (optional) Daily close > EMA(slow) on 1D (uptrend territory)
  *   - Price touches or crosses below the lower Bollinger Band on the
  *     working timeframe (dip detected — entering at a local valley)
  *
  * Short entry conditions:
- *   - Daily close < EMA(slow) on 1D (downtrend territory)
+ *   - (optional) Daily close < EMA(slow) on 1D (downtrend territory)
  *   - Price touches or crosses above the upper Bollinger Band on the
  *     working timeframe (bounce detected — entering at a local peak)
+ *
+ * The EMA trend filter can be disabled via the emaTrendFilter parameter.
+ * When disabled, the strategy enters on Bollinger Band touches in both
+ * directions regardless of the daily trend, and daily candles are not
+ * loaded at all (saving DB/API queries in backtests and live trading).
  */
 class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 {
 	/** How many daily candles to request for EMA calculation. */
 	private const int DAILY_CANDLES_COUNT = 250;
 
-	/** Slow EMA period for the daily trend filter. */
+	/** Whether to use the daily EMA trend filter. */
+	private bool $emaTrendFilter;
+
+	/** Slow EMA period for the daily trend filter (only used when emaTrendFilter is enabled). */
 	private int $emaSlowPeriod;
 
 	/** Bollinger Bands period (SMA window). */
@@ -55,6 +63,7 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
+		$this->emaTrendFilter = in_array(strtolower($params['emaTrendFilter'] ?? 'yes'), ['yes', 'true', '1'], true);
 		$this->emaSlowPeriod = (int)($params['emaSlowPeriod'] ?? 50);
 		$this->bbPeriod = (int)($params['bbPeriod'] ?? 20);
 		$this->bbMultiplier = (float)($params['bbMultiplier'] ?? 2.0);
@@ -63,13 +72,23 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 
 	/**
 	 * @inheritDoc
+	 *
+	 * Bollinger Bands are calculated directly via calculateFromPrices()
+	 * to use strategy-specific period/multiplier parameters. No need
+	 * to register them through the indicator system.
 	 */
 	public function useIndicators(): array {
-		return [BollingerBands::class];
+		return [];
 	}
 
 	/**
-	 * @inheritDoc
+	 * Timeframes needed beyond the market's native timeframe.
+	 *
+	 * Always declares 1D so that the backtester preloads daily candles into DB.
+	 * This is a one-time cost during initialization. At runtime, daily candles
+	 * are only fetched when emaTrendFilter is enabled.
+	 *
+	 * @return TimeFrameEnum[]
 	 */
 	public static function requiredTimeframes(): array {
 		return [TimeFrameEnum::TF_1DAY];
@@ -83,39 +102,16 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	 * @inheritDoc
 	 */
 	public function shouldLong(): bool {
-		$log = Logger::getLogger();
-
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
 
-		// 1. Daily trend filter: price above EMA(slow) = uptrend.
-		$dailyCandles = $this->getDailyCandles();
-		if ($dailyCandles === null || empty($dailyCandles)) {
-			$log->debug("[BOLL-LONG] No daily candles available");
+		// Optional daily EMA trend filter: only allow longs in an uptrend.
+		if ($this->emaTrendFilter && !$this->dailyTrendIsUp()) {
 			return false;
 		}
 
-		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
-		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
-
-		if (empty($emaSlow)) {
-			$log->debug("[BOLL-LONG] EMA array empty");
-			return false;
-		}
-
-		$latestEmaSlow = end($emaSlow);
-		$latestDailyClose = end($closePrices);
-
-		if ($latestDailyClose <= $latestEmaSlow) {
-			$log->debug(sprintf(
-				"[BOLL-LONG] Trend filter FAIL: close=%.8f <= EMA(%d)=%.8f",
-				$latestDailyClose, $this->emaSlowPeriod, $latestEmaSlow,
-			));
-			return false;
-		}
-
-		// 2. Bollinger Band touch: price crosses below the lower band.
+		// Bollinger Band touch: price crosses below the lower band.
 		if (!$this->priceCrossesBelowLowerBand()) {
 			return false;
 		}
@@ -128,39 +124,16 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	 * @inheritDoc
 	 */
 	public function shouldShort(): bool {
-		$log = Logger::getLogger();
-
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
 
-		// 1. Daily trend filter: price below EMA(slow) = downtrend.
-		$dailyCandles = $this->getDailyCandles();
-		if ($dailyCandles === null || empty($dailyCandles)) {
-			$log->debug("[BOLL-SHORT] No daily candles available");
+		// Optional daily EMA trend filter: only allow shorts in a downtrend.
+		if ($this->emaTrendFilter && !$this->dailyTrendIsDown()) {
 			return false;
 		}
 
-		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
-		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
-
-		if (empty($emaSlow)) {
-			$log->debug("[BOLL-SHORT] EMA array empty");
-			return false;
-		}
-
-		$latestEmaSlow = end($emaSlow);
-		$latestDailyClose = end($closePrices);
-
-		if ($latestDailyClose >= $latestEmaSlow) {
-			$log->debug(sprintf(
-				"[BOLL-SHORT] Trend filter FAIL: close=%.8f >= EMA(%d)=%.8f",
-				$latestDailyClose, $this->emaSlowPeriod, $latestEmaSlow,
-			));
-			return false;
-		}
-
-		// 2. Bollinger Band touch: price crosses above the upper band.
+		// Bollinger Band touch: price crosses above the upper band.
 		if (!$this->priceCrossesAboveUpperBand()) {
 			return false;
 		}
@@ -184,8 +157,96 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
+	// Daily EMA trend filter
+	// ------------------------------------------------------------------
+
+	/**
+	 * Check if the daily trend is up (close > EMA slow).
+	 * Only called when emaTrendFilter is enabled.
+	 */
+	private function dailyTrendIsUp(): bool {
+		$log = Logger::getLogger();
+		$dailyCandles = $this->getDailyCandles();
+		if ($dailyCandles === null || empty($dailyCandles)) {
+			$log->debug("[BOLL-LONG] No daily candles available");
+			return false;
+		}
+
+		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
+		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
+		if (empty($emaSlow)) {
+			$log->debug("[BOLL-LONG] EMA array empty");
+			return false;
+		}
+
+		$latestEmaSlow = end($emaSlow);
+		$latestDailyClose = end($closePrices);
+
+		if ($latestDailyClose <= $latestEmaSlow) {
+			$log->debug(sprintf(
+				"[BOLL-LONG] Trend filter FAIL: close=%.8f <= EMA(%d)=%.8f",
+				$latestDailyClose, $this->emaSlowPeriod, $latestEmaSlow,
+			));
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Check if the daily trend is down (close < EMA slow).
+	 * Only called when emaTrendFilter is enabled.
+	 */
+	private function dailyTrendIsDown(): bool {
+		$log = Logger::getLogger();
+		$dailyCandles = $this->getDailyCandles();
+		if ($dailyCandles === null || empty($dailyCandles)) {
+			$log->debug("[BOLL-SHORT] No daily candles available");
+			return false;
+		}
+
+		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
+		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
+		if (empty($emaSlow)) {
+			$log->debug("[BOLL-SHORT] EMA array empty");
+			return false;
+		}
+
+		$latestEmaSlow = end($emaSlow);
+		$latestDailyClose = end($closePrices);
+
+		if ($latestDailyClose >= $latestEmaSlow) {
+			$log->debug(sprintf(
+				"[BOLL-SHORT] Trend filter FAIL: close=%.8f >= EMA(%d)=%.8f",
+				$latestDailyClose, $this->emaSlowPeriod, $latestEmaSlow,
+			));
+			return false;
+		}
+
+		return true;
+	}
+
+	// ------------------------------------------------------------------
 	// Bollinger Bands crossover detection
 	// ------------------------------------------------------------------
+
+	/**
+	 * Calculate Bollinger Bands from market candles using strategy parameters.
+	 *
+	 * @return array{bands: array<array{upper: float, lower: float}>, closePrices: float[]}|null
+	 */
+	private function calculateBB(): ?array {
+		$candles = $this->market->getCandles();
+		if (count($candles) < $this->bbPeriod) {
+			return null;
+		}
+		$closePrices = array_map(fn($c) => $c->getClosePrice(), $candles);
+		$result = BollingerBands::calculateFromPrices($closePrices, $this->bbPeriod, $this->bbMultiplier);
+		if (count($result['bands']) < 2) {
+			return null;
+		}
+		return ['bands' => $result['bands'], 'closePrices' => $closePrices];
+	}
 
 	/**
 	 * Detect price crossing below the lower Bollinger Band.
@@ -198,29 +259,21 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	 */
 	private function priceCrossesBelowLowerBand(): bool {
 		$log = Logger::getLogger();
-		$result = $this->market->getIndicatorResult(BollingerBands::getName());
-		if ($result === null) {
-			$log->debug("[BB↓] No Bollinger Bands data available");
+		$bb = $this->calculateBB();
+		if ($bb === null) {
+			$log->debug("[BB↓] Not enough data for Bollinger Bands");
 			return false;
 		}
 
-		$bands = $result->getSignals(); // array of ['upper' => float, 'lower' => float]
+		$bands = $bb['bands'];
+		$prices = $bb['closePrices'];
 		$count = count($bands);
-		if ($count < 2) {
-			$log->debug("[BB↓] Not enough BB values (count=$count)");
-			return false;
-		}
+		$priceCount = count($prices);
 
-		$candles = $this->market->getCandles();
-		$candleCount = count($candles);
-		if ($candleCount < 2) {
-			return false;
-		}
-
-		// The BB array is aligned to candles starting from index (period-1).
-		// The last BB value corresponds to the last candle.
-		$prevClose = $candles[$candleCount - 2]->getClosePrice();
-		$currClose = $candles[$candleCount - 1]->getClosePrice();
+		// BB array is shorter than price array by (period-1).
+		// Last BB value corresponds to the last close price.
+		$prevClose = $prices[$priceCount - 2];
+		$currClose = $prices[$priceCount - 1];
 		$prevLower = $bands[$count - 2]['lower'];
 		$currLower = $bands[$count - 1]['lower'];
 
@@ -242,27 +295,19 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	 */
 	private function priceCrossesAboveUpperBand(): bool {
 		$log = Logger::getLogger();
-		$result = $this->market->getIndicatorResult(BollingerBands::getName());
-		if ($result === null) {
-			$log->debug("[BB↑] No Bollinger Bands data available");
+		$bb = $this->calculateBB();
+		if ($bb === null) {
+			$log->debug("[BB↑] Not enough data for Bollinger Bands");
 			return false;
 		}
 
-		$bands = $result->getSignals();
+		$bands = $bb['bands'];
+		$prices = $bb['closePrices'];
 		$count = count($bands);
-		if ($count < 2) {
-			$log->debug("[BB↑] Not enough BB values (count=$count)");
-			return false;
-		}
+		$priceCount = count($prices);
 
-		$candles = $this->market->getCandles();
-		$candleCount = count($candles);
-		if ($candleCount < 2) {
-			return false;
-		}
-
-		$prevClose = $candles[$candleCount - 2]->getClosePrice();
-		$currClose = $candles[$candleCount - 1]->getClosePrice();
+		$prevClose = $prices[$priceCount - 2];
+		$currClose = $prices[$priceCount - 1];
 		$prevUpper = $bands[$count - 2]['upper'];
 		$currUpper = $bands[$count - 1]['upper'];
 
@@ -336,6 +381,7 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	 */
 	public static function formatParameterName(string $paramName): string {
 		$names = [
+			'emaTrendFilter' => 'EMA daily trend filter (yes/no)',
 			'emaSlowPeriod' => 'EMA trend filter period (1D)',
 			'bbPeriod' => 'Bollinger Bands period',
 			'bbMultiplier' => 'Bollinger Bands StdDev multiplier',

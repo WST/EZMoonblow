@@ -118,12 +118,17 @@ class BacktestExchange implements IExchangeDriver
 		if (!$currentPrice) {
 			return false;
 		}
+
+		// Amount is in quote currency (USDT). Convert to base currency,
+		// matching the behavior of Bybit::openPosition().
+		$volumeBase = $market->calculateQuantity($amount, $currentPrice);
+
 		// Do not deduct from balance: margin stays on the account and only funds the position.
 		$orderId = 'bt-' . (++$this->orderIdCounter);
 		$createdAt = $this->simulationTime > 0 ? $this->simulationTime : null;
 		$position = BacktestStoredPosition::create(
 			market: $market,
-			volume: $amount,
+			volume: $volumeBase,
 			direction: $direction,
 			entryPrice: $currentPrice,
 			currentPrice: $currentPrice,
@@ -137,7 +142,7 @@ class BacktestExchange implements IExchangeDriver
 			$position->setTakeProfitPrice($currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		}
 		$position->save();
-		$this->logger->backtestProgress("  OPEN {$market->getTicker()} {$direction->value} @ " . number_format($currentPrice->getAmount(), 4) . " vol=" . number_format($amount->getAmount(), 2));
+		$this->logger->backtestProgress("  OPEN {$market->getTicker()} {$direction->value} @ " . number_format($currentPrice->getAmount(), 4) . " vol=" . number_format($volumeBase->getAmount(), 2));
 		return true;
 	}
 

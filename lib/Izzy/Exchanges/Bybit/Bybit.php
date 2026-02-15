@@ -309,12 +309,13 @@ class Bybit extends AbstractExchangeDriver
 					exchangePositionId: $orderIdOnExchange
 				);
 
-				// If we have a TP defined.
+				// Store TP metadata on the position object.
+				// The actual TP order was already included in the placeLimitOrder params,
+				// so there is no need to call setTakeProfit() again.
 				if ($takeProfitPercent) {
 					$takeProfitPrice = $price->modifyByPercentWithDirection($takeProfitPercent, $direction);
 					$position->setExpectedProfitPercent($takeProfitPercent);
 					$position->setTakeProfitPrice($takeProfitPrice);
-					$this->setTakeProfit($market, $takeProfitPrice);
 				}
 
 				$position->setAverageEntryPrice($currentPrice);
@@ -391,12 +392,13 @@ class Bybit extends AbstractExchangeDriver
 			);
 			$position->setAverageEntryPrice($currentPrice);
 
-			// If there is a TP, set it.
+			// Store TP metadata on the position object.
+			// The actual TP order was already included in the placeOrder params above,
+			// so there is no need to call setTakeProfit() again (Bybit returns "not modified").
 			if ($takeProfitPercent) {
 				$position->setExpectedProfitPercent($takeProfitPercent);
 				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
 				$position->setTakeProfitPrice($takeProfitPrice);
-				$this->setTakeProfit($market, $takeProfitPrice);
 			}
 
 			// Save the “position” to the database.
@@ -689,14 +691,23 @@ class Bybit extends AbstractExchangeDriver
 	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
 		$pair = $market->getPair();
 		try {
-			$this->api->positionApi()->setTradingStop([
+			$params = [
 				BybitParam::Category => $this->getBybitCategory($pair),
 				BybitParam::Symbol => $pair->getExchangeTicker($this),
 				BybitParam::TPTriggerBy => BybitTPTriggerByEnum::LastPrice->value,
 				BybitParam::TakeProfit => $expectedPrice->formatForOrder($this->getTickSize($market)),
-			]);
+			];
+
+			// Hedge mode requires positionIdx to identify which position the TP belongs to.
+			$position = $market->getCurrentPosition();
+			if ($position) {
+				$params[BybitParam::PositionIdx] = $this->getPositionIdxByDirection($position->getDirection());
+			}
+
+			$this->api->positionApi()->setTradingStop($params);
 			return true;
 		} catch (Throwable $e) {
+			$this->logger->error("Failed to set TP for {$market->getTicker()}: " . $e->getMessage());
 			return false;
 		}
 	}
@@ -707,12 +718,20 @@ class Bybit extends AbstractExchangeDriver
 	public function setStopLoss(IMarket $market, Money $expectedPrice): bool {
 		$pair = $market->getPair();
 		try {
-			$this->api->positionApi()->setTradingStop([
+			$params = [
 				BybitParam::Category => $this->getBybitCategory($pair),
 				BybitParam::Symbol => $pair->getExchangeTicker($this),
 				BybitParam::SLTriggerBy => BybitTPTriggerByEnum::LastPrice->value,
 				BybitParam::StopLoss => $expectedPrice->formatForOrder($this->getTickSize($market)),
-			]);
+			];
+
+			// Hedge mode requires positionIdx to identify which position the SL belongs to.
+			$position = $market->getCurrentPosition();
+			if ($position) {
+				$params[BybitParam::PositionIdx] = $this->getPositionIdxByDirection($position->getDirection());
+			}
+
+			$this->api->positionApi()->setTradingStop($params);
 			return true;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to set SL for {$market->getTicker()}: " . $e->getMessage());

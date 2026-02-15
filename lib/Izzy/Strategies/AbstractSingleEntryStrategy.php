@@ -104,12 +104,14 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	 * Common entry logic for both directions.
 	 */
 	private function executeEntry(IMarket $market, PositionDirectionEnum $direction): IStoredPosition|false {
+		// Pass volume in quote currency (USDT). Market::openPosition and the
+		// exchange driver convert to base currency internally. Do NOT
+		// pre-convert here, otherwise the amount will be divided by price twice.
 		$volumeQuote = Money::from($this->resolveEntryVolume());
 		$currentPrice = $market->getCurrentPrice();
-		$volumeBase = $market->calculateQuantity($volumeQuote, $currentPrice);
 
 		// Open the position at market price.
-		$position = $market->openPosition($volumeBase, $direction, $this->takeProfitPercent);
+		$position = $market->openPosition($volumeQuote, $direction, $this->takeProfitPercent);
 		if (!$position) {
 			return false;
 		}
