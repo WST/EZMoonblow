@@ -21,6 +21,8 @@ class IndicatorFactory
 		'RSI' => RSI::class,
 		'Izzy\Indicators\EMA' => EMA::class,
 		'EMA' => EMA::class,
+		'Izzy\Indicators\BollingerBands' => BollingerBands::class,
+		'BollingerBands' => BollingerBands::class,
 	];
 
 	/**

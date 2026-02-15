@@ -21,6 +21,7 @@ class StrategyFactory
 		'EZMoonblowDCAWithShorts' => EZMoonblowDCAWithShorts::class,
 		'EZMoonblowDCAAlwaysLong' => EZMoonblowDCAAlwaysLong::class,
 		'EZMoonblowSE' => EZMoonblowSE::class,
+		'EZMoonblowSEBoll' => EZMoonblowSEBoll::class,
 	];
 
 	/**
