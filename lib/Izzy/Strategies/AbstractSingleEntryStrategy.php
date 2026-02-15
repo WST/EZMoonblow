@@ -9,6 +9,7 @@ use Izzy\Financial\Money;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Logger;
+use Izzy\System\QueueTask;
 
 /**
  * Base class for single-entry trading strategies.
@@ -18,7 +19,7 @@ use Izzy\System\Logger;
  * a stop-loss and a take-profit. They optionally support a
  * "Breakeven Lock" mechanism: partial close + move SL to entry.
  */
-abstract class AbstractSingleEntryStrategy extends Strategy
+abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 {
 	/** Parsed entry volume value. */
 	protected float $entryVolume;
@@ -215,7 +216,26 @@ abstract class AbstractSingleEntryStrategy extends Strategy
 		$this->markBreakevenLockExecuted($position);
 		$position->save();
 
+		// Calculate the profit locked by the partial close.
+		$lockedProfit = 0.0;
+		if ($closePrice !== null && $entryPrice !== null) {
+			$priceDiff = $direction->isLong()
+				? ($closePrice->getAmount() - $entryPrice->getAmount())
+				: ($entryPrice->getAmount() - $closePrice->getAmount());
+			$lockedProfit = $priceDiff * $closeAmount;
+		}
+
 		$logger->info("Breakeven Lock executed on {$market->getTicker()}: closed {$closeVolume->format()}, SL moved to {$newSLPrice->format()}");
+
+		// Send Telegram notification about Breakeven Lock (skip in backtests).
+		if (!$logger->isBacktestMode()) {
+			QueueTask::addTelegramNotification_breakevenLock(
+				$market,
+				$position,
+				$closeAmount,
+				$lockedProfit,
+			);
+		}
 	}
 
 	/**

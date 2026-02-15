@@ -21,6 +21,7 @@ use Izzy\Strategies\DCAOrderGrid;
 use Izzy\Strategies\StrategyFactory;
 use Izzy\Strategies\StrategyValidationResult;
 use Izzy\System\Database\Database;
+use Izzy\System\Logger;
 use Izzy\System\QueueTask;
 use Izzy\Traits\HasMarketTypeTrait;
 
@@ -603,7 +604,15 @@ class Market implements IMarket
 	 */
 	public function openPosition(Money $volume, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
 		$success = $this->exchange->openPosition($this, $direction, $volume, null, $takeProfitPercent);
-		return $success ? $this->getCurrentPosition() : false;
+		if (!$success) {
+			return false;
+		}
+
+		$position = $this->getCurrentPosition();
+		if ($position && !Logger::getLogger()->isBacktestMode()) {
+			QueueTask::addTelegramNotification_positionOpened($this, $position);
+		}
+		return $position;
 	}
 
 	/**
@@ -1010,7 +1019,11 @@ class Market implements IMarket
 			}
 
 			// The position was already created and saved by exchange->openPosition().
-			return $this->getCurrentPosition();
+			$position = $this->getCurrentPosition();
+			if ($position && !Logger::getLogger()->isBacktestMode()) {
+				QueueTask::addTelegramNotification_positionOpened($this, $position);
+			}
+			return $position;
 		}
 
 		// Limit entry: the entry order is placed as a limit order at the current price.
@@ -1057,6 +1070,11 @@ class Market implements IMarket
 		}
 
 		$position->save();
+
+		// Notify about the new position (works for all strategies).
+		if (!Logger::getLogger()->isBacktestMode()) {
+			QueueTask::addTelegramNotification_positionOpened($this, $position);
+		}
 
 		return $position;
 	}

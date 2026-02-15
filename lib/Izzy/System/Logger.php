@@ -34,6 +34,15 @@ final class Logger
 	}
 
 	/**
+	 * Check if the logger is in backtest mode.
+	 * Useful for skipping side effects (e.g. Telegram notifications) during backtests.
+	 * @return bool True if backtest mode is enabled.
+	 */
+	public function isBacktestMode(): bool {
+		return $this->backtestMode;
+	}
+
+	/**
 	 * Set the simulation timestamp for backtest log lines.
 	 * @param int $timestamp Unix timestamp from the simulated candle.
 	 */

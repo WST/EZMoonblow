@@ -8,6 +8,12 @@ enum TaskTypeEnum: string
 
 	case TELEGRAM_WANT_NEW_POSITION = 'Want New Position';
 
+	case TELEGRAM_POSITION_OPENED = 'Position Opened';
+
+	case TELEGRAM_POSITION_CLOSED = 'Position Closed';
+
+	case TELEGRAM_BREAKEVEN_LOCK = 'Breakeven Lock';
+
 	case LOAD_CANDLES = 'Load Candles';
 
 	public function isDrawCandlestickChart(): bool {

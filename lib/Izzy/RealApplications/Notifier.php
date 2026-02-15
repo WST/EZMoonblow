@@ -6,7 +6,9 @@ use Exception;
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
+use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\TaskStatusEnum;
+use Izzy\Enums\TaskTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Pair;
 use Izzy\System\QueueTask;
@@ -39,6 +41,24 @@ class Notifier extends ConsoleApplication
 		// Task is an intent to open a new position.
 		if ($taskType->isTelegramWantNewPosition()) {
 			$this->handleWantNewPositionNotification($task);
+			return;
+		}
+
+		// Position opened notification.
+		if ($taskType === TaskTypeEnum::TELEGRAM_POSITION_OPENED) {
+			$this->handlePositionOpenedNotification($task);
+			return;
+		}
+
+		// Position closed notification.
+		if ($taskType === TaskTypeEnum::TELEGRAM_POSITION_CLOSED) {
+			$this->handlePositionClosedNotification($task);
+			return;
+		}
+
+		// Breakeven Lock notification.
+		if ($taskType === TaskTypeEnum::TELEGRAM_BREAKEVEN_LOCK) {
+			$this->handleBreakevenLockNotification($task);
 			return;
 		}
 
@@ -98,6 +118,190 @@ class Notifier extends ConsoleApplication
 		if ($status->isInProgress() && $task->isOlderThan(600)) {
 			$task->remove();
 		}
+	}
+
+	// ------------------------------------------------------------------
+	// Position event notifications (Freqtrade-style formatting)
+	// ------------------------------------------------------------------
+
+	/**
+	 * Handle "Position Opened" notification.
+	 * Sends a formatted Telegram message when a new position is opened.
+	 */
+	private function handlePositionOpenedNotification(QueueTask $task): void {
+		$a = $task->getAttributes();
+
+		$direction = strtoupper($a['direction'] ?? '?');
+		$dirEmoji = ($direction === 'LONG') ? "\xF0\x9F\x9F\xA2" : "\xF0\x9F\x94\xB4"; // Green/Red circle
+		$pair = $a['pair'] ?? '?';
+		$exchange = $a['exchange'] ?? '?';
+		$timeframe = $a['timeframe'] ?? '?';
+		$entryPrice = (float)($a['entryPrice'] ?? 0);
+		$volume = (float)($a['volume'] ?? 0);
+		$slPrice = isset($a['slPrice']) ? (float)$a['slPrice'] : null;
+		$tpPrice = isset($a['tpPrice']) ? (float)$a['tpPrice'] : null;
+		$leverage = isset($a['leverage']) ? (float)$a['leverage'] : null;
+
+		$entryStr = $this->formatPrice($entryPrice);
+		$notionalValue = $entryPrice * $volume;
+
+		$message = "{$dirEmoji} <b>New {$direction}</b>\n\n";
+		$message .= "<b>Pair:</b> {$pair}\n";
+		$message .= "<b>Exchange:</b> {$exchange} ({$timeframe})\n";
+		if ($leverage !== null && $leverage > 1) {
+			$message .= "<b>Leverage:</b> {$leverage}x\n";
+		}
+		$message .= "\n";
+		$message .= "<b>Entry Price:</b> {$entryStr}\n";
+		$message .= "<b>Amount:</b> " . $this->formatVolume($volume) . "\n";
+		$message .= "<b>Notional:</b> " . number_format($notionalValue, 2) . " USDT\n";
+		$message .= "\n";
+		if ($slPrice !== null) {
+			$slPercent = abs(($slPrice - $entryPrice) / $entryPrice * 100);
+			$message .= "\xF0\x9F\x9B\x91 <b>Stop Loss:</b> " . $this->formatPrice($slPrice) . " (-" . number_format($slPercent, 1) . "%)\n";
+		}
+		if ($tpPrice !== null) {
+			$tpPercent = abs(($tpPrice - $entryPrice) / $entryPrice * 100);
+			$message .= "\xF0\x9F\x8E\xAF <b>Take Profit:</b> " . $this->formatPrice($tpPrice) . " (+" . number_format($tpPercent, 1) . "%)\n";
+		}
+
+		$this->logger->info("Position opened: {$direction} {$pair} @ {$entryStr} on {$exchange}");
+		$this->sendTelegramNotification($message);
+		$task->remove();
+	}
+
+	/**
+	 * Handle "Position Closed" notification.
+	 * Sends a formatted Telegram message when a position is closed.
+	 */
+	private function handlePositionClosedNotification(QueueTask $task): void {
+		$a = $task->getAttributes();
+
+		$direction = strtoupper($a['direction'] ?? '?');
+		$pair = $a['pair'] ?? '?';
+		$exchange = $a['exchange'] ?? '?';
+		$timeframe = $a['timeframe'] ?? '?';
+		$entryPrice = (float)($a['entryPrice'] ?? 0);
+		$currentPrice = (float)($a['currentPrice'] ?? 0);
+		$pnl = (float)($a['pnl'] ?? 0);
+		$finishReason = $a['finishReason'] ?? 'unknown';
+		$duration = (int)($a['duration'] ?? 0);
+		$leverage = isset($a['leverage']) ? (float)$a['leverage'] : null;
+
+		$isProfit = $pnl >= 0;
+		$resultEmoji = $isProfit ? "\xE2\x9C\x85" : "\xE2\x9D\x8C"; // checkmark / cross
+
+		$finishReasonEnum = PositionFinishReasonEnum::tryFrom($finishReason);
+		$reasonLabel = match (true) {
+			$finishReasonEnum?->isTakeProfit() => "\xF0\x9F\x8E\xAF Take Profit",
+			$finishReasonEnum?->isStopLoss() => "\xF0\x9F\x9B\x91 Stop Loss",
+			$finishReasonEnum?->isLiquidation() => "\xF0\x9F\x92\x80 Liquidation",
+			default => $finishReason,
+		};
+
+		$pnlPercent = ($entryPrice > 0) ? ($pnl / ($entryPrice * (float)($a['volume'] ?? 1))) * 100 : 0;
+		$pnlSign = $isProfit ? '+' : '';
+
+		$message = "{$resultEmoji} <b>Close {$direction}</b>\n\n";
+		$message .= "<b>Pair:</b> {$pair}\n";
+		$message .= "<b>Exchange:</b> {$exchange} ({$timeframe})\n";
+		if ($leverage !== null && $leverage > 1) {
+			$message .= "<b>Leverage:</b> {$leverage}x\n";
+		}
+		$message .= "\n";
+		$message .= "<b>Reason:</b> {$reasonLabel}\n";
+		$message .= "<b>Entry:</b> " . $this->formatPrice($entryPrice) . "\n";
+		$message .= "<b>Exit:</b> " . $this->formatPrice($currentPrice) . "\n";
+		$message .= "\n";
+		$message .= "<b>PnL:</b> {$pnlSign}" . number_format($pnl, 2) . " USDT ({$pnlSign}" . number_format($pnlPercent, 2) . "%)\n";
+		$message .= "\xE2\x8F\xB1 <b>Duration:</b> " . $this->formatDuration($duration) . "\n";
+
+		$this->logger->info("Position closed: {$direction} {$pair} PnL {$pnlSign}" . number_format($pnl, 2) . " USDT");
+		$this->sendTelegramNotification($message);
+		$task->remove();
+	}
+
+	/**
+	 * Handle "Breakeven Lock" notification.
+	 * Sends a formatted Telegram message when Breakeven Lock is executed.
+	 */
+	private function handleBreakevenLockNotification(QueueTask $task): void {
+		$a = $task->getAttributes();
+
+		$direction = strtoupper($a['direction'] ?? '?');
+		$pair = $a['pair'] ?? '?';
+		$exchange = $a['exchange'] ?? '?';
+		$timeframe = $a['timeframe'] ?? '?';
+		$entryPrice = (float)($a['entryPrice'] ?? 0);
+		$currentPrice = (float)($a['currentPrice'] ?? 0);
+		$closedVolume = (float)($a['closedVolume'] ?? 0);
+		$lockedProfit = (float)($a['lockedProfit'] ?? 0);
+		$slPrice = isset($a['slPrice']) ? (float)$a['slPrice'] : null;
+
+		$message = "\xF0\x9F\x94\x92 <b>Breakeven Lock</b>\n\n";
+		$message .= "<b>Pair:</b> {$pair} ({$direction})\n";
+		$message .= "<b>Exchange:</b> {$exchange} ({$timeframe})\n";
+		$message .= "\n";
+		$message .= "<b>Entry:</b> " . $this->formatPrice($entryPrice) . "\n";
+		$message .= "<b>Trigger Price:</b> " . $this->formatPrice($currentPrice) . "\n";
+		$message .= "\n";
+		$message .= "\xF0\x9F\x92\xB0 <b>Locked Profit:</b> +" . number_format($lockedProfit, 2) . " USDT\n";
+		$message .= "\xF0\x9F\x93\x89 <b>Closed Volume:</b> " . $this->formatVolume($closedVolume) . "\n";
+		if ($slPrice !== null) {
+			$message .= "\xF0\x9F\x9B\x91 <b>New SL:</b> " . $this->formatPrice($slPrice) . " (breakeven)\n";
+		}
+
+		$this->logger->info("Breakeven Lock: {$direction} {$pair} locked +" . number_format($lockedProfit, 2) . " USDT");
+		$this->sendTelegramNotification($message);
+		$task->remove();
+	}
+
+	/**
+	 * Format a price value for display. Uses up to 8 decimal places, trimming trailing zeros.
+	 */
+	private function formatPrice(float $price): string {
+		if ($price >= 1.0) {
+			return number_format($price, 4);
+		}
+		// For very small prices (memecoins), show more decimals.
+		$formatted = rtrim(rtrim(number_format($price, 8), '0'), '.');
+		return $formatted ?: '0';
+	}
+
+	/**
+	 * Format a volume value for display.
+	 */
+	private function formatVolume(float $volume): string {
+		if ($volume >= 1000) {
+			return number_format($volume, 2);
+		}
+		return rtrim(rtrim(number_format($volume, 6), '0'), '.');
+	}
+
+	/**
+	 * Format a duration in seconds to a human-readable string (e.g. "2d 5h 30m").
+	 */
+	private function formatDuration(int $seconds): string {
+		if ($seconds < 60) {
+			return "{$seconds}s";
+		}
+
+		$days = intdiv($seconds, 86400);
+		$hours = intdiv($seconds % 86400, 3600);
+		$minutes = intdiv($seconds % 3600, 60);
+
+		$parts = [];
+		if ($days > 0) {
+			$parts[] = "{$days}d";
+		}
+		if ($hours > 0) {
+			$parts[] = "{$hours}h";
+		}
+		if ($minutes > 0) {
+			$parts[] = "{$minutes}m";
+		}
+
+		return implode(' ', $parts);
 	}
 
 	private function sendTelegramNotification(string $message, ?string $photoPath = null): void {

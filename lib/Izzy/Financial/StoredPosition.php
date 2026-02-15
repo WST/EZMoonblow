@@ -11,6 +11,7 @@ use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
 use Izzy\System\Logger;
+use Izzy\System\QueueTask;
 use Izzy\Traits\PositionTrait;
 
 /**
@@ -535,6 +536,15 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 
 		// Whatever we did, we need to update the update time.
 		$this->setUpdatedAt(time());
+
+		// Detect transition to FINISHED and send Telegram notification.
+		// This works universally for all exchanges (spot, futures) and strategies.
+		$newStatus = $this->getStatus();
+		if ($newStatus->isFinished() && !$currentStatus->isFinished()) {
+			if (!Logger::getLogger()->isBacktestMode()) {
+				QueueTask::addTelegramNotification_positionClosed($market, $this);
+			}
+		}
 
 		// Save the changes.
 		return self::save();

@@ -11,7 +11,7 @@ use Izzy\Interfaces\IStoredPosition;
 /**
  * Base class for Dollar-Cost Averaging (DCA) strategies.
  */
-abstract class AbstractDCAStrategy extends Strategy
+abstract class AbstractDCAStrategy extends AbstractStrategy
 {
 	protected DCASettings $dcaSettings;
 

@@ -8,6 +8,8 @@ use Izzy\Enums\TaskRecipientEnum;
 use Izzy\Enums\TaskStatusEnum;
 use Izzy\Enums\TaskTypeEnum;
 use Izzy\Financial\Market;
+use Izzy\Interfaces\IMarket;
+use Izzy\Interfaces\IStoredPosition;
 use Izzy\RealApplications\Analyzer;
 use Izzy\RealApplications\Notifier;
 use Izzy\System\Database\Database;
@@ -63,6 +65,112 @@ class QueueTask extends SurrogatePKDatabaseRecord
 
 		// Saving the newly created task.
 		$task->save();
+	}
+
+	/**
+	 * Notify Telegram that a new position has been opened.
+	 *
+	 * @param IMarket $market     Market the position was opened on.
+	 * @param IStoredPosition $position  The opened position.
+	 */
+	public static function addTelegramNotification_positionOpened(IMarket $market, IStoredPosition $position): void {
+		$database = $market->getDatabase();
+		$appName = Notifier::getApplicationName();
+
+		$attributes = self::buildPositionAttributes($market, $position);
+
+		$row = [
+			self::FCreatedAt => time(),
+			self::FAttributes => json_encode($attributes),
+			self::FRecipient => $appName,
+			self::FSender => TaskRecipientEnum::TRADER->value,
+			self::FType => TaskTypeEnum::TELEGRAM_POSITION_OPENED->value,
+			self::FStatus => TaskStatusEnum::PENDING->value,
+		];
+
+		$task = new self($database, $row);
+		$task->save();
+	}
+
+	/**
+	 * Notify Telegram that a position has been closed (TP, SL, or other reason).
+	 *
+	 * @param IMarket $market           Market the position was on.
+	 * @param IStoredPosition $position  The closed position (with final PnL data).
+	 */
+	public static function addTelegramNotification_positionClosed(IMarket $market, IStoredPosition $position): void {
+		$database = $market->getDatabase();
+		$appName = Notifier::getApplicationName();
+
+		$attributes = self::buildPositionAttributes($market, $position);
+		$attributes['pnl'] = $position->getUnrealizedPnL()->getAmount();
+		$attributes['finishReason'] = $position->getFinishReason()?->value ?? 'unknown';
+		$attributes['duration'] = $position->getFinishedAt() - $position->getCreatedAt();
+
+		$row = [
+			self::FCreatedAt => time(),
+			self::FAttributes => json_encode($attributes),
+			self::FRecipient => $appName,
+			self::FSender => TaskRecipientEnum::TRADER->value,
+			self::FType => TaskTypeEnum::TELEGRAM_POSITION_CLOSED->value,
+			self::FStatus => TaskStatusEnum::PENDING->value,
+		];
+
+		$task = new self($database, $row);
+		$task->save();
+	}
+
+	/**
+	 * Notify Telegram that Breakeven Lock has been executed on a position.
+	 *
+	 * @param IMarket $market           Market the position is on.
+	 * @param IStoredPosition $position  The position after BL execution.
+	 * @param float $closedVolume        Volume that was partially closed.
+	 * @param float $lockedProfit        Profit locked by the partial close.
+	 */
+	public static function addTelegramNotification_breakevenLock(
+		IMarket $market,
+		IStoredPosition $position,
+		float $closedVolume,
+		float $lockedProfit,
+	): void {
+		$database = $market->getDatabase();
+		$appName = Notifier::getApplicationName();
+
+		$attributes = self::buildPositionAttributes($market, $position);
+		$attributes['closedVolume'] = $closedVolume;
+		$attributes['lockedProfit'] = $lockedProfit;
+
+		$row = [
+			self::FCreatedAt => time(),
+			self::FAttributes => json_encode($attributes),
+			self::FRecipient => $appName,
+			self::FSender => TaskRecipientEnum::TRADER->value,
+			self::FType => TaskTypeEnum::TELEGRAM_BREAKEVEN_LOCK->value,
+			self::FStatus => TaskStatusEnum::PENDING->value,
+		];
+
+		$task = new self($database, $row);
+		$task->save();
+	}
+
+	/**
+	 * Build common position attributes for Telegram notification tasks.
+	 */
+	private static function buildPositionAttributes(IMarket $market, IStoredPosition $position): array {
+		return [
+			'pair' => $market->getTicker(),
+			'timeframe' => $market->getPair()->getTimeframe()->value,
+			'marketType' => $market->getPair()->getMarketType()->value,
+			'exchange' => $market->getExchange()->getName(),
+			'direction' => $position->getDirection()->value,
+			'entryPrice' => $position->getAverageEntryPrice()->getAmount(),
+			'volume' => $position->getVolume()->getAmount(),
+			'currentPrice' => $position->getCurrentPrice()->getAmount(),
+			'slPrice' => $position->getStopLossPrice()?->getAmount(),
+			'tpPrice' => $position->getTakeProfitPrice()?->getAmount(),
+			'leverage' => $market->getPair()->getLeverage(),
+		];
 	}
 
 	public static function updateChart(Market $sender): void {

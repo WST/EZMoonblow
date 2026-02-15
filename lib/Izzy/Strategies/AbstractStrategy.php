@@ -9,7 +9,7 @@ use Izzy\Interfaces\IStrategy;
 /**
  * Base class for all trading strategies.
  */
-abstract class Strategy implements IStrategy
+abstract class AbstractStrategy implements IStrategy
 {
 	/**
 	 * Market this strategy operates on.
