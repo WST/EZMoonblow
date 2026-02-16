@@ -28,11 +28,52 @@ class Money
 		return $this->currency;
 	}
 
-	public function format($format = '%.2f', bool $appendCurrency = true): string {
+	/**
+	 * Format the amount with optional currency suffix.
+	 *
+	 * @param string $format sprintf format string for the amount.
+	 * @param bool $appendCurrency Whether to append the currency name after the amount.
+	 * @return string Formatted string like "0.0047 USDT".
+	 */
+	public function format(string $format = '%.4f', bool $appendCurrency = true): string {
 		$result = sprintf($format, $this->amount);
-		if ($appendCurrency)
+		if ($appendCurrency) {
 			$result .= " $this->currency";
+		}
 		return $result;
+	}
+
+	/**
+	 * Format for display in UI: compact currency symbol before the number.
+	 * USDT → ₮1,234.5678, BTC → BTC 0.0012, etc.
+	 *
+	 * Decimal places are chosen automatically:
+	 *   - fractional part < 0.01 and non-zero → 4 decimals (e.g. ₮0.0047)
+	 *   - fractional part < 0.1  and non-zero → 3 decimals (e.g. ₮1.053)
+	 *   - otherwise                           → 2 decimals (e.g. ₮1,600.00)
+	 *
+	 * @return string Formatted string like "₮0.0047" or "1,600.00 RATS".
+	 */
+	public function formatDisplay(): string {
+		$abs = abs($this->amount);
+		$frac = $abs - floor($abs);
+
+		if ($frac == 0) {
+			$decimals = 0;
+		} elseif ($frac < 0.01) {
+			$decimals = 4;
+		} elseif ($frac < 0.1) {
+			$decimals = 3;
+		} else {
+			$decimals = 2;
+		}
+
+		$formatted = number_format(abs($this->amount), $decimals, '.', ',');
+		$sign = $this->amount < 0 ? '-' : '';
+		if ($this->currency === 'USDT') {
+			return "{$sign}₮{$formatted}";
+		}
+		return "{$sign}{$formatted} {$this->currency}";
 	}
 
 	public function __toString(): string {

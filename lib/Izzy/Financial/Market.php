@@ -608,7 +608,11 @@ class Market implements IMarket
 			return false;
 		}
 
-		$position = $this->getCurrentPosition();
+		// Use getStoredPosition() directly instead of getCurrentPosition().
+		// exchange->openPosition() already creates and saves a StoredPosition to DB.
+		// getCurrentPosition() has a fallback to getCurrentFuturesPosition() which
+		// would create a DUPLICATE position from exchange data if the DB lookup fails.
+		$position = $this->getStoredPosition();
 		if ($position && !Logger::getLogger()->isBacktestMode()) {
 			QueueTask::addTelegramNotification_positionOpened($this, $position);
 		}
@@ -1019,7 +1023,8 @@ class Market implements IMarket
 			}
 
 			// The position was already created and saved by exchange->openPosition().
-			$position = $this->getCurrentPosition();
+			// Use getStoredPosition() to avoid duplicate creation via exchange fallback.
+			$position = $this->getStoredPosition();
 			if ($position && !Logger::getLogger()->isBacktestMode()) {
 				QueueTask::addTelegramNotification_positionOpened($this, $position);
 			}

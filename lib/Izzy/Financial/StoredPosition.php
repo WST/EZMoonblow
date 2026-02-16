@@ -167,7 +167,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @inheritDoc
 	 */
 	public function getVolume(): Money {
-		return Money::from($this->row[self::FVolume]);
+		return Money::from($this->row[self::FVolume], $this->getBaseCurrency());
 	}
 
 	/**
@@ -235,6 +235,30 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	public function isActive(): bool {
 		$status = $this->getStatus();
 		return $status->isOpen() || $status->isPending();
+	}
+
+	/**
+	 * Check if Breakeven Lock has been executed on this position.
+	 *
+	 * After BL, the SL is moved to ~1 tick from the average entry price.
+	 * We detect this by checking that SL is set and its relative distance
+	 * from entry is less than 0.5%.  This is a display-only heuristic;
+	 * the authoritative check lives in AbstractSingleEntryStrategy and
+	 * uses the exact tick size from the exchange.
+	 *
+	 * @return bool True if BL appears to have been executed.
+	 */
+	public function isBreakevenLocked(): bool {
+		$slPrice = $this->getStopLossPrice();
+		if ($slPrice === null) {
+			return false;
+		}
+		$entryPrice = $this->getAverageEntryPrice();
+		if ($entryPrice->getAmount() == 0) {
+			return false;
+		}
+		$relativeDistance = abs($slPrice->getAmount() - $entryPrice->getAmount()) / $entryPrice->getAmount();
+		return $relativeDistance < 0.005;
 	}
 
 	/**
