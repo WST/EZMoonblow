@@ -29,6 +29,6 @@ class InitialEntryVolume extends AbstractStrategyParameter
 	}
 
 	protected function getClassDefault(): string {
-		return '1%';
+		return '7%';
 	}
 }
