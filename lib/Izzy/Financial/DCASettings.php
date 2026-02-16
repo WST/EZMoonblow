@@ -1,12 +1,10 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\EntryVolumeModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Financial\Money;
-use Izzy\Financial\TradingContext;
 
 /**
  * Represents a DCA strategy settings.

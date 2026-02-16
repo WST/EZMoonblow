@@ -1,11 +1,17 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use Izzy\Enums\EntryVolumeModeEnum;
 use Izzy\Enums\MarginModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Financial\Money;
+use Izzy\Financial\Parameters\BreakevenLockClosePercent;
+use Izzy\Financial\Parameters\BreakevenLockEnabled;
+use Izzy\Financial\Parameters\BreakevenLockTriggerPercent;
+use Izzy\Financial\Parameters\EntryVolume;
+use Izzy\Financial\Parameters\StopLossPercent;
+use Izzy\Financial\Parameters\TakeProfitPercent;
+use Izzy\Financial\Parameters\UseIsolatedMargin;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Logger;
@@ -59,12 +65,12 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		$this->entryVolume = $parsed->getValue();
 		$this->volumeMode = $parsed->getMode();
 
-		$this->stopLossPercent = (float)str_replace('%', '', $this->params['stopLossPercent'] ?? '2');
-		$this->takeProfitPercent = (float)str_replace('%', '', $this->params['takeProfitPercent'] ?? '3');
+		$this->stopLossPercent = (float)str_replace('%', '', $this->params['stopLossPercent'] ?? '5');
+		$this->takeProfitPercent = (float)str_replace('%', '', $this->params['takeProfitPercent'] ?? '10');
 		$this->useIsolatedMargin = filter_var($this->params['useIsolatedMargin'] ?? false, FILTER_VALIDATE_BOOLEAN);
 		$this->breakevenLockEnabled = filter_var($this->params['breakevenLockEnabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->breakevenLockClosePercent = (float)($this->params['breakevenLockClosePercent'] ?? 50);
-		$this->breakevenLockTriggerPercent = (float)($this->params['breakevenLockTriggerPercent'] ?? 50);
+		$this->breakevenLockClosePercent = (float)($this->params['breakevenLockClosePercent'] ?? 25);
+		$this->breakevenLockTriggerPercent = (float)($this->params['breakevenLockTriggerPercent'] ?? 10);
 	}
 
 	/**
@@ -368,39 +374,29 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	}
 
 	// ------------------------------------------------------------------
-	// Display methods (mirroring AbstractDCAStrategy)
+	// Parameter definitions
 	// ------------------------------------------------------------------
 
 	/**
-	 * Convert machine-readable parameter names to human-readable format.
+	 * @inheritDoc
+	 *
+	 * @return AbstractStrategyParameter[]
 	 */
-	public static function formatParameterName(string $paramName): string {
-		$names = [
-			'entryVolume' => 'Entry volume (USDT, %, %M, or base currency)',
-			'stopLossPercent' => 'Stop-loss distance (%)',
-			'takeProfitPercent' => 'Take-profit distance (%)',
-			'useIsolatedMargin' => 'Use isolated margin',
-			'breakevenLockEnabled' => 'Breakeven Lock enabled',
-			'breakevenLockTriggerPercent' => 'Breakeven Lock trigger (% of way to TP)',
-			'breakevenLockClosePercent' => 'Breakeven Lock close portion (%)',
+	public static function getParameters(): array {
+		return [
+			new EntryVolume(),
+			new StopLossPercent(),
+			new TakeProfitPercent(),
+			new UseIsolatedMargin(),
+			new BreakevenLockEnabled(),
+			new BreakevenLockTriggerPercent(),
+			new BreakevenLockClosePercent(),
 		];
-		return $names[$paramName] ?? $paramName;
 	}
 
-	/**
-	 * Format parameter value for human-readable display.
-	 */
-	public static function formatParameterValue(string $paramName, string $value): string {
-		$booleanParams = ['useIsolatedMargin', 'breakevenLockEnabled'];
-		if (in_array($paramName, $booleanParams)) {
-			return match (strtolower($value)) {
-				'yes', '1', 'true' => 'Yes',
-				'no', '0', 'false', '' => 'No',
-				default => $value,
-			};
-		}
-		return $value;
-	}
+	// ------------------------------------------------------------------
+	// Display
+	// ------------------------------------------------------------------
 
 	/**
 	 * Get strategy parameters filtered for display.

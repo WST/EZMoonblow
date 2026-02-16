@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 /**
  * Result of strategy exchange settings validation.

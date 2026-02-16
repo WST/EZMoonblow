@@ -1,11 +1,10 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\EntryVolumeModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Financial\TradingContext;
 
 /**
  * Represents a DCA order grid with support for different offset calculation modes.

@@ -2,7 +2,7 @@
 
 namespace Izzy\Interfaces;
 
-use Izzy\Strategies\StrategyValidationResult;
+use Izzy\Financial\StrategyValidationResult;
 
 interface IStrategy
 {

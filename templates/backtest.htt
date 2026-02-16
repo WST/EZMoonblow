@@ -1,0 +1,1158 @@
+{% extends 'base-page.htt' %}
+
+{% block extracss %}
+<style>
+	.backtest-layout {
+		display: grid;
+		grid-template-columns: 320px 1fr 300px;
+		gap: 16px;
+		padding: 16px;
+		min-height: 600px;
+	}
+	.backtest-sidebar {
+		background: #fff;
+		border-radius: 6px;
+		padding: 16px;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	}
+	.backtest-sidebar h3 {
+		margin-top: 0;
+		margin-bottom: 12px;
+		font-size: 14px;
+		color: #003366;
+	}
+	.backtest-sidebar label {
+		display: block;
+		font-size: 12px;
+		font-weight: bold;
+		margin-bottom: 3px;
+		color: #555;
+	}
+	.backtest-sidebar select,
+	.backtest-sidebar input[type="number"],
+	.backtest-sidebar input[type="text"] {
+		width: 100%;
+		padding: 6px 8px;
+		margin-bottom: 10px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 13px;
+		box-sizing: border-box;
+		font-family: inherit;
+	}
+	.backtest-sidebar select:focus,
+	.backtest-sidebar input:focus {
+		border-color: #005599;
+		outline: none;
+	}
+	#strategy-params-container {
+		border-top: 1px solid #eee;
+		padding-top: 8px;
+		margin-top: 4px;
+	}
+	#strategy-params-container .param-row label {
+		font-weight: normal;
+		color: #666;
+		font-size: 11px;
+	}
+	#strategy-params-container .param-row input[type="checkbox"] {
+		vertical-align: middle;
+		margin: 0;
+		cursor: pointer;
+	}
+	#btn-run-backtest {
+		width: 100%;
+		padding: 10px;
+		background: #005599;
+		color: #fff;
+		border: none;
+		border-radius: 4px;
+		font-size: 14px;
+		cursor: pointer;
+		margin-top: 8px;
+		font-family: inherit;
+	}
+	#btn-run-backtest:hover {
+		background: #003366;
+	}
+	#btn-run-backtest:disabled {
+		background: #999;
+		cursor: not-allowed;
+	}
+	.backtest-main {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.chart-container {
+		background: #fff;
+		border-radius: 6px;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+		flex: 1;
+		min-height: 400px;
+		position: relative;
+	}
+	#chart {
+		width: 100%;
+		height: 100%;
+		min-height: 400px;
+	}
+	.playback-controls {
+		background: #fff;
+		border-radius: 6px;
+		padding: 10px 16px;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		font-size: 13px;
+	}
+	.playback-controls button {
+		padding: 6px 14px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		background: #f9f9f9;
+		cursor: pointer;
+		font-size: 13px;
+		font-family: inherit;
+	}
+	.playback-controls button:hover {
+		background: #e9e9e9;
+	}
+	.speed-control {
+		display: flex;
+		align-items: center;
+		gap: 6px;
+	}
+	.speed-control input[type="range"] {
+		width: 100px;
+	}
+	#progress-bar-container {
+		flex: 1;
+		height: 6px;
+		background: #e0e0e0;
+		border-radius: 3px;
+		overflow: hidden;
+	}
+	#progress-bar {
+		height: 100%;
+		width: 0%;
+		background: #005599;
+		transition: width 0.2s;
+	}
+	#progress-text {
+		min-width: 80px;
+		text-align: right;
+		color: #666;
+		font-size: 12px;
+	}
+	/* Right sidebar */
+	.backtest-right-sidebar {
+		display: flex;
+		flex-direction: column;
+		gap: 12px;
+	}
+	.right-sidebar-panel {
+		background: #fff;
+		border-radius: 6px;
+		padding: 14px;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+	}
+	.right-sidebar-panel h3 {
+		margin: 0 0 10px 0;
+		font-size: 13px;
+		color: #003366;
+		text-transform: uppercase;
+		letter-spacing: 0.5px;
+	}
+	.info-item {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding: 4px 0;
+		border-bottom: 1px solid #f0f0f0;
+	}
+	.info-item:last-child { border-bottom: none; }
+	.info-item .info-label {
+		font-size: 11px;
+		color: #999;
+		text-transform: uppercase;
+	}
+	.info-item .info-value {
+		font-size: 14px;
+		font-weight: bold;
+		color: #333;
+	}
+	.info-value.positive { color: #2e7d32; }
+	.info-value.negative { color: #c62828; }
+	/* DCA grid tables */
+	.dca-grid-section { margin-bottom: 12px; }
+	.dca-grid-section:last-child { margin-bottom: 0; }
+	.dca-grid-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 11px;
+	}
+	.dca-grid-table caption {
+		text-align: left;
+		font-weight: bold;
+		font-size: 12px;
+		color: #003366;
+		padding-bottom: 4px;
+	}
+	.dca-grid-table th {
+		background: #5c7589;
+		color: #dfefff;
+		padding: 4px 6px;
+		text-align: right;
+		font-weight: normal;
+		font-size: 10px;
+		text-transform: uppercase;
+	}
+	.dca-grid-table th:first-child { text-align: center; }
+	.dca-grid-table td {
+		padding: 3px 6px;
+		text-align: right;
+		border-bottom: 1px solid #e8e8e8;
+	}
+	.dca-grid-table td:first-child { text-align: center; font-weight: bold; }
+	.dca-grid-table tr:nth-child(even) td { background: #f9f9f9; }
+	.dca-grid-table .offset-danger { color: #c62828; font-weight: bold; }
+	.dca-grid-summary {
+		font-size: 11px;
+		color: #666;
+		margin-top: 4px;
+		line-height: 1.6;
+	}
+	.dca-grid-summary strong { color: #333; }
+	#dca-grids-container .dca-empty-hint {
+		color: #999;
+		font-size: 12px;
+		font-style: italic;
+	}
+	.results-panel {
+		background: #fff;
+		border-radius: 6px;
+		padding: 16px;
+		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+		display: none;
+	}
+	.results-panel h3 {
+		margin-top: 0;
+		color: #003366;
+	}
+	.results-grid {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+		gap: 12px;
+	}
+	.results-grid .result-item {
+		padding: 8px 12px;
+		background: #f8f9fa;
+		border-radius: 4px;
+	}
+	.results-grid .result-item .result-label {
+		font-size: 11px;
+		color: #999;
+		text-transform: uppercase;
+	}
+	.results-grid .result-item .result-value {
+		font-size: 16px;
+		font-weight: bold;
+	}
+	#status-text {
+		font-size: 12px;
+		color: #666;
+		font-style: italic;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="backtest-layout">
+	<div class="backtest-sidebar">
+		<h3>Backtest Configuration</h3>
+
+		<label for="sel-pair">Pair</label>
+		<select id="sel-pair">
+			<option value="">Loading...</option>
+		</select>
+
+		<label for="sel-strategy">Strategy</label>
+		<select id="sel-strategy">
+			<option value="">Loading...</option>
+		</select>
+
+		<div id="strategy-params-container"></div>
+
+		<label for="inp-days">Period (days)</label>
+		<input type="number" id="inp-days" value="30" min="1" max="365">
+
+		<label for="inp-balance">Initial Balance (USDT)</label>
+		<input type="number" id="inp-balance" value="10000" min="1" step="100">
+
+		<label for="inp-leverage">Leverage</label>
+		<input type="number" id="inp-leverage" value="5" min="1" max="125">
+
+		<button id="btn-run-backtest">Run Backtest</button>
+		<div id="status-text"></div>
+	</div>
+
+	<div class="backtest-main">
+		<div class="chart-container">
+			<div id="chart"></div>
+		</div>
+
+		<div class="playback-controls">
+			<button id="btn-clear">Clear</button>
+			<div class="speed-control">
+				<span>Speed:</span>
+				<input type="range" id="speed-slider" min="0" max="6" value="3" step="1">
+				<span id="speed-label">10/s</span>
+			</div>
+			<div id="progress-bar-container">
+				<div id="progress-bar"></div>
+			</div>
+			<span id="progress-text">0 / 0</span>
+		</div>
+
+		<div class="results-panel" id="results-panel">
+			<h3>Backtest Results</h3>
+			<div class="results-grid" id="results-grid"></div>
+		</div>
+	</div>
+
+	<div class="backtest-right-sidebar">
+		<div class="right-sidebar-panel">
+			<h3>Simulation</h3>
+			<div class="info-item">
+				<span class="info-label">Balance</span>
+				<span class="info-value" id="info-balance">--</span>
+			</div>
+			<div class="info-item">
+				<span class="info-label">Position</span>
+				<span class="info-value" id="info-position">--</span>
+			</div>
+			<div class="info-item">
+				<span class="info-label">PnL</span>
+				<span class="info-value" id="info-pnl">--</span>
+			</div>
+			<div class="info-item">
+				<span class="info-label">Status</span>
+				<span class="info-value" id="info-status">Idle</span>
+			</div>
+		</div>
+
+		<div class="right-sidebar-panel" id="dca-grids-panel">
+			<h3>Order Grid</h3>
+			<div id="dca-grids-container"></div>
+		</div>
+	</div>
+</div>
+
+<script src="https://unpkg.com/lightweight-charts@4.2.2/dist/lightweight-charts.standalone.production.js"></script>
+<script>
+(function() {
+	'use strict';
+
+	// =========================================================================
+	// Speed steps: index -> candles per second (0 = instant)
+	// =========================================================================
+	const SPEED_STEPS = [1, 2, 5, 10, 25, 50, 0];
+	const SPEED_LABELS = ['1/s', '2/s', '5/s', '10/s', '25/s', '50/s', '\u221E'];
+
+	// =========================================================================
+	// State
+	// =========================================================================
+	let strategies = [];
+	let pairs = [];
+	let eventBuffer = [];
+	let playbackSpeed = SPEED_STEPS[3]; // 10/s default
+	let playbackTimer = null;
+	let totalCandles = 0;
+	let renderedCandles = 0;
+	let sessionId = null;
+	let sseSource = null;
+	let initialBalance = 0;
+	let currentBalance = 0;
+	let currentPosition = null;
+
+	// Liquidation alarm sound (preloaded).
+	const liquidationSound = new Audio('/extras/liquidated.m4a');
+	liquidationSound.preload = 'auto';
+
+	// TradingView chart objects.
+	let chart = null;
+	let candleSeries = null;
+	let bbUpperSeries = null;
+	let bbMiddleSeries = null;
+	let bbLowerSeries = null;
+	let markers = [];
+
+	// =========================================================================
+	// DOM references
+	// =========================================================================
+	const elPair = document.getElementById('sel-pair');
+	const elStrategy = document.getElementById('sel-strategy');
+	const elParamsContainer = document.getElementById('strategy-params-container');
+	const elDays = document.getElementById('inp-days');
+	const elBalance = document.getElementById('inp-balance');
+	const elLeverage = document.getElementById('inp-leverage');
+	const elRunBtn = document.getElementById('btn-run-backtest');
+	const elStatusText = document.getElementById('status-text');
+	const elClearBtn = document.getElementById('btn-clear');
+	const elSpeedSlider = document.getElementById('speed-slider');
+	const elSpeedLabel = document.getElementById('speed-label');
+	const elProgressBar = document.getElementById('progress-bar');
+	const elProgressText = document.getElementById('progress-text');
+	const elInfoBalance = document.getElementById('info-balance');
+	const elInfoPosition = document.getElementById('info-position');
+	const elInfoPnl = document.getElementById('info-pnl');
+	const elInfoStatus = document.getElementById('info-status');
+	const elResultsPanel = document.getElementById('results-panel');
+	const elResultsGrid = document.getElementById('results-grid');
+	const elDCAGridsPanel = document.getElementById('dca-grids-panel');
+	const elDCAGridsContainer = document.getElementById('dca-grids-container');
+
+	// =========================================================================
+	// Initialization
+	// =========================================================================
+	async function init() {
+		const [stratResp, pairsResp] = await Promise.all([
+			fetch('/cgi-bin/api.pl?action=get_strategies'),
+			fetch('/cgi-bin/api.pl?action=get_pairs'),
+		]);
+		strategies = await stratResp.json();
+		pairs = await pairsResp.json();
+
+		// Populate pairs dropdown (each exchange+ticker+marketType+timeframe combo is unique).
+		elPair.innerHTML = '';
+		pairs.forEach(p => {
+			const opt = document.createElement('option');
+			opt.value = JSON.stringify(p);
+			opt.textContent = p.ticker + ' (' + p.exchange + ' ' + p.marketType + ' ' + p.timeframe + ')';
+			elPair.appendChild(opt);
+		});
+
+		// Populate strategies dropdown.
+		elStrategy.innerHTML = '';
+		strategies.forEach(s => {
+			const opt = document.createElement('option');
+			opt.value = s.name;
+			opt.textContent = s.name;
+			elStrategy.appendChild(opt);
+		});
+		renderStrategyParams();
+
+		// Initialize the chart.
+		initChart();
+	}
+
+	function renderStrategyParams() {
+		const name = elStrategy.value;
+		const strat = strategies.find(s => s.name === name);
+		elParamsContainer.innerHTML = '';
+		if (!strat) return;
+		strat.params.forEach(p => {
+			const row = document.createElement('div');
+			row.className = 'param-row';
+			const lbl = document.createElement('label');
+			lbl.setAttribute('for', 'param-' + p.key);
+
+			let control;
+			switch (p.type) {
+				case 'bool':
+					control = document.createElement('input');
+					control.type = 'checkbox';
+					control.id = 'param-' + p.key;
+					control.name = p.key;
+					control.dataset.paramType = 'bool';
+					control.checked = (p.default === 'true' || p.default === '1' || p.default === 'yes');
+					lbl.style.display = 'inline';
+					lbl.style.fontWeight = 'normal';
+					lbl.style.marginLeft = '6px';
+					lbl.style.cursor = 'pointer';
+					lbl.textContent = p.label;
+					row.style.marginBottom = '8px';
+					row.appendChild(control);
+					row.appendChild(lbl);
+					elParamsContainer.appendChild(row);
+					return;
+
+				case 'int':
+					control = document.createElement('input');
+					control.type = 'number';
+					control.step = '1';
+					control.min = '0';
+					control.value = p.default;
+					break;
+
+				case 'float':
+					control = document.createElement('input');
+					control.type = 'number';
+					control.step = 'any';
+					control.min = '0';
+					control.value = p.default;
+					break;
+
+				case 'select':
+					control = document.createElement('select');
+					if (p.options) {
+						Object.entries(p.options).forEach(([val, label]) => {
+							const opt = document.createElement('option');
+							opt.value = val;
+							opt.textContent = label;
+							if (val === p.default) opt.selected = true;
+							control.appendChild(opt);
+						});
+					}
+					break;
+
+				default: // 'string' or unknown
+					control = document.createElement('input');
+					control.type = 'text';
+					control.value = p.default;
+					break;
+			}
+
+			control.id = 'param-' + p.key;
+			control.name = p.key;
+			control.dataset.paramType = p.type;
+			lbl.textContent = p.label;
+			row.appendChild(lbl);
+			row.appendChild(control);
+			elParamsContainer.appendChild(row);
+		});
+
+		// Attach live-update listeners for DCA grid preview.
+		attachParamListeners();
+		renderDCAGrids();
+	}
+
+	// =========================================================================
+	// DCA Grid Preview
+	// =========================================================================
+
+	/** Collect current strategy params from the form. */
+	function collectParams() {
+		const params = {};
+		elParamsContainer.querySelectorAll('input, select').forEach(el => {
+			if (el.dataset.paramType === 'bool') {
+				params[el.name] = el.checked ? 'true' : 'false';
+			} else {
+				params[el.name] = el.value;
+			}
+		});
+		return params;
+	}
+
+	/** Attach input/change listeners to every param control. */
+	function attachParamListeners() {
+		elParamsContainer.querySelectorAll('input, select').forEach(el => {
+			el.addEventListener('input', renderDCAGrids);
+			el.addEventListener('change', renderDCAGrids);
+		});
+	}
+
+	/** Parse entry volume string into {value, mode}. */
+	function parseEntryVolume(raw) {
+		const s = String(raw).trim();
+		if (/^[\d.]+\s*%\s*[Mm]/i.test(s)) {
+			return { value: parseFloat(s), mode: 'PERCENT_MARGIN' };
+		}
+		if (/^[\d.]+\s*%$/.test(s)) {
+			return { value: parseFloat(s), mode: 'PERCENT_BALANCE' };
+		}
+		return { value: parseFloat(s) || 0, mode: 'ABSOLUTE' };
+	}
+
+	/** Resolve raw volume to USDT given mode, balance, and leverage. */
+	function resolveVolume(rawVolume, mode, balance, leverage) {
+		switch (mode) {
+			case 'PERCENT_BALANCE': return balance * (rawVolume / 100);
+			case 'PERCENT_MARGIN':  return balance * leverage * (rawVolume / 100);
+			default:                return rawVolume;
+		}
+	}
+
+	/**
+	 * Build a DCA grid (array of levels) from parameters.
+	 * Mirrors PHP DCAOrderGrid::fromParameters + buildOrderMap.
+	 */
+	function buildDCAGrid(numLevels, entryVol, volMult, priceDev, priceDevMult, direction, offsetMode) {
+		const sign = direction === 'LONG' ? -1 : 1;
+		const levels = [];
+		let volume = entryVol;
+
+		// Phase 1: build raw level offsets (like fromParameters).
+		const rawLevels = [];
+		let currentDev = priceDev;
+		for (let i = 0; i < numLevels; i++) {
+			rawLevels.push({ volume: volume, offset: i === 0 ? 0 : currentDev });
+			volume *= volMult;
+			if (i > 0) currentDev *= priceDevMult;
+		}
+
+		// Phase 2: compute cumulative offsets (like buildOrderMap).
+		if (offsetMode !== 'FROM_PREVIOUS') {
+			// FROM_ENTRY: accumulate offsets.
+			let total = 0;
+			for (let i = 0; i < rawLevels.length; i++) {
+				total += rawLevels[i].offset;
+				levels.push({
+					level: i === 0 ? 'Entry' : i,
+					volume: rawLevels[i].volume,
+					offset: sign * total,
+				});
+			}
+		} else {
+			// FROM_PREVIOUS: compound price ratio.
+			let priceRatio = 1.0;
+			for (let i = 0; i < rawLevels.length; i++) {
+				const step = rawLevels[i].offset;
+				if (step > 0) {
+					priceRatio *= direction === 'LONG'
+						? (1 - step / 100)
+						: (1 + step / 100);
+				}
+				const absOffset = direction === 'LONG'
+					? (1 - priceRatio) * 100
+					: (priceRatio - 1) * 100;
+				levels.push({
+					level: i === 0 ? 'Entry' : i,
+					volume: rawLevels[i].volume,
+					offset: sign * absOffset,
+				});
+			}
+		}
+		return levels;
+	}
+
+	/** Render DCA grid tables in the right sidebar. */
+	function renderDCAGrids() {
+		const strat = strategies.find(s => s.name === elStrategy.value);
+		if (!strat) {
+			elDCAGridsPanel.style.display = 'none';
+			return;
+		}
+
+		if (strat.type !== 'DCA') {
+			elDCAGridsPanel.style.display = 'none';
+			return;
+		}
+
+		elDCAGridsPanel.style.display = '';
+		const params = collectParams();
+		const balance = parseFloat(elBalance.value) || 0;
+		const leverage = parseInt(elLeverage.value) || 1;
+		const offsetMode = params.offsetMode || 'FROM_ENTRY';
+
+		let html = '';
+
+		// Long grid.
+		const longLevels = parseInt(params.numberOfLevels) || 0;
+		if (longLevels > 0) {
+			const ev = parseEntryVolume(params.entryVolume || '100');
+			const grid = buildDCAGrid(
+				longLevels,
+				ev.value,
+				parseFloat(params.volumeMultiplier) || 1,
+				parseFloat(String(params.priceDeviation || '0').replace('%', '')),
+				parseFloat(params.priceDeviationMultiplier) || 1,
+				'LONG', offsetMode
+			);
+			const ep = parseFloat(String(params.expectedProfit || '0').replace('%', ''));
+			html += renderGridTable(grid, 'Long', ev.mode, balance, leverage, ep);
+		}
+
+		// Short grid.
+		const shortLevels = parseInt(params.numberOfLevelsShort) || 0;
+		if (shortLevels > 0) {
+			const ev = parseEntryVolume(params.entryVolumeShort || '100');
+			const grid = buildDCAGrid(
+				shortLevels,
+				ev.value,
+				parseFloat(params.volumeMultiplierShort) || 1,
+				parseFloat(String(params.priceDeviationShort || '0').replace('%', '')),
+				parseFloat(params.priceDeviationMultiplierShort) || 1,
+				'SHORT', offsetMode
+			);
+			const ep = parseFloat(String(params.expectedProfitShort || '0').replace('%', ''));
+			html += renderGridTable(grid, 'Short', ev.mode, balance, leverage, ep);
+		}
+
+		if (!html) {
+			html = '<p class="dca-empty-hint">No DCA levels configured.</p>';
+		}
+
+		elDCAGridsContainer.innerHTML = html;
+	}
+
+	/** Render a single grid direction into an HTML table string. */
+	function renderGridTable(levels, label, volumeMode, balance, leverage, expectedProfit) {
+		let totalVol = 0;
+		let hasWarning = false;
+
+		let rows = '';
+		for (const lv of levels) {
+			const resolved = resolveVolume(lv.volume, volumeMode, balance, leverage);
+			totalVol += resolved;
+			const offsetDanger = (label === 'Long' && lv.offset < -100);
+			if (offsetDanger) hasWarning = true;
+			const offsetCls = offsetDanger ? ' class="offset-danger"' : '';
+			rows += '<tr>'
+				+ '<td>' + escapeHtml(String(lv.level)) + '</td>'
+				+ '<td>' + formatGridMoney(resolved) + '</td>'
+				+ '<td' + offsetCls + '>' + lv.offset.toFixed(2) + '%</td>'
+				+ '</tr>';
+		}
+
+		let s = '<div class="dca-grid-section">';
+		s += '<table class="dca-grid-table">';
+		s += '<caption>' + escapeHtml(label) + ' positions</caption>';
+		s += '<thead><tr><th>Level</th><th>Volume</th><th>Offset</th></tr></thead>';
+		s += '<tbody>' + rows + '</tbody>';
+		s += '</table>';
+		s += '<div class="dca-grid-summary">';
+		s += 'Max volume: <strong>' + formatGridMoney(totalVol) + '</strong>';
+		if (expectedProfit > 0) {
+			s += ' &middot; TP: <strong>' + expectedProfit.toFixed(2) + '%</strong>';
+		}
+		if (volumeMode !== 'ABSOLUTE') {
+			const modeLabel = volumeMode === 'PERCENT_BALANCE' ? '% balance' : '% margin';
+			s += ' &middot; Mode: <strong>' + modeLabel + '</strong>';
+		}
+		s += '</div>';
+		if (hasWarning) {
+			s += '<div style="color:#c62828;font-size:11px;margin-top:4px;font-weight:bold;">'
+				+ '\u26A0 Offset below \u2212100%: orders at zero price will never fill'
+				+ '</div>';
+		}
+		s += '</div>';
+		return s;
+	}
+
+	function formatGridMoney(v) {
+		return v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' USDT';
+	}
+
+	function initChart() {
+		const container = document.getElementById('chart');
+		chart = LightweightCharts.createChart(container, {
+			width: container.clientWidth,
+			height: container.clientHeight || 400,
+			layout: {
+				background: { type: 'solid', color: '#ffffff' },
+				textColor: '#333',
+				fontFamily: 'Tahoma, Arial, sans-serif',
+				fontSize: 12,
+			},
+			grid: {
+				vertLines: { color: '#f0f0f0' },
+				horzLines: { color: '#f0f0f0' },
+			},
+			crosshair: { mode: LightweightCharts.CrosshairMode.Normal },
+			timeScale: {
+				timeVisible: true,
+				secondsVisible: false,
+			},
+		});
+		candleSeries = chart.addCandlestickSeries({
+			upColor: '#26a69a',
+			downColor: '#ef5350',
+			borderVisible: false,
+			wickUpColor: '#26a69a',
+			wickDownColor: '#ef5350',
+		});
+		bbUpperSeries = chart.addLineSeries({ color: 'rgba(33, 150, 243, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+		bbMiddleSeries = chart.addLineSeries({ color: 'rgba(33, 150, 243, 0.6)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false });
+		bbLowerSeries = chart.addLineSeries({ color: 'rgba(33, 150, 243, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
+
+		// Resize handler.
+		const resizeObserver = new ResizeObserver(entries => {
+			const rect = entries[0].contentRect;
+			chart.applyOptions({ width: rect.width, height: rect.height });
+		});
+		resizeObserver.observe(container);
+	}
+
+	// =========================================================================
+	// Event handling
+	// =========================================================================
+	elStrategy.addEventListener('change', renderStrategyParams);
+	elBalance.addEventListener('input', renderDCAGrids);
+	elLeverage.addEventListener('input', renderDCAGrids);
+
+	elSpeedSlider.addEventListener('input', () => {
+		const idx = parseInt(elSpeedSlider.value);
+		playbackSpeed = SPEED_STEPS[idx];
+		elSpeedLabel.textContent = SPEED_LABELS[idx];
+		// Restart the timer with the new speed if currently playing.
+		if (playbackTimer) {
+			stopPlaybackTimer();
+			startPlaybackTimer();
+		}
+	});
+
+	elClearBtn.addEventListener('click', clearChart);
+
+	elRunBtn.addEventListener('click', runBacktest);
+
+	// =========================================================================
+	// Run backtest
+	// =========================================================================
+	async function runBacktest() {
+		const pairData = JSON.parse(elPair.value);
+		const strategyName = elStrategy.value;
+		const params = collectParams();
+
+		const body = {
+			pair: pairData.ticker,
+			exchangeName: pairData.exchange,
+			marketType: pairData.marketType,
+			timeframe: pairData.timeframe,
+			strategy: strategyName,
+			params: params,
+			days: parseInt(elDays.value),
+			initialBalance: parseFloat(elBalance.value),
+			leverage: parseInt(elLeverage.value),
+		};
+
+		elRunBtn.disabled = true;
+		elStatusText.textContent = 'Starting backtest...';
+		elInfoStatus.textContent = 'Starting...';
+		elResultsPanel.style.display = 'none';
+
+		// Reset state.
+		eventBuffer = [];
+		renderedCandles = 0;
+		totalCandles = 0;
+		markers = [];
+		currentPosition = null;
+		currentBalance = 0;
+		initialBalance = body.initialBalance;
+
+		// Clear chart.
+		candleSeries.setData([]);
+		bbUpperSeries.setData([]);
+		bbMiddleSeries.setData([]);
+		bbLowerSeries.setData([]);
+		candleSeries.setMarkers([]);
+
+		try {
+			const resp = await fetch('/cgi-bin/api.pl?action=run_backtest', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(body),
+			});
+			const data = await resp.json();
+			sessionId = data.sessionId;
+
+			if (!sessionId) {
+				elStatusText.textContent = 'Error: ' + (data.error || 'Unknown error');
+				elRunBtn.disabled = false;
+				return;
+			}
+
+			elStatusText.textContent = 'Backtest running, receiving events...';
+			elInfoStatus.textContent = 'Running...';
+			startSSE(sessionId);
+			startPlaybackTimer();
+		} catch (e) {
+			elStatusText.textContent = 'Error: ' + e.message;
+			elRunBtn.disabled = false;
+		}
+	}
+
+	// =========================================================================
+	// SSE Consumer
+	// =========================================================================
+	function startSSE(sid) {
+		sseSource = new EventSource('/backtest-stream.php?id=' + sid);
+		sseSource.onmessage = (e) => {
+			try {
+				const evt = JSON.parse(e.data);
+				eventBuffer.push(evt);
+			} catch (err) {
+				// Ignore parse errors (e.g. keep-alive comments).
+			}
+		};
+		sseSource.onerror = () => {
+			sseSource.close();
+			sseSource = null;
+		};
+	}
+
+	// =========================================================================
+	// Playback Engine
+	// =========================================================================
+	function startPlaybackTimer() {
+		stopPlaybackTimer();
+		if (playbackSpeed === 0) {
+			// Instant mode: drain everything as fast as possible.
+			playbackTimer = requestAnimationFrame(drainAll);
+		} else {
+			const intervalMs = 1000 / playbackSpeed;
+			playbackTimer = setInterval(playbackTick, intervalMs);
+		}
+	}
+
+	function stopPlaybackTimer() {
+		if (playbackTimer) {
+			clearInterval(playbackTimer);
+			cancelAnimationFrame(playbackTimer);
+			playbackTimer = null;
+		}
+	}
+
+	function playbackTick() {
+		// Process events from the buffer up to and including the next candle.
+		// Non-candle events (position_open, balance, etc.) are consumed together
+		// with their candle so they appear at the right moment.
+		let foundCandle = false;
+		while (eventBuffer.length > 0 && !foundCandle) {
+			const evt = eventBuffer.shift();
+			processEvent(evt);
+			if (evt.type === 'candle') {
+				foundCandle = true;
+			}
+		}
+	}
+
+	function drainAll() {
+		// Instant mode: process a large batch per animation frame.
+		const batchSize = 200;
+		let processed = 0;
+		while (processed < batchSize && eventBuffer.length > 0) {
+			processEvent(eventBuffer.shift());
+			processed++;
+		}
+		if (eventBuffer.length > 0) {
+			playbackTimer = requestAnimationFrame(drainAll);
+		} else {
+			playbackTimer = null;
+		}
+	}
+
+	// =========================================================================
+	// Clear Chart
+	// =========================================================================
+	function clearChart() {
+		// Stop any active SSE connection.
+		if (sseSource) {
+			sseSource.close();
+			sseSource = null;
+		}
+		stopPlaybackTimer();
+
+		// Reset state.
+		eventBuffer = [];
+		renderedCandles = 0;
+		totalCandles = 0;
+		markers = [];
+		currentPosition = null;
+		currentBalance = 0;
+		sessionId = null;
+
+		// Clear chart data.
+		candleSeries.setData([]);
+		bbUpperSeries.setData([]);
+		bbMiddleSeries.setData([]);
+		bbLowerSeries.setData([]);
+		candleSeries.setMarkers([]);
+
+		// Reset info panel.
+		elInfoBalance.textContent = '--';
+		elInfoPosition.textContent = '--';
+		elInfoPnl.textContent = '--';
+		elInfoPnl.className = 'info-value';
+		elInfoStatus.textContent = 'Idle';
+		elStatusText.textContent = '';
+		elProgressBar.style.width = '0%';
+		elProgressText.textContent = '0 / 0';
+
+		// Hide results.
+		elResultsPanel.style.display = 'none';
+
+		// Re-enable run button.
+		elRunBtn.disabled = false;
+	}
+
+	// =========================================================================
+	// Event Processor / Chart Renderer
+	// =========================================================================
+	function processEvent(evt) {
+		switch (evt.type) {
+			case 'init':
+				totalCandles = evt.totalCandles;
+				initialBalance = evt.initialBalance;
+				currentBalance = evt.initialBalance;
+				elInfoBalance.textContent = formatMoney(currentBalance);
+				elProgressText.textContent = '0 / ' + totalCandles;
+				break;
+
+			case 'candle':
+				renderCandle(evt);
+				renderedCandles++;
+				break;
+
+			case 'position_open':
+				currentPosition = { dir: evt.dir, price: evt.price, volume: evt.volume };
+				elInfoPosition.textContent = evt.dir + ' @ ' + evt.price.toFixed(4);
+				addMarker(evt.time, evt.dir === 'LONG' ? 'arrowUp' : 'arrowDown',
+					evt.dir === 'LONG' ? '#26a69a' : '#ef5350',
+					evt.dir === 'LONG' ? 'L' : 'S');
+				break;
+
+			case 'position_close':
+				currentPosition = null;
+				elInfoPosition.textContent = '--';
+				const shape = evt.reason === 'TP' ? 'circle' : (evt.reason === 'SL' ? 'square' : 'diamond');
+				const color = evt.pnl >= 0 ? '#26a69a' : '#ef5350';
+				addMarker(evt.time, shape, color, evt.reason);
+				break;
+
+			case 'dca_fill':
+				if (currentPosition) {
+					currentPosition.volume = evt.totalVolume;
+					currentPosition.price = evt.newAvgEntry;
+					elInfoPosition.textContent = currentPosition.dir + ' @ ' + evt.newAvgEntry.toFixed(4)
+						+ ' vol ' + evt.totalVolume.toFixed(4);
+				}
+				addMarker(evt.time, 'arrowUp', '#ff9800',
+					evt.dir === 'LONG' ? 'DCA↓' : 'DCA↑');
+				break;
+
+			case 'breakeven_lock':
+				addMarker(evt.time, 'diamond', '#ff9800', 'BL');
+				break;
+
+			case 'balance':
+				currentBalance = evt.value;
+				elInfoBalance.textContent = formatMoney(currentBalance);
+				updatePnl();
+				break;
+
+			case 'progress':
+				elProgressBar.style.width = (evt.current / evt.total * 100) + '%';
+				elProgressText.textContent = evt.current + ' / ' + evt.total;
+				break;
+
+			case 'result':
+				showResults(evt);
+				break;
+
+			case 'error':
+				elStatusText.textContent = 'Error: ' + evt.message;
+				elInfoStatus.textContent = 'Error';
+				break;
+
+			case 'done':
+				elInfoStatus.textContent = 'Completed';
+				elStatusText.textContent = 'Backtest completed.';
+				elRunBtn.disabled = false;
+				stopPlaybackTimer();
+				// Drain any remaining events instantly.
+				while (eventBuffer.length > 0) {
+					processEvent(eventBuffer.shift());
+				}
+				break;
+		}
+	}
+
+	function renderCandle(evt) {
+		const candleData = {
+			time: evt.t,
+			open: evt.o,
+			high: evt.h,
+			low: evt.l,
+			close: evt.c,
+		};
+		candleSeries.update(candleData);
+
+		// Bollinger Bands overlay.
+		if (evt.ind) {
+			if (evt.ind.bb_upper != null) {
+				bbUpperSeries.update({ time: evt.t, value: evt.ind.bb_upper });
+			}
+			if (evt.ind.bb_middle != null) {
+				bbMiddleSeries.update({ time: evt.t, value: evt.ind.bb_middle });
+			}
+			if (evt.ind.bb_lower != null) {
+				bbLowerSeries.update({ time: evt.t, value: evt.ind.bb_lower });
+			}
+		}
+	}
+
+	function addMarker(time, shape, color, text) {
+		markers.push({
+			time: time,
+			position: (shape === 'arrowUp') ? 'belowBar' : 'aboveBar',
+			color: color,
+			shape: shape,
+			text: text,
+		});
+		// Markers must be sorted by time.
+		markers.sort((a, b) => a.time - b.time);
+		candleSeries.setMarkers(markers);
+	}
+
+	function updatePnl() {
+		const pnl = currentBalance - initialBalance;
+		const pct = initialBalance > 0 ? (pnl / initialBalance * 100) : 0;
+		const sign = pnl >= 0 ? '+' : '';
+		elInfoPnl.textContent = sign + formatMoney(pnl) + ' (' + sign + pct.toFixed(1) + '%)';
+		elInfoPnl.className = 'info-value ' + (pnl >= 0 ? 'positive' : 'negative');
+	}
+
+	function showResults(evt) {
+		elResultsPanel.style.display = 'block';
+		const items = [
+			['Initial Balance', formatMoney(evt.initialBalance)],
+			['Final Balance', formatMoney(evt.finalBalance)],
+			['PnL', formatMoney(evt.pnl) + ' (' + (evt.pnlPercent >= 0 ? '+' : '') + evt.pnlPercent + '%)'],
+			['Max Drawdown', formatMoney(evt.maxDrawdown)],
+			['Total Trades', evt.trades],
+			['Win Rate', evt.winRate + '%'],
+			['Wins / Losses', evt.wins + ' / ' + evt.losses],
+		];
+		if (evt.sharpe != null) items.push(['Sharpe Ratio', evt.sharpe.toFixed(2)]);
+		if (evt.sortino != null) items.push(['Sortino Ratio', evt.sortino.toFixed(2)]);
+		if (evt.liquidated) {
+			items.push(['Status', 'LIQUIDATED']);
+			liquidationSound.currentTime = 0;
+			liquidationSound.play().catch(() => {});
+		}
+
+		elResultsGrid.innerHTML = '';
+		items.forEach(([label, value]) => {
+			const div = document.createElement('div');
+			div.className = 'result-item';
+			div.innerHTML = '<div class="result-label">' + escapeHtml(label) + '</div>'
+				+ '<div class="result-value">' + escapeHtml(String(value)) + '</div>';
+			elResultsGrid.appendChild(div);
+		});
+	}
+
+	// =========================================================================
+	// Utilities
+	// =========================================================================
+	function formatMoney(value) {
+		const abs = Math.abs(value);
+		const sign = value < 0 ? '-' : '';
+		return sign + '\u20AE' + abs.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+	}
+
+	function escapeHtml(str) {
+		const div = document.createElement('div');
+		div.textContent = str;
+		return div.innerHTML;
+	}
+
+	// =========================================================================
+	// Boot
+	// =========================================================================
+	init();
+})();
+</script>
+{% endblock %}

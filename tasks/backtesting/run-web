@@ -1,0 +1,41 @@
+#!/usr/bin/env php
+<?php
+
+use Izzy\RealApplications\Backtester;
+
+// EZMoonblow core file.
+require dirname(__DIR__, 2) . '/lib/common.php';
+
+// Parse the --session argument.
+$sessionId = null;
+foreach ($argv as $arg) {
+	if (str_starts_with($arg, '--session=')) {
+		$sessionId = substr($arg, strlen('--session='));
+	}
+}
+
+if ($sessionId === null || $sessionId === '') {
+	fwrite(STDERR, "Usage: run-web --session=<sessionId>\n");
+	exit(1);
+}
+
+// Validate session ID (alphanumeric + dashes only).
+if (!preg_match('/^[a-zA-Z0-9\-]+$/', $sessionId)) {
+	fwrite(STDERR, "Invalid session ID: $sessionId\n");
+	exit(1);
+}
+
+$configFile = Backtester::getConfigFilePath($sessionId);
+if (!file_exists($configFile)) {
+	fwrite(STDERR, "Config file not found: $configFile\n");
+	exit(1);
+}
+
+$config = json_decode(file_get_contents($configFile), true);
+if (!is_array($config)) {
+	fwrite(STDERR, "Failed to parse config file: $configFile\n");
+	exit(1);
+}
+
+$backtester = Backtester::getInstance();
+$backtester->runWebBacktest($sessionId, $config);

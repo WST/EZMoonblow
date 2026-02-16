@@ -4,20 +4,24 @@ namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Backtest\BacktestDirectionStats;
+use Izzy\Backtest\BacktestEventWriter;
 use Izzy\Backtest\BacktestFinancialResult;
 use Izzy\Backtest\BacktestOpenPosition;
 use Izzy\Backtest\BacktestResult;
 use Izzy\Backtest\BacktestRiskRatios;
 use Izzy\Backtest\BacktestTradeStats;
+use Izzy\Enums\MarginModeEnum;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\Backtest\BacktestExchange;
 use Izzy\Financial\BacktestStoredPosition;
 use Izzy\Financial\Candle;
 use Izzy\Financial\CandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
-use Izzy\Strategies\StrategyFactory;
+use Izzy\Financial\StrategyFactory;
 use Izzy\System\Logger;
 
 class Backtester extends ConsoleApplication
@@ -140,7 +144,86 @@ class Backtester extends ConsoleApplication
 		}
 	}
 
-	private function runBacktestLoop(array $pairsForBacktest): void {
+	/**
+	 * Run a backtest from the web UI with event streaming.
+	 *
+	 * @param string $sessionId Unique session identifier for the JSONL event file.
+	 * @param array $config Backtest configuration from the web form:
+	 *   - pair: string (e.g. "BAN/USDT")
+	 *   - exchangeName: string (e.g. "Bybit")
+	 *   - marketType: string ("futures" or "spot")
+	 *   - timeframe: string (e.g. "4h")
+	 *   - strategy: string (e.g. "EZMoonblowSEBoll")
+	 *   - params: array (strategy parameters)
+	 *   - days: int (backtest period in days)
+	 *   - initialBalance: float (starting balance)
+	 *   - leverage: int (leverage multiplier)
+	 */
+	public function runWebBacktest(string $sessionId, array $config): void {
+		$eventsFile = $this->getEventFilePath($sessionId);
+		$writer = new BacktestEventWriter($eventsFile);
+
+		try {
+			$exchanges = $this->configuration->connectExchanges($this);
+
+			$timeframe = TimeFrameEnum::from($config['timeframe']);
+			$marketType = MarketTypeEnum::from($config['marketType']);
+			$pair = new Pair($config['pair'], $timeframe, $config['exchangeName'], $marketType);
+			$pair->setStrategyName($config['strategy']);
+			$pair->setStrategyParams($config['params'] ?? []);
+			$pair->setBacktestDays($config['days']);
+			$pair->setBacktestInitialBalance($config['initialBalance']);
+			$pair->setLeverage($config['leverage'] ?? null);
+
+			// Find the real exchange driver for instrument info.
+			$realExchange = $exchanges[$config['exchangeName']] ?? null;
+
+			$this->database->dropTableIfExists('backtest_positions');
+			if (!$this->database->createTableLike('backtest_positions', 'positions')) {
+				$writer->writeError('Failed to create backtest_positions table.');
+				$writer->writeDone();
+				return;
+			}
+
+			Logger::getLogger()->setBacktestMode(true);
+			$this->runBacktestLoop(
+				[['pair' => $pair, 'exchange' => $realExchange]],
+				$writer,
+			);
+		} catch (\Throwable $e) {
+			$writer->writeError($e->getMessage());
+		} finally {
+			Logger::getLogger()->setBacktestMode(false);
+			$this->database->dropTableIfExists('backtest_positions');
+			$writer->writeDone();
+		}
+	}
+
+	/**
+	 * Get the path to the JSONL event file for a given session.
+	 *
+	 * @param string $sessionId Session identifier.
+	 * @return string Absolute path.
+	 */
+	public static function getEventFilePath(string $sessionId): string {
+		return sys_get_temp_dir() . "/backtest-{$sessionId}-events.jsonl";
+	}
+
+	/**
+	 * Get the path to the config JSON file for a given session.
+	 *
+	 * @param string $sessionId Session identifier.
+	 * @return string Absolute path.
+	 */
+	public static function getConfigFilePath(string $sessionId): string {
+		return sys_get_temp_dir() . "/backtest-{$sessionId}-config.json";
+	}
+
+	/**
+	 * @param array $pairsForBacktest Array of ['pair' => Pair, 'exchange' => IExchangeDriver|null].
+	 * @param BacktestEventWriter|null $writer Optional event writer for web UI streaming.
+	 */
+	private function runBacktestLoop(array $pairsForBacktest, ?BacktestEventWriter $writer = null): void {
 		$repository = new CandleRepository($this->database);
 
 		foreach ($pairsForBacktest as $entry) {
@@ -170,7 +253,7 @@ class Backtester extends ConsoleApplication
 			}
 			$strategyParams = $pair->getStrategyParams();
 			if (filter_var($strategyParams['useIsolatedMargin'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-				$backtestExchange->setBacktestMarginMode(\Izzy\Enums\MarginModeEnum::ISOLATED);
+				$backtestExchange->setBacktestMarginMode(MarginModeEnum::ISOLATED);
 			}
 
 			$endTime = time();
@@ -213,6 +296,19 @@ class Backtester extends ConsoleApplication
 			$log = Logger::getLogger();
 			$log->backtestProgress("$ticker: $n candles, balance " . number_format($initialBalance, 2) . " USDT");
 			$progressStep = max(1, (int) ($n / 20));
+
+			// Emit init event for the web UI.
+			if ($writer !== null) {
+				$writer->writeInit(
+					pair: $ticker,
+					timeframe: $pair->getTimeframe()->value,
+					strategy: $pair->getStrategyName() ?? '',
+					params: $pair->getStrategyParams(),
+					initialBalance: $initialBalance,
+					totalCandles: $n,
+					leverage: $pair->getLeverage() ?? 1,
+				);
+			}
 			$liquidated = false;
 			$lastCandle = null;
 			$maxDrawdown = 0.0; // Track the deepest unrealized PnL dip during the simulation.
@@ -349,7 +445,79 @@ class Backtester extends ConsoleApplication
 					$market->calculateIndicators();
 
 					// --- 3. processTrading: entry signals / position updates ---
+					// Snapshot position state before processTrading for event detection.
+					$preVolume = null;
+					$preSL = null;
+					$posCountBefore = 0;
+					if ($writer !== null) {
+						$posCountBefore = $this->database->countRows(
+							BacktestStoredPosition::getTableName(),
+							[
+								BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
+								BacktestStoredPosition::FTicker => $market->getTicker(),
+								BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
+								BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+							]
+						);
+						$existingPos = $market->getStoredPosition();
+						if ($existingPos !== false) {
+							$preVolume = $existingPos->getVolume()->getAmount();
+							$preSL = $existingPos->getStopLossPrice()?->getAmount();
+						}
+					}
 					$market->processTrading();
+					// Detect events that occurred during processTrading.
+					if ($writer !== null) {
+						$posCountAfter = $this->database->countRows(
+							BacktestStoredPosition::getTableName(),
+							[
+								BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
+								BacktestStoredPosition::FTicker => $market->getTicker(),
+								BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
+								BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+							]
+						);
+						// New position opened.
+						if ($posCountAfter > $posCountBefore) {
+							$newPos = $market->getStoredPosition();
+							if ($newPos !== false) {
+								$writer->writePositionOpen(
+									$newPos->getDirection()->value,
+									$newPos->getAverageEntryPrice()->getAmount(),
+									$newPos->getVolume()->getAmount(),
+									$tickTime,
+								);
+							}
+						}
+						// DCA fill: volume increased while the same position stays open.
+						if ($preVolume !== null) {
+							$postPos = $market->getStoredPosition();
+							if ($postPos !== false) {
+								$postVolume = $postPos->getVolume()->getAmount();
+								$postSL = $postPos->getStopLossPrice()?->getAmount();
+								if ($postVolume > $preVolume) {
+									$writer->writeDCAFill(
+										$postPos->getDirection()->value,
+										$tickPrice,
+										$postVolume - $preVolume,
+										$postPos->getAverageEntryPrice()->getAmount(),
+										$postVolume,
+										$tickTime,
+									);
+								}
+								// Breakeven Lock: volume decreased and SL moved to near entry.
+								if ($postVolume < $preVolume && $postSL !== null && $postSL !== $preSL) {
+									$closedVolume = $preVolume - $postVolume;
+									$entry = $postPos->getAverageEntryPrice()->getAmount();
+									$lockedProfit = $postPos->getDirection()->isLong()
+										? $closedVolume * ($postSL - $entry)
+										: $closedVolume * ($entry - $postSL);
+									$writer->writeBreakevenLock($closedVolume, $postSL, abs($lockedProfit), $tickTime);
+									$writer->writeBalance($backtestExchange->getVirtualBalance()->getAmount());
+								}
+							}
+						}
+					}
 
 					// --- 4. Fill pending DCA limit orders ---
 					foreach ($backtestExchange->getPendingLimitOrders($market) as $order) {
@@ -360,6 +528,19 @@ class Backtester extends ConsoleApplication
 						if ($filled) {
 							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price']);
 							$backtestExchange->removePendingLimitOrder($market, $order['orderId']);
+							if ($writer !== null) {
+								$filledPos = $market->getStoredPosition();
+								if ($filledPos !== false) {
+									$writer->writeDCAFill(
+										$order['direction']->value,
+										$order['price'],
+										$order['volumeBase'],
+										$filledPos->getAverageEntryPrice()->getAmount(),
+										$filledPos->getVolume()->getAmount(),
+										$tickTime,
+									);
+								}
+							}
 						}
 					}
 
@@ -406,6 +587,10 @@ class Backtester extends ConsoleApplication
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$dir = $position->getDirection()->value;
 						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
+						if ($writer !== null) {
+							$writer->writePositionClose($tp, $profit, 'TP', $tickTime);
+							$writer->writeBalance($balanceAfter);
+						}
 					}
 
 					// --- 5.5. Check Stop-Loss hits ---
@@ -437,6 +622,10 @@ class Backtester extends ConsoleApplication
 						$dir = $position->getDirection()->value;
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
+						if ($writer !== null) {
+							$writer->writePositionClose($sl, $pnl, 'SL', $tickTime);
+							$writer->writeBalance($balanceAfter);
+						}
 					}
 
 					// --- 6. Liquidation check ---
@@ -463,7 +652,29 @@ class Backtester extends ConsoleApplication
 						$dateStr = date('Y-m-d H:i', $tickTime);
 						$log->backtestProgress("  LIQUIDATION at candle " . ($i + 1) . "/$n ($dateStr): balance " . number_format($balance, 2) . " USDT + unrealized PnL " . number_format($unrealizedPnl, 2) . " USDT <= 0");
 						$this->logger->warning("Backtest stopped: liquidated at candle " . ($i + 1) . " $dateStr.");
+						if ($writer !== null) {
+							$writer->writePositionClose($tickPrice, $balance + $unrealizedPnl, 'LIQUIDATION', $tickTime);
+							$writer->writeBalance(0.0);
+						}
 						break 2; // Exit both tick and candle loops.
+					}
+				}
+
+				// After all 4 ticks of a candle: emit candle + progress events.
+				if ($writer !== null) {
+					$indicators = $market->getIndicatorValues();
+					$writer->writeCandle(
+						$candleTime,
+						$openPrice,
+						$highPrice,
+						$lowPrice,
+						$closePrice,
+						$candleVolume,
+						$indicators,
+					);
+					// Emit progress every ~50 candles.
+					if ($i % 50 === 0 || $i === $n - 1) {
+						$writer->writeProgress($i + 1, $n);
 					}
 				}
 			}
@@ -658,6 +869,30 @@ class Backtester extends ConsoleApplication
 				),
 			);
 			echo $result;
+
+			// Emit the result summary for the web UI.
+			if ($writer !== null) {
+				$pnl = $result->financial->getPnl();
+				$pnlPercent = $result->financial->getPnlPercent();
+				$total = $result->trades->wins + $result->trades->losses;
+				$winRate = $total > 0 ? ($result->trades->wins / $total) * 100 : 0.0;
+				$writer->writeResult([
+					'initialBalance' => $result->financial->initialBalance,
+					'finalBalance' => $result->financial->finalBalance,
+					'pnl' => $pnl,
+					'pnlPercent' => round($pnlPercent, 2),
+					'maxDrawdown' => $result->financial->maxDrawdown,
+					'liquidated' => $result->financial->liquidated,
+					'trades' => $result->trades->finished,
+					'wins' => $result->trades->wins,
+					'losses' => $result->trades->losses,
+					'winRate' => round($winRate, 1),
+					'sharpe' => $result->risk?->sharpe,
+					'sortino' => $result->risk?->sortino,
+					'coinPriceStart' => $result->financial->coinPriceStart,
+					'coinPriceEnd' => $result->financial->coinPriceEnd,
+				]);
+			}
 		}
 
 		// Print DB query stats to help profile and optimize SQL usage.

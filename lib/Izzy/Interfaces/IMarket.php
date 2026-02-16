@@ -7,7 +7,7 @@ use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Money;
 use Izzy\Financial\TradingContext;
-use Izzy\Strategies\DCAOrderGrid;
+use Izzy\Financial\DCAOrderGrid;
 use Izzy\System\Database\Database;
 
 /**

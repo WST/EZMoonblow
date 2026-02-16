@@ -1,12 +1,18 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Strategies\EZMoonblowSEBoll;
 
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Indicators\BollingerBands;
 use Izzy\Indicators\EMA;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBMultiplier;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBPeriod;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\CooldownCandles;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\EMASlowPeriod;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\EMATrendFilter;
 use Izzy\System\Logger;
 
 /**
@@ -251,10 +257,6 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/**
 	 * Detect price crossing below the lower Bollinger Band.
 	 *
-	 * Uses a crossover approach (previous candle was above, current is at/below)
-	 * to fire exactly once per touch, avoiding repeated entries while price
-	 * stays below the band.
-	 *
 	 * @return bool True if price just crossed below the lower band.
 	 */
 	private function priceCrossesBelowLowerBand(): bool {
@@ -373,20 +375,19 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
-	// Display
+	// Parameter definitions
 	// ------------------------------------------------------------------
 
 	/**
 	 * @inheritDoc
 	 */
-	public static function formatParameterName(string $paramName): string {
-		$names = [
-			'emaTrendFilter' => 'EMA daily trend filter (yes/no)',
-			'emaSlowPeriod' => 'EMA trend filter period (1D)',
-			'bbPeriod' => 'Bollinger Bands period',
-			'bbMultiplier' => 'Bollinger Bands StdDev multiplier',
-			'cooldownCandles' => 'Cooldown between entries (candles)',
-		];
-		return $names[$paramName] ?? parent::formatParameterName($paramName);
+	public static function getParameters(): array {
+		return array_merge(parent::getParameters(), [
+			new EMATrendFilter(),
+			new EMASlowPeriod(),
+			new BBPeriod(),
+			new BBMultiplier(),
+			new CooldownCandles(),
+		]);
 	}
 }

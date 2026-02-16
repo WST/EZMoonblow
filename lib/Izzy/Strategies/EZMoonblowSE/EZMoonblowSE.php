@@ -1,12 +1,18 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Strategies\EZMoonblowSE;
 
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Indicators\EMA;
 use Izzy\Indicators\RSI;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
+use Izzy\Strategies\EZMoonblowSE\Parameters\CooldownCandles;
+use Izzy\Strategies\EZMoonblowSE\Parameters\EMAFastPeriod;
+use Izzy\Strategies\EZMoonblowSE\Parameters\EMASlowPeriod;
+use Izzy\Strategies\EZMoonblowSE\Parameters\RSILongThreshold;
+use Izzy\Strategies\EZMoonblowSE\Parameters\RSIShortThreshold;
 use Izzy\System\Logger;
 
 /**
@@ -264,11 +270,6 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	/**
 	 * Detect RSI crossing above a threshold (pullback recovery signal).
 	 *
-	 * In an uptrend, a pullback causes RSI to dip. When it crosses
-	 * back above the threshold, the pullback is ending and the trend
-	 * is likely to resume. This is a point-in-time event (fires once
-	 * per crossing), avoiding the over-triggering of zone checks.
-	 *
 	 * @param float $threshold RSI threshold to cross above.
 	 * @return bool True if RSI just crossed above the threshold.
 	 */
@@ -298,10 +299,6 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	/**
 	 * Detect RSI crossing below a threshold (relief rally fading signal).
 	 *
-	 * In a downtrend, a relief rally pushes RSI up. When it crosses
-	 * back below the threshold, the rally is fading and selling pressure
-	 * is resuming.
-	 *
 	 * @param float $threshold RSI threshold to cross below.
 	 * @return bool True if RSI just crossed below the threshold.
 	 */
@@ -329,20 +326,19 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
-	// Display
+	// Parameter definitions
 	// ------------------------------------------------------------------
 
 	/**
 	 * @inheritDoc
 	 */
-	public static function formatParameterName(string $paramName): string {
-		$names = [
-			'emaFastPeriod' => 'EMA fast period (1D)',
-			'emaSlowPeriod' => 'EMA slow period (1D)',
-			'rsiLongThreshold' => 'RSI oversold threshold for longs (1H)',
-			'rsiShortThreshold' => 'RSI overbought threshold for shorts (1H)',
-			'cooldownCandles' => 'Cooldown between entries (candles)',
-		];
-		return $names[$paramName] ?? parent::formatParameterName($paramName);
+	public static function getParameters(): array {
+		return array_merge(parent::getParameters(), [
+			new EMAFastPeriod(),
+			new EMASlowPeriod(),
+			new RSILongThreshold(),
+			new RSIShortThreshold(),
+			new CooldownCandles(),
+		]);
 	}
 }

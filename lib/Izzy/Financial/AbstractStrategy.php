@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Interfaces\IMarket;
@@ -101,6 +101,16 @@ abstract class AbstractStrategy implements IStrategy
 	 * @return TimeFrameEnum[]
 	 */
 	public static function requiredTimeframes(): array {
+		return [];
+	}
+
+	/**
+	 * Get all typed parameter definitions for the strategy.
+	 * Concrete strategies should override and merge with parent.
+	 *
+	 * @return AbstractStrategyParameter[]
+	 */
+	public static function getParameters(): array {
 		return [];
 	}
 }

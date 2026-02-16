@@ -17,9 +17,6 @@ use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\Interfaces\IStrategy;
-use Izzy\Strategies\DCAOrderGrid;
-use Izzy\Strategies\StrategyFactory;
-use Izzy\Strategies\StrategyValidationResult;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 use Izzy\System\QueueTask;
@@ -546,6 +543,32 @@ class Market implements IMarket
 	public function getLatestIndicatorValue(string $indicatorName): ?float {
 		$result = $this->getIndicatorResult($indicatorName);
 		return $result?->getLatestValue();
+	}
+
+	/**
+	 * Extract the latest values of all registered indicators as a flat
+	 * associative array suitable for JSON serialization (web backtest UI).
+	 *
+	 * @return array<string, float|null> e.g. ['bb_upper' => 31.2, 'bb_middle' => 30.8, 'bb_lower' => 30.4, 'ema' => 30.6].
+	 */
+	public function getIndicatorValues(): array {
+		$values = [];
+		foreach ($this->indicatorResults as $name => $result) {
+			if (!$result->hasValues()) {
+				continue;
+			}
+			if ($name === 'BollingerBands') {
+				$values['bb_middle'] = $result->getLatestValue();
+				$signals = $result->getSignals();
+				$lastSignal = !empty($signals) ? end($signals) : null;
+				$values['bb_upper'] = $lastSignal['upper'] ?? null;
+				$values['bb_lower'] = $lastSignal['lower'] ?? null;
+			} else {
+				// Generic indicator: use the indicator name in lowercase.
+				$values[strtolower($name)] = $result->getLatestValue();
+			}
+		}
+		return $values;
 	}
 
 	/**

@@ -13,6 +13,7 @@ class PageViewer
 		['title' => 'Balance', 'url' => '/'],
 		['title' => 'Pairs', 'url' => '/pairs.jsp'],
 		['title' => 'Positions', 'url' => '/positions.jsp'],
+		['title' => 'Backtest', 'url' => '/backtest.jsp'],
 		['title' => 'System Status', 'url' => '/status.jsp'],
 		['title' => 'Log Out', 'url' => '/logout.jsp'],
 	];

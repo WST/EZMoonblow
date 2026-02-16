@@ -1,10 +1,15 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use InvalidArgumentException;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStrategy;
+use Izzy\Strategies\EZMoonblowDCA\EZMoonblowDCA;
+use Izzy\Strategies\EZMoonblowDCAAlwaysLong\EZMoonblowDCAAlwaysLong;
+use Izzy\Strategies\EZMoonblowDCAWithShorts\EZMoonblowDCAWithShorts;
+use Izzy\Strategies\EZMoonblowSE\EZMoonblowSE;
+use Izzy\Strategies\EZMoonblowSEBoll\EZMoonblowSEBoll;
 
 /**
  * Factory for creating trading strategies.

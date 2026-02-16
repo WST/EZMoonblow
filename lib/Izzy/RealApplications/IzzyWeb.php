@@ -4,8 +4,10 @@ namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\WebApplication;
 use Izzy\Traits\SingletonTrait;
+use Izzy\Web\Controllers\BacktestApiController;
 use Izzy\Web\Middleware\AuthMiddleware;
 use Izzy\Web\Viewers\AuthPage;
+use Izzy\Web\Viewers\BacktestViewer;
 use Izzy\Web\Viewers\DashboardViewer;
 use Izzy\Web\Viewers\PositionsViewer;
 use Izzy\Web\Viewers\StatusViewer;
@@ -25,6 +27,13 @@ final class IzzyWeb extends WebApplication
 		$this->slimApp->get('/status.jsp', [$this, 'statusPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/charts/{filename:.+\.png}', [$this, 'serveChartFile'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/balance-chart/{range}', [$this, 'generateBalanceChart'])->add(AuthMiddleware::class);
+		$this->slimApp->get('/backtest.jsp', [$this, 'backtestPage'])->add(AuthMiddleware::class);
+
+		// CGI-bin style API for the visual backtester.
+		$backtestApi = new BacktestApiController($this);
+		$this->slimApp->get('/cgi-bin/api.pl', [$backtestApi, 'handleGet'])->add(AuthMiddleware::class);
+		$this->slimApp->post('/cgi-bin/api.pl', [$backtestApi, 'handlePost'])->add(AuthMiddleware::class);
+
 		$this->slimApp->get('/login.jsp', [$this, 'authPage']);
 		$this->slimApp->post('/login.jsp', [$this, 'authHandler']);
 		$this->slimApp->get('/logout.jsp', [$this, 'logoutPage']);
@@ -58,6 +67,11 @@ final class IzzyWeb extends WebApplication
 
 	public function statusPage(Request $request, Response $response): Response {
 		$pageViewer = new StatusViewer($this);
+		return $pageViewer->render($response);
+	}
+
+	public function backtestPage(Request $request, Response $response): Response {
+		$pageViewer = new BacktestViewer($this);
 		return $pageViewer->render($response);
 	}
 

@@ -32,6 +32,9 @@ class Database
 	/** @var string Database name to connect to */
 	private string $dbname;
 
+	/** @var int Database server port */
+	private int $port;
+
 	/** @var string Error message from the last operation */
 	private string $errorMessage = '';
 
@@ -44,12 +47,14 @@ class Database
 	 * @param string $dbname Name of the database to connect to
 	 * @param string $username Database user username
 	 * @param string $password Database user password
+	 * @param int $port Database server port (default: 3306)
 	 */
-	public function __construct(string $host, string $dbname, string $username, string $password) {
+	public function __construct(string $host, string $dbname, string $username, string $password, int $port = 3306) {
 		$this->host = $host;
 		$this->dbname = $dbname;
 		$this->username = $username;
 		$this->password = $password;
+		$this->port = $port;
 	}
 
 	/**
@@ -58,15 +63,13 @@ class Database
 	 */
 	public function connect(): bool {
 		try {
-			// Create PDO instance with MySQL driver
 			$this->pdo = new PDO(
-				"mysql:host=$this->host;dbname=$this->dbname",
+				"mysql:host=$this->host;port=$this->port;dbname=$this->dbname",
 				$this->username, $this->password
 			);
 			return true;
 		} catch (PDOException $e) {
 			$this->setError($e);
-			// Connection failed, return false instead of throwing exception
 			return false;
 		}
 	}

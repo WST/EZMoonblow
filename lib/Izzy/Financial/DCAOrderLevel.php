@@ -1,9 +1,8 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use Izzy\Enums\EntryVolumeModeEnum;
-use Izzy\Financial\TradingContext;
 
 /**
  * Represents a single level in a DCA order grid.

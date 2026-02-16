@@ -3,7 +3,7 @@
 namespace Izzy\Backtest;
 
 use Izzy\Financial\Pair;
-use Izzy\Strategies\StrategyFactory;
+use Izzy\Financial\StrategyFactory;
 use Izzy\Traits\ConsoleTableTrait;
 use Stringable;
 
@@ -73,12 +73,19 @@ readonly class BacktestResult implements Stringable
 		$strategyParams = $this->pair->getStrategyParams();
 		if (!empty($strategyParams) && $strategyName) {
 			$strategyClass = StrategyFactory::getStrategyClass($strategyName);
+
+			// Build a key => label map from typed parameter objects.
+			$labelMap = [];
+			if ($strategyClass !== null && method_exists($strategyClass, 'getParameters')) {
+				foreach ($strategyClass::getParameters() as $param) {
+					$labelMap[$param->getName()] = $param->getLabel();
+				}
+			}
+
 			$paramHeaders = ['Parameter', 'Config key', 'Value'];
 			$paramRows = [];
 			foreach ($strategyParams as $key => $value) {
-				$humanName = $strategyClass !== null
-					? $strategyClass::formatParameterName($key)
-					: $key;
+				$humanName = $labelMap[$key] ?? $key;
 				$paramRows[] = [$humanName, $key, $value];
 			}
 			$out .= $this->renderTable('Strategy Parameters', $paramHeaders, $paramRows);

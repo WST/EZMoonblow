@@ -6,10 +6,10 @@ use Izzy\AbstractApplications\WebApplication;
 use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Financial\Pair;
-use Izzy\Strategies\AbstractDCAStrategy;
-use Izzy\Strategies\AbstractSingleEntryStrategy;
-use Izzy\Strategies\DCAOrderGrid;
-use Izzy\Strategies\StrategyFactory;
+use Izzy\Financial\AbstractDCAStrategy;
+use Izzy\Financial\AbstractSingleEntryStrategy;
+use Izzy\Financial\DCAOrderGrid;
+use Izzy\Financial\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
 
 class PairsViewer extends PageViewer
@@ -188,20 +188,30 @@ class PairsViewer extends PageViewer
 	private function renderStrategyParamsTable(array $strategyParams, string $strategyName): string {
 		$viewer = new DetailViewer(['showHeader' => false]);
 
-		// Try to find parameter formatter in strategy class.
+		// Build a key => label map from typed parameter objects.
 		$strategyClass = $this->getStrategyClass($strategyName);
-		if ($strategyClass && method_exists($strategyClass, 'formatParameterName')) {
-			$viewer->insertKeyColumn('key', 'Parameter', [$strategyClass, 'formatParameterName'], [
+		$labelMap = [];
+		if ($strategyClass !== null && method_exists($strategyClass, 'getParameters')) {
+			foreach ($strategyClass::getParameters() as $param) {
+				$labelMap[$param->getName()] = $param->getLabel();
+			}
+		}
+
+		if (!empty($labelMap)) {
+			$viewer->insertKeyColumn('key', 'Parameter', fn(string $key) => $labelMap[$key] ?? $key, [
 				'align' => 'left',
 				'width' => '40%',
 				'class' => 'param-name'
 			]);
 		}
 
-		// Format parameter values (e.g. yes/no -> Yes/No) if the strategy supports it.
-		if ($strategyClass && method_exists($strategyClass, 'formatParameterValue')) {
-			foreach ($strategyParams as $key => $value) {
-				$strategyParams[$key] = $strategyClass::formatParameterValue($key, (string)$value);
+		// Format boolean values for readability.
+		foreach ($strategyParams as $key => $value) {
+			$strValue = strtolower((string)$value);
+			if (in_array($strValue, ['true', '1', 'yes'], true)) {
+				$strategyParams[$key] = 'Yes';
+			} elseif (in_array($strValue, ['false', '0', 'no'], true)) {
+				$strategyParams[$key] = 'No';
 			}
 		}
 

@@ -1,10 +1,18 @@
 <?php
 
-namespace Izzy\Strategies;
+namespace Izzy\Financial;
 
 use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Financial\Money;
+use Izzy\Financial\Parameters\AlwaysMarketEntry;
+use Izzy\Financial\Parameters\EntryVolume;
+use Izzy\Financial\Parameters\ExpectedProfit;
+use Izzy\Financial\Parameters\NumberOfLevels;
+use Izzy\Financial\Parameters\OffsetMode;
+use Izzy\Financial\Parameters\PriceDeviation;
+use Izzy\Financial\Parameters\PriceDeviationMultiplier;
+use Izzy\Financial\Parameters\UseLimitOrders;
+use Izzy\Financial\Parameters\VolumeMultiplier;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 
@@ -14,6 +22,14 @@ use Izzy\Interfaces\IStoredPosition;
 abstract class AbstractDCAStrategy extends AbstractStrategy
 {
 	protected DCASettings $dcaSettings;
+
+	/**
+	 * Tracks the highest filled DCA level per position.
+	 * Maps "{positionId}_{L|S}" → level index.
+	 * Prevents re-execution of already filled averaging levels.
+	 * @var array<string, int>
+	 */
+	private array $dcaFilledLevels = [];
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
@@ -110,9 +126,9 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 		if ($this->dcaSettings->isUseLimitOrders()) {
 			$newPosition = $market->openPositionByDCAGrid($this->dcaSettings->getLongGrid());
 		} else {
-			// Market open the Long position.
+			$entryVolume = $this->resolveGridEntryVolume(PositionDirectionEnum::LONG);
 			$newPosition = $market->openPosition(
-				$this->getEntryVolume(),
+				$entryVolume,
 				PositionDirectionEnum::LONG,
 				$this->dcaSettings->getLongGrid()->getExpectedProfit()
 			);
@@ -131,9 +147,9 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 		if ($this->dcaSettings->isUseLimitOrders()) {
 			$newPosition = $market->openPositionByDCAGrid($this->dcaSettings->getShortGrid());
 		} else {
-			// Market open the Short position.
+			$entryVolume = $this->resolveGridEntryVolume(PositionDirectionEnum::SHORT);
 			$newPosition = $market->openPosition(
-				$this->getEntryVolume(),
+				$entryVolume,
 				PositionDirectionEnum::SHORT,
 				$this->dcaSettings->getShortGrid()->getExpectedProfit()
 			);
@@ -144,70 +160,119 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	}
 
 	/**
-	 * This strategy does not use stop loss.
-	 * Instead, it relies on the DCA mechanism to average down the position.
-	 * Uses the DCA order grids to determine when to average.
+	 * Resolve the entry-level volume from the DCA grid, respecting the volume mode
+	 * (absolute, % of balance, % of margin, base currency).
+	 *
+	 * @param PositionDirectionEnum $direction Position direction.
+	 * @return Money Resolved entry volume in quote currency.
+	 */
+	protected function resolveGridEntryVolume(PositionDirectionEnum $direction): Money {
+		$grid = $direction->isLong()
+			? $this->dcaSettings->getLongGrid()
+			: $this->dcaSettings->getShortGrid();
+
+		$levels = $grid->getLevels();
+		if (empty($levels)) {
+			return Money::from(0);
+		}
+
+		$context = $this->market->getTradingContext();
+		return Money::from($levels[0]->resolveVolume($context));
+	}
+
+	/**
+	 * Update an existing position: check if the next DCA averaging level
+	 * should be triggered and execute it.
+	 *
+	 * For limit-order mode, DCA fills are handled by the backtester loop
+	 * (pending limit orders), so we only recalculate TP here.
+	 *
+	 * For market-order mode, we iterate DCA levels sequentially (low to
+	 * high) and trigger at most one level per call. A tracking map
+	 * ($dcaFilledLevels) prevents re-execution of already filled levels.
+	 *
+	 * The position object is modified in-place so that the caller's save()
+	 * persists volume, average entry, and TP changes correctly.
 	 *
 	 * @param IStoredPosition $position Position to update.
 	 * @return void
 	 */
 	public function updatePosition(IStoredPosition $position): void {
-		// If the position uses limit orders, we only need to move TP order.
 		if ($this->dcaSettings->isUseLimitOrders()) {
 			$position->updateTakeProfit($this->market);
 			return;
 		}
 
-		$context = $this->market->getTradingContext();
-		$longGrid = $this->dcaSettings->getLongGrid();
-		$shortGrid = $this->dcaSettings->getShortGrid();
-
-		// Build order maps from grids.
-		$dcaLevelsLong = $longGrid->buildOrderMap($context);
-		krsort($dcaLevelsLong);
-		$dcaLevelsShort = $shortGrid->buildOrderMap($context);
-		krsort($dcaLevelsShort);
-
-		/**
-		 * 0 — initial entry, i.e: 0 => ['volume' => 100, 'offset' => 0]
-		 * 1 — first averaging, i.e: 1 => ['volume' => 200, 'offset' => -5]
-		 * ...
-		 * offset should be negative for Long, positive for Short trades.
-		 */
-
 		$entryPrice = $position->getEntryPrice()->getAmount();
 		$currentPrice = $position->getCurrentPrice()->getAmount();
-
-		// Calculate current price drop percentage.
+		if ($entryPrice <= 0 || $currentPrice <= 0) {
+			return;
+		}
 		$priceChangePercent = (($currentPrice - $entryPrice) / $entryPrice) * 100;
-		echo "PRICE CHANGE IN %: $priceChangePercent\n";
 
-		// Check if we should execute DCA. Long first.
-		foreach ($dcaLevelsLong as $level) {
-			$volume = $level['volume'];
-			$offset = $level['offset'];
-			if (abs($offset) < 0.1)
+		$posKey = $position->getId() ?? spl_object_id($position);
+		$context = $this->market->getTradingContext();
+		$direction = $position->getDirection();
+
+		$grid = $direction->isLong()
+			? $this->dcaSettings->getLongGrid()
+			: $this->dcaSettings->getShortGrid();
+
+		$levels = $grid->buildOrderMap($context);
+		ksort($levels);
+		$filledKey = $posKey . '_' . ($direction->isLong() ? 'L' : 'S');
+		$filled = $this->dcaFilledLevels[$filledKey] ?? 0;
+
+		foreach ($levels as $idx => $level) {
+			if ($idx <= $filled) {
 				continue;
-			if ($priceChangePercent <= $offset) {
-				// Execute DCA buy order.
-				$dcaAmount = new Money($volume, 'USDT');
-				$position->buyAdditional($dcaAmount);
-				break;
 			}
+			if (abs($level['offset']) < 0.01) {
+				continue;
+			}
+			$triggered = $direction->isLong()
+				? ($priceChangePercent <= $level['offset'])
+				: ($priceChangePercent >= $level['offset']);
+			if ($triggered) {
+				$this->executeDCAFill($position, $level['volume'], $currentPrice);
+				$this->dcaFilledLevels[$filledKey] = $idx;
+			}
+			break;
+		}
+	}
+
+	/**
+	 * Execute a DCA fill: add volume to the position, recalculate average
+	 * entry price and take-profit. All changes are made in-place on the
+	 * position object (the caller is responsible for saving).
+	 *
+	 * @param IStoredPosition $position Position to average into.
+	 * @param float $addedVolumeQuote Additional volume in quote currency (USDT).
+	 * @param float $fillPrice Price at which the averaging occurs.
+	 */
+	private function executeDCAFill(IStoredPosition $position, float $addedVolumeQuote, float $fillPrice): void {
+		$oldVolBase = $position->getVolume()->getAmount();
+		$oldAvgEntry = $position->getAverageEntryPrice()->getAmount();
+		$addedBase = $addedVolumeQuote / $fillPrice;
+		$newVolBase = $oldVolBase + $addedBase;
+
+		if ($newVolBase <= 0) {
+			return;
 		}
 
-		// Check if we should execute DCA. Now for Short.
-		foreach ($dcaLevelsShort as $level) {
-			$volume = $level['volume'];
-			$offset = $level['offset'];
-			if (abs($offset) < 0.1)
-				continue;
-			if ($priceChangePercent >= $offset) {
-				// Execute DCA sell order.
-				$dcaAmount = new Money($volume, 'USDT');
-				$position->sellAdditional($dcaAmount);
-				break;
-			}
+		$newAvgEntry = ($oldVolBase * $oldAvgEntry + $addedBase * $fillPrice) / $newVolBase;
+
+		$pair = $this->market->getPair();
+		$position->setVolume(Money::from($newVolBase, $pair->getBaseCurrency()));
+		$position->setAverageEntryPrice(Money::from($newAvgEntry, $pair->getQuoteCurrency()));
+
+		// Recalculate TP from the new average entry.
+		$percent = $position->getExpectedProfitPercent();
+		if (abs($percent) >= 0.0001) {
+			$avgMoney = Money::from($newAvgEntry, $pair->getQuoteCurrency());
+			$position->setTakeProfitPrice(
+				$avgMoney->modifyByPercentWithDirection($percent, $position->getDirection())
+			);
 		}
 	}
 
@@ -220,61 +285,32 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 		return $this->dcaSettings;
 	}
 
-	/**
-	 * Convert machine-readable parameter names to human-readable format.
-	 * @param string $paramName Machine-readable parameter name.
-	 * @return string Human-readable parameter name.
-	 */
-	public static function formatParameterName(string $paramName): string {
-		$formattedNames = [
-			'numberOfLevels' => 'Number of DCA orders including the entry order',
-			'entryVolume' => 'Initial entry volume (USDT, %, %M, or base currency)',
-			'volumeMultiplier' => 'Volume multiplier for each subsequent order',
-			'priceDeviation' => 'Price deviation for first averaging (%)',
-			'priceDeviationMultiplier' => 'Price deviation multiplier for subsequent orders',
-			'expectedProfit' => 'Expected profit percentage',
-			'UseLimitOrders' => 'Use limit orders instead of market orders',
-			'offsetMode' => 'Price offset calculation mode',
-			'alwaysMarketEntry' => 'Always execute entry order as market',
-			'numberOfLevelsShort' => 'Number of short DCA orders including the entry order',
-			'entryVolumeShort' => 'Initial short entry volume (USDT, %, %M, or base currency)',
-			'volumeMultiplierShort' => 'Short volume multiplier for each subsequent order',
-			'priceDeviationShort' => 'Short price deviation for first averaging (%)',
-			'priceDeviationMultiplierShort' => 'Short price deviation multiplier for subsequent orders',
-			'expectedProfitShort' => 'Expected short profit percentage',
-		];
-
-		return $formattedNames[$paramName] ?? $paramName;
-	}
+	// ------------------------------------------------------------------
+	// Parameter definitions
+	// ------------------------------------------------------------------
 
 	/**
-	 * Format parameter value for human-readable display.
-	 * Converts boolean-like values (yes/no/1/0) to Yes/No,
-	 * enum values to their descriptions, etc.
+	 * @inheritDoc
 	 *
-	 * @param string $paramName Parameter name.
-	 * @param string $value Raw parameter value.
-	 * @return string Formatted parameter value.
+	 * @return AbstractStrategyParameter[]
 	 */
-	public static function formatParameterValue(string $paramName, string $value): string {
-		$booleanParams = ['UseLimitOrders', 'alwaysMarketEntry'];
-		if (in_array($paramName, $booleanParams)) {
-			return match (strtolower($value)) {
-				'yes', '1', 'true' => 'Yes',
-				'no', '0', 'false', '' => 'No',
-				default => $value,
-			};
-		}
-
-		if ($paramName === 'offsetMode') {
-			$mode = DCAOffsetModeEnum::tryFrom($value);
-			if ($mode !== null) {
-				return $mode->getDescription();
-			}
-		}
-
-		return $value;
+	public static function getParameters(): array {
+		return [
+			new NumberOfLevels(),
+			new EntryVolume('1%'),
+			new VolumeMultiplier(),
+			new PriceDeviation(),
+			new PriceDeviationMultiplier(),
+			new ExpectedProfit(),
+			new UseLimitOrders(),
+			new OffsetMode(),
+			new AlwaysMarketEntry(),
+		];
 	}
+
+	// ------------------------------------------------------------------
+	// Exchange settings validation
+	// ------------------------------------------------------------------
 
 	/**
 	 * @inheritDoc
