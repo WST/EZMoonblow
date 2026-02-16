@@ -88,6 +88,15 @@ abstract class AbstractStrategyParameter
 	}
 
 	/**
+	 * Whether this parameter affects backtest simulation.
+	 * Parameters that only matter for live trading (e.g. margin mode,
+	 * order type) should return false so the backtest UI can hide them.
+	 */
+	public function isBacktestRelevant(): bool {
+		return true;
+	}
+
+	/**
 	 * Declarative dependency: this parameter is only enabled when another
 	 * parameter has a specific value. Override in subclasses to declare.
 	 *

@@ -26,4 +26,8 @@ class UseLimitOrders extends AbstractStrategyParameter
 	protected function getClassDefault(): string {
 		return 'true';
 	}
+
+	public function isBacktestRelevant(): bool {
+		return false;
+	}
 }

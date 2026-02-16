@@ -76,6 +76,9 @@ class BacktestApiController
 				: [];
 			$params = [];
 			foreach ($parameters as $parameter) {
+				if (!$parameter->isBacktestRelevant()) {
+					continue;
+				}
 				$params[] = $parameter->toArray();
 			}
 			$isDCA = is_subclass_of($class, AbstractDCAStrategy::class);
