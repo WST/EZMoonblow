@@ -320,8 +320,11 @@ class Bybit extends AbstractExchangeDriver
 
 				$position->setAverageEntryPrice($currentPrice);
 
-				// Save the "position" to the database.
-				$position->save();
+				// Save the position to the database.
+				$saved = $position->save();
+				if (!$saved) {
+					$this->logger->error("Position opened on Bybit but failed to save to DB for $market");
+				}
 
 				// Success.
 				return true;
@@ -380,10 +383,11 @@ class Bybit extends AbstractExchangeDriver
 			/**
 			 * Create and save the position. For the spot market, positions are emulated.
 			 * So, we use a StoredPosition instead of PositionOnBybit here.
+			 * Volume is stored in base currency (the actual qty sent to the exchange).
 			 */
 			$position = StoredPosition::create(
 				market: $market,
-				volume: $amount,
+				volume: $entryVolume,
 				direction: $direction,
 				entryPrice: $currentPrice,
 				currentPrice: $currentPrice,
@@ -401,10 +405,13 @@ class Bybit extends AbstractExchangeDriver
 				$position->setTakeProfitPrice($takeProfitPrice);
 			}
 
-			// Save the “position” to the database.
-			$position->save();
+			// Save the position to the database.
+			$saved = $position->save();
+			if (!$saved) {
+				$this->logger->error("Position opened on Bybit but failed to save to DB for $market");
+			}
 
-			// Success.
+			// Success (the order was placed on the exchange regardless of local DB save).
 			return true;
 		} catch (Exception $e) {
 			// Inform the user.

@@ -92,8 +92,14 @@ class PositionOnBybit extends AbstractPositionOnExchange
 
 	/**
 	 * @inheritDoc
+	 *
+	 * Bybit does not expose a unique position ID via getPositionInfo.
+	 * Positions are identified by symbol + positionIdx (1=Long, 2=Short).
+	 * We build a synthetic ID to make it clear this came from exchange sync.
 	 */
 	public function getExchangePositionId(): string {
-		return $this->info['positionIdx'] ?? 'unknown';
+		$symbol = $this->info['symbol'] ?? 'UNKNOWN';
+		$idx = $this->info['positionIdx'] ?? '0';
+		return "synced-{$symbol}-{$idx}";
 	}
 }
