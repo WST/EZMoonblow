@@ -7,6 +7,10 @@ use Izzy\Indicators\RSI;
 
 class EZMoonblowDCAAlwaysLong extends AbstractDCAStrategy
 {
+	public static function getDisplayName(): string {
+		return 'Always-Long DCA';
+	}
+
 	public function useIndicators(): array {
 		return [RSI::class];
 	}

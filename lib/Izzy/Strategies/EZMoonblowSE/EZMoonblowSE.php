@@ -2,58 +2,34 @@
 
 namespace Izzy\Strategies\EZMoonblowSE;
 
-use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\AbstractSingleEntryStrategy;
-use Izzy\Indicators\EMA;
 use Izzy\Indicators\RSI;
-use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
 use Izzy\Strategies\EZMoonblowSE\Parameters\CooldownCandles;
-use Izzy\Strategies\EZMoonblowSE\Parameters\EMAFastPeriod;
-use Izzy\Strategies\EZMoonblowSE\Parameters\EMASlowPeriod;
 use Izzy\Strategies\EZMoonblowSE\Parameters\RSILongThreshold;
 use Izzy\Strategies\EZMoonblowSE\Parameters\RSIShortThreshold;
 use Izzy\System\Logger;
 
 /**
- * Single-entry mean-reversion strategy within a trend context.
+ * Single-entry RSI-based strategy.
  *
- * The core idea: determine trend direction from daily price vs EMA,
- * then enter at the extreme of a small oscillation (dip in uptrend,
- * bounce in downtrend). This "buy the dip / sell the rally" approach
- * provides excellent entry prices where the trend itself acts as a
- * catalyst for favorable price movement.
+ * Enters long when RSI crosses below the long threshold (oversold),
+ * enters short when RSI crosses above the short threshold (overbought).
+ * No trend filter — pure mean-reversion on extreme RSI values.
  *
- * This approach works especially well with aggressive Breakeven Lock:
- * entering at oscillation extremes means price almost always moves
- * at least a small amount in the trend direction, triggering BL
- * before the stop-loss is reached.
- *
- * Long entry conditions:
- *   - Daily close > EMA(slow) on 1D (uptrend territory)
- *   - RSI on 1H crosses BELOW rsiLongThreshold (entering oversold =
- *     bottom of dip, catching the valley)
- *
- * Short entry conditions:
- *   - Daily close < EMA(slow) on 1D (downtrend territory)
- *   - RSI on 1H crosses ABOVE rsiShortThreshold (entering overbought =
- *     top of bounce, catching the peak)
+ * Long entry:  RSI crosses below rsiLongThreshold (e.g. 30)
+ * Short entry: RSI crosses above rsiShortThreshold (e.g. 70)
  */
 class EZMoonblowSE extends AbstractSingleEntryStrategy
 {
-	/** How many daily candles to request for EMA calculation. */
-	private const int DAILY_CANDLES_COUNT = 250;
+	public static function getDisplayName(): string {
+		return 'RSI Single Entry';
+	}
 
-	/** Fast EMA period for the daily trend filter. */
-	private int $emaFastPeriod;
-
-	/** Slow EMA period for the daily trend filter. */
-	private int $emaSlowPeriod;
-
-	/** RSI threshold for long entries (RSI crosses below = dip detected). */
+	/** RSI threshold for long entries (RSI crosses below = oversold). */
 	private float $rsiLongThreshold;
 
-	/** RSI threshold for short entries (RSI crosses above = bounce detected). */
+	/** RSI threshold for short entries (RSI crosses above = overbought). */
 	private float $rsiShortThreshold;
 
 	/** Minimum candles to wait between entries (prevents whipsaw). */
@@ -64,10 +40,8 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->emaFastPeriod = (int)($params['emaFastPeriod'] ?? 20);
-		$this->emaSlowPeriod = (int)($params['emaSlowPeriod'] ?? 50);
-		$this->rsiLongThreshold = (float)($params['rsiLongThreshold'] ?? 40);
-		$this->rsiShortThreshold = (float)($params['rsiShortThreshold'] ?? 60);
+		$this->rsiLongThreshold = (float)($params['rsiLongThreshold'] ?? 30);
+		$this->rsiShortThreshold = (float)($params['rsiShortThreshold'] ?? 70);
 		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 0);
 	}
 
@@ -78,16 +52,6 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 		return [RSI::class];
 	}
 
-	/**
-	 * Timeframes needed beyond the market's native timeframe.
-	 * Used by the backtester to pre-load historical candles.
-	 *
-	 * @return TimeFrameEnum[]
-	 */
-	public static function requiredTimeframes(): array {
-		return [TimeFrameEnum::TF_1DAY];
-	}
-
 	// ------------------------------------------------------------------
 	// Entry signal detection
 	// ------------------------------------------------------------------
@@ -96,43 +60,10 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @inheritDoc
 	 */
 	public function shouldLong(): bool {
-		$log = Logger::getLogger();
-
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
 
-		$dailyCandles = $this->getDailyCandles();
-		if ($dailyCandles === null || empty($dailyCandles)) {
-			$log->debug("[LONG] No daily candles available");
-			return false;
-		}
-
-		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
-		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
-
-		if (empty($emaSlow)) {
-			$log->debug("[LONG] EMA array empty (slow=" . count($emaSlow) . ")");
-			return false;
-		}
-
-		$latestEmaSlow = end($emaSlow);
-		$latestDailyClose = end($closePrices);
-
-		$log->debug(sprintf(
-			"[LONG] close=%.8f | EMA(%d)=%.8f | close>ema=%s",
-			$latestDailyClose,
-			$this->emaSlowPeriod, $latestEmaSlow,
-			$latestDailyClose > $latestEmaSlow ? 'YES' : 'NO',
-		));
-
-		// Trend filter: daily close above EMA(slow) = uptrend territory.
-		if ($latestDailyClose <= $latestEmaSlow) {
-			return false;
-		}
-
-		// Entry signal: RSI drops below threshold = entering oversold zone.
-		// In an uptrend this means a temporary dip — enter long to catch the valley.
 		if (!$this->rsiCrossesBelow($this->rsiLongThreshold)) {
 			return false;
 		}
@@ -145,43 +76,10 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 * @inheritDoc
 	 */
 	public function shouldShort(): bool {
-		$log = Logger::getLogger();
-
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
 
-		$dailyCandles = $this->getDailyCandles();
-		if ($dailyCandles === null || empty($dailyCandles)) {
-			$log->debug("[SHORT] No daily candles available");
-			return false;
-		}
-
-		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
-		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
-
-		if (empty($emaSlow)) {
-			$log->debug("[SHORT] EMA array empty (slow=" . count($emaSlow) . ")");
-			return false;
-		}
-
-		$latestEmaSlow = end($emaSlow);
-		$latestDailyClose = end($closePrices);
-
-		$log->debug(sprintf(
-			"[SHORT] close=%.8f | EMA(%d)=%.8f | close<ema=%s",
-			$latestDailyClose,
-			$this->emaSlowPeriod, $latestEmaSlow,
-			$latestDailyClose < $latestEmaSlow ? 'YES' : 'NO',
-		));
-
-		// Trend filter: daily close below EMA(slow) = downtrend territory.
-		if ($latestDailyClose >= $latestEmaSlow) {
-			return false;
-		}
-
-		// Entry signal: RSI rises above threshold = entering overbought zone.
-		// In a downtrend this means a temporary bounce — enter short to catch the peak.
 		if (!$this->rsiCrossesAbove($this->rsiShortThreshold)) {
 			return false;
 		}
@@ -210,8 +108,6 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 
 	/**
 	 * Check if enough time has passed since the last entry.
-	 * Prevents whipsaw: rapid re-entries after a stop-loss hit that
-	 * often lead to cascading losses in choppy markets.
 	 *
 	 * @return bool True if cooldown has elapsed (or is disabled).
 	 */
@@ -240,35 +136,11 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
-	// Multi-timeframe helpers
-	// ------------------------------------------------------------------
-
-	/**
-	 * Request daily candles for EMA calculation.
-	 * Uses lastCandle time instead of wall-clock time to avoid look-ahead bias in backtests.
-	 *
-	 * @return ICandle[]|null Array of daily candles or null if still loading.
-	 */
-	private function getDailyCandles(): ?array {
-		$candles = $this->market->getCandles();
-		if (empty($candles)) {
-			return null;
-		}
-		$endTime = (int)end($candles)->getOpenTime();
-		$startTime = $endTime - self::DAILY_CANDLES_COUNT * TimeFrameEnum::TF_1DAY->toSeconds();
-		$candles = $this->market->requestCandles(TimeFrameEnum::TF_1DAY, $startTime, $endTime);
-		$count = $candles !== null ? count($candles) : 'null';
-		$need = self::DAILY_CANDLES_COUNT;
-		Logger::getLogger()->debug("[EMA] getDailyCandles: need=$need, got=$count, range=" . date('Y-m-d', $startTime) . " → " . date('Y-m-d', $endTime));
-		return $candles;
-	}
-
-	// ------------------------------------------------------------------
 	// RSI crossover detection
 	// ------------------------------------------------------------------
 
 	/**
-	 * Detect RSI crossing above a threshold (pullback recovery signal).
+	 * Detect RSI crossing above a threshold.
 	 *
 	 * @param float $threshold RSI threshold to cross above.
 	 * @return bool True if RSI just crossed above the threshold.
@@ -297,7 +169,7 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	}
 
 	/**
-	 * Detect RSI crossing below a threshold (relief rally fading signal).
+	 * Detect RSI crossing below a threshold.
 	 *
 	 * @param float $threshold RSI threshold to cross below.
 	 * @return bool True if RSI just crossed below the threshold.
@@ -334,10 +206,8 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	 */
 	public static function getParameters(): array {
 		return array_merge(parent::getParameters(), [
-			new EMAFastPeriod(),
-			new EMASlowPeriod(),
-			new RSILongThreshold(),
-			new RSIShortThreshold(),
+			new RSILongThreshold('30'),
+			new RSIShortThreshold('70'),
 			new CooldownCandles(),
 		]);
 	}

@@ -175,6 +175,15 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		return $this->row[self::FStrategy];
 	}
 
+	public function getStrategyDisplayName(): string {
+		$name = $this->getStrategy();
+		$class = StrategyFactory::getStrategyClass($name);
+		if ($class !== null && method_exists($class, 'getDisplayName')) {
+			return $class::getDisplayName();
+		}
+		return $name;
+	}
+
 	public function getStrategyParams(): array {
 		$json = $this->row[self::FStrategyParams] ?? null;
 		if ($json === null) {
@@ -397,7 +406,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'ticker' => $this->getTicker(),
 			'marketType' => $this->getMarketType(),
 			'timeframe' => $this->getTimeframe(),
-			'strategy' => $this->getStrategy(),
+			'strategy' => $this->getStrategyDisplayName(),
 			'strategyParams' => $this->getStrategyParamsLabeled(),
 			'initialBalance' => $this->getInitialBalance(),
 			'finalBalance' => $this->getFinalBalance(),

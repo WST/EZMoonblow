@@ -79,8 +79,12 @@ class BacktestApiController
 				$params[] = $parameter->toArray();
 			}
 			$isDCA = is_subclass_of($class, AbstractDCAStrategy::class);
+			$displayName = method_exists($class, 'getDisplayName')
+				? $class::getDisplayName()
+				: $name;
 			$strategies[] = [
 				'name' => $name,
+				'displayName' => $displayName,
 				'type' => $isDCA ? 'DCA' : 'SE',
 				'params' => $params,
 			];
@@ -111,8 +115,7 @@ class BacktestApiController
 	 *   "strategy": "EZMoonblowSEBoll",
 	 *   "params": {...},
 	 *   "days": 30,
-	 *   "initialBalance": 10000,
-	 *   "leverage": 5
+	 *   "initialBalance": 10000
 	 * }
 	 */
 	private function runBacktest(Request $request, Response $response): Response {

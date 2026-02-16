@@ -29,8 +29,8 @@ class BreakevenLockClosePercent extends AbstractStrategyParameter
 
 	public function getEnabledCondition(): ?array {
 		return [
-			'paramKey' => BreakevenLockEnabled::getName(),
-			'value' => 'true'
+			'paramKey' => 'breakevenLockEnabled',
+			'value' => 'true',
 		];
 	}
 }

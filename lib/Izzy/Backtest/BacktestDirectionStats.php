@@ -61,6 +61,11 @@ readonly class BacktestDirectionStats implements Stringable
 		);
 	}
 
+	public function getWinRate(): float {
+		$total = $this->wins + $this->losses;
+		return $total > 0 ? ($this->wins / $total) * 100 : 0;
+	}
+
 	public function __toString(): string {
 		$h = ['Metric', 'Value'];
 		$rows = [
@@ -75,6 +80,7 @@ readonly class BacktestDirectionStats implements Stringable
 			$rows[] = ['Win (TP)', "{$this->wins} ({$winPct}%)"];
 			$rows[] = ['Loss (SL)', "{$this->losses} ({$lossPct}%)"];
 			$rows[] = ['Breakeven Lock (SL)', "{$this->breakevenLocks} ({$blPct}%)"];
+			$rows[] = ['Win Rate', number_format($this->getWinRate(), 1) . '%'];
 			$rows[] = ['Shortest trade', $this->formatDuration($this->shortest)];
 			$rows[] = ['Longest trade', $this->formatDuration($this->longest)];
 			$rows[] = ['Average duration', $this->formatDuration($this->average)];

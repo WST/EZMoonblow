@@ -11,7 +11,6 @@ use Izzy\Backtest\BacktestResult;
 use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Backtest\BacktestRiskRatios;
 use Izzy\Backtest\BacktestTradeStats;
-use Izzy\Enums\MarginModeEnum;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
@@ -185,7 +184,6 @@ class Backtester extends ConsoleApplication
 			$pair->setStrategyParams($config['params'] ?? []);
 			$pair->setBacktestDays($config['days']);
 			$pair->setBacktestInitialBalance($config['initialBalance']);
-			$pair->setLeverage($config['leverage'] ?? null);
 
 			// Find the real exchange driver for instrument info.
 			$realExchange = $exchanges[$config['exchangeName']] ?? null;
@@ -259,14 +257,7 @@ class Backtester extends ConsoleApplication
 				$initialBalance
 			);
 
-			// Configure the virtual exchange to match pair/strategy settings.
-			if ($pair->getLeverage() !== null) {
-				$backtestExchange->setBacktestLeverage($pair->getLeverage());
-			}
 			$strategyParams = $pair->getStrategyParams();
-			if (filter_var($strategyParams['useIsolatedMargin'] ?? false, FILTER_VALIDATE_BOOLEAN)) {
-				$backtestExchange->setBacktestMarginMode(MarginModeEnum::ISOLATED);
-			}
 
 			$endTime = time();
 			$startTime = $endTime - $days * 24 * 3600;
@@ -318,7 +309,6 @@ class Backtester extends ConsoleApplication
 					params: $pair->getStrategyParams(),
 					initialBalance: $initialBalance,
 					totalCandles: $n,
-					leverage: $pair->getLeverage() ?? 1,
 				);
 			}
 			$liquidated = false;

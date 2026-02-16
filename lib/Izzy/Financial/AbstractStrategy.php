@@ -105,6 +105,15 @@ abstract class AbstractStrategy implements IStrategy
 	}
 
 	/**
+	 * Human-readable strategy name for the UI.
+	 * Concrete strategies should override this.
+	 */
+	public static function getDisplayName(): string {
+		// Fallback to class short name.
+		return (new \ReflectionClass(static::class))->getShortName();
+	}
+
+	/**
 	 * Get all typed parameter definitions for the strategy.
 	 * Concrete strategies should override and merge with parent.
 	 *

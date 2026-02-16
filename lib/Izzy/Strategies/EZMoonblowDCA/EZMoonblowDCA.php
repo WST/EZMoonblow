@@ -7,6 +7,10 @@ use Izzy\Indicators\RSI;
 
 class EZMoonblowDCA extends AbstractDCAStrategy
 {
+	public static function getDisplayName(): string {
+		return 'RSI DCA';
+	}
+
 	public function useIndicators(): array {
 		return [RSI::class];
 	}

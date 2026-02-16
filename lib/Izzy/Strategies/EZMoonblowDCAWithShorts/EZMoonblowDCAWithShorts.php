@@ -17,6 +17,10 @@ use Izzy\Strategies\EZMoonblowDCA\EZMoonblowDCA;
  */
 class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 {
+	public static function getDisplayName(): string {
+		return 'RSI DCA (Long & Short)';
+	}
+
 	public function shouldShort(): bool {
 		$rsiSignal = $this->market->getLatestIndicatorSignal(RSI::getName());
 		return $rsiSignal === 'overbought';

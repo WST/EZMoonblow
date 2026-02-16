@@ -11,7 +11,6 @@ use Izzy\Financial\Parameters\BreakevenLockTriggerPercent;
 use Izzy\Financial\Parameters\EntryVolume;
 use Izzy\Financial\Parameters\StopLossPercent;
 use Izzy\Financial\Parameters\TakeProfitPercent;
-use Izzy\Financial\Parameters\UseIsolatedMargin;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Logger;
@@ -387,7 +386,6 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 			new EntryVolume(),
 			new StopLossPercent(),
 			new TakeProfitPercent(),
-			new UseIsolatedMargin(),
 			new BreakevenLockEnabled(),
 			new BreakevenLockTriggerPercent(),
 			new BreakevenLockClosePercent(),

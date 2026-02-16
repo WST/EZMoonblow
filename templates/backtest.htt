@@ -447,10 +447,7 @@
 		<input type="number" id="inp-days" value="365" min="1" max="3650">
 
 		<label for="inp-balance">Initial Balance (USDT)</label>
-		<input type="number" id="inp-balance" value="10000" min="1" step="100">
-
-		<label for="inp-leverage">Leverage</label>
-		<input type="number" id="inp-leverage" value="5" min="1" max="125">
+		<input type="number" id="inp-balance" value="100" min="1" step="100">
 
 		<div class="sidebar-buttons">
 			<button id="btn-run-backtest">Run Backtest</button>
@@ -571,7 +568,6 @@
 	const elParamsContainer = document.getElementById('strategy-params-container');
 	const elDays = document.getElementById('inp-days');
 	const elBalance = document.getElementById('inp-balance');
-	const elLeverage = document.getElementById('inp-leverage');
 	const elRunBtn = document.getElementById('btn-run-backtest');
 	const elMakeXmlBtn = document.getElementById('btn-make-xml');
 	const elXmlOverlay = document.getElementById('xml-modal-overlay');
@@ -618,7 +614,7 @@
 		strategies.forEach(s => {
 			const opt = document.createElement('option');
 			opt.value = s.name;
-			opt.textContent = s.name;
+			opt.textContent = s.displayName || s.name;
 			elStrategy.appendChild(opt);
 		});
 		renderStrategyParams();
@@ -669,7 +665,7 @@
 			const fieldset = document.createElement('fieldset');
 			fieldset.className = 'param-fieldset';
 			const legend = document.createElement('legend');
-			legend.textContent = group;
+			legend.textContent = (group === strat.name) ? (strat.displayName || group) : group;
 			fieldset.appendChild(legend);
 
 			strat.params.filter(p => p.group === group).forEach(p => {
@@ -818,11 +814,11 @@
 		return { value: parseFloat(s) || 0, mode: 'ABSOLUTE' };
 	}
 
-	/** Resolve raw volume to USDT given mode, balance, and leverage. */
-	function resolveVolume(rawVolume, mode, balance, leverage) {
+	/** Resolve raw volume to USDT given mode and balance. */
+	function resolveVolume(rawVolume, mode, balance) {
 		switch (mode) {
 			case 'PERCENT_BALANCE': return balance * (rawVolume / 100);
-			case 'PERCENT_MARGIN':  return balance * leverage * (rawVolume / 100);
+			case 'PERCENT_MARGIN':  return balance * (rawVolume / 100);
 			default:                return rawVolume;
 		}
 	}
@@ -896,7 +892,6 @@
 		elDCAGridsPanel.style.display = '';
 		const params = collectParams();
 		const balance = parseFloat(elBalance.value) || 0;
-		const leverage = parseInt(elLeverage.value) || 1;
 		const offsetMode = params.offsetMode || 'FROM_ENTRY';
 
 		let html = '';
@@ -914,7 +909,7 @@
 				'LONG', offsetMode
 			);
 			const ep = parseFloat(String(params.expectedProfit || '0').replace('%', ''));
-			html += renderGridTable(grid, 'Long', ev.mode, balance, leverage, ep);
+			html += renderGridTable(grid, 'Long', ev.mode, balance, ep);
 		}
 
 		// Short grid.
@@ -930,7 +925,7 @@
 				'SHORT', offsetMode
 			);
 			const ep = parseFloat(String(params.expectedProfitShort || '0').replace('%', ''));
-			html += renderGridTable(grid, 'Short', ev.mode, balance, leverage, ep);
+			html += renderGridTable(grid, 'Short', ev.mode, balance, ep);
 		}
 
 		if (!html) {
@@ -941,7 +936,7 @@
 	}
 
 	/** Render a single grid direction into an HTML table string. */
-	function renderGridTable(levels, label, volumeMode, balance, leverage, expectedProfit) {
+	function renderGridTable(levels, label, volumeMode, balance, expectedProfit) {
 		let totalVol = 0;
 		let hasWarning = false;
 
@@ -949,7 +944,7 @@
 		let rows = '';
 		for (let i = 0; i < levels.length; i++) {
 			const lv = levels[i];
-			const resolved = resolveVolume(lv.volume, volumeMode, balance, leverage);
+			const resolved = resolveVolume(lv.volume, volumeMode, balance);
 			totalVol += resolved;
 			const offsetDanger = (label === 'Long' && lv.offset < -100);
 			if (offsetDanger) hasWarning = true;
@@ -1057,7 +1052,6 @@
 	// =========================================================================
 	elStrategy.addEventListener('change', renderStrategyParams);
 	elBalance.addEventListener('input', renderDCAGrids);
-	elLeverage.addEventListener('input', renderDCAGrids);
 
 	elSpeedSlider.addEventListener('input', () => {
 		const idx = parseInt(elSpeedSlider.value);
@@ -1091,7 +1085,6 @@
 			params: params,
 			days: parseInt(elDays.value),
 			initialBalance: parseFloat(elBalance.value),
-			leverage: parseInt(elLeverage.value),
 		};
 
 		elRunBtn.disabled = true;
@@ -1446,13 +1439,12 @@
 		const params = collectParams();
 		const days = elDays.value;
 		const balance = elBalance.value;
-		const leverage = elLeverage.value;
 		const ticker = pairData.ticker;
 		const timeframe = pairData.timeframe;
 
 		const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
-		let xml = '<pair ticker="' + esc(ticker) + '" timeframe="' + esc(timeframe) + '" trade="yes" leverage="' + esc(leverage) + '">\n';
+		let xml = '<pair ticker="' + esc(ticker) + '" timeframe="' + esc(timeframe) + '" trade="yes">\n';
 		xml += '\t<strategy name="' + esc(strategyName) + '" backtest_days="' + esc(days) + '" backtest_initial_balance="' + esc(balance) + '">\n';
 
 		for (const [key, val] of Object.entries(params)) {

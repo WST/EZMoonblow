@@ -46,6 +46,10 @@ use Izzy\System\Logger;
  */
 class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 {
+	public static function getDisplayName(): string {
+		return 'Bollinger Bands Single Entry';
+	}
+
 	/** How many daily candles to request for EMA calculation. */
 	private const int DAILY_CANDLES_COUNT = 250;
 

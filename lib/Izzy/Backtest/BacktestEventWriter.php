@@ -51,7 +51,6 @@ class BacktestEventWriter
 		array $params,
 		float $initialBalance,
 		int $totalCandles,
-		int $leverage,
 	): void {
 		$this->write('init', [
 			'pair' => $pair,
@@ -60,7 +59,6 @@ class BacktestEventWriter
 			'params' => $params,
 			'initialBalance' => $initialBalance,
 			'totalCandles' => $totalCandles,
-			'leverage' => $leverage,
 		]);
 	}
 

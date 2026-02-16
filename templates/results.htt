@@ -363,9 +363,12 @@
 			var winPct = ((wins / finished) * 100).toFixed(1);
 			var lossPct = ((losses / finished) * 100).toFixed(1);
 			var blPct = ((bl / finished) * 100).toFixed(1);
+			var wrTotal = wins + losses;
+			var winRate = wrTotal > 0 ? ((wins / wrTotal) * 100).toFixed(1) : '0.0';
 			rows += metricRow('Win (TP)', wins + ' (' + winPct + '%)');
 			rows += metricRow('Loss (SL)', losses + ' (' + lossPct + '%)');
 			rows += metricRow('Breakeven Lock (SL)', bl + ' (' + blPct + '%)');
+			rows += metricRow('Win Rate', winRate + '%');
 			rows += metricRow('Shortest trade', formatDuration(shortest));
 			rows += metricRow('Longest trade', formatDuration(longest));
 			rows += metricRow('Average duration', formatDuration(average));
