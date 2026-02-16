@@ -1,0 +1,458 @@
+{% extends 'base-page.htt' %}
+
+{% block extracss %}
+<style>
+	.candles-layout {
+		max-width: 1100px;
+		margin: 0 auto;
+		text-align: left;
+	}
+	.candles-layout h1 {
+		text-align: center;
+		margin-bottom: 24px;
+	}
+	.candles-section {
+		background: #fff;
+		border: 1px solid #ddd;
+		border-radius: 8px;
+		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+		padding: 20px;
+		margin-bottom: 20px;
+	}
+	.candles-section h2 {
+		margin: 0 0 16px 0;
+		font-size: 17px;
+		color: #003366;
+		border-bottom: 1px solid #eee;
+		padding-bottom: 8px;
+	}
+
+	/* Download form */
+	.download-form {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 10px;
+		align-items: flex-end;
+	}
+	.download-form .form-group {
+		display: flex;
+		flex-direction: column;
+		gap: 3px;
+	}
+	.download-form label {
+		font-size: 11px;
+		font-weight: bold;
+		color: #555;
+	}
+	.download-form select,
+	.download-form input[type="text"],
+	.download-form input[type="number"] {
+		padding: 6px 8px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 13px;
+		font-family: inherit;
+	}
+	.download-form select:focus,
+	.download-form input:focus {
+		border-color: #005599;
+		outline: none;
+	}
+	#btn-download-candles {
+		padding: 8px 18px;
+		background: #005599;
+		color: #fff;
+		border: none;
+		border-radius: 4px;
+		font-size: 13px;
+		cursor: pointer;
+		font-family: inherit;
+		white-space: nowrap;
+	}
+	#btn-download-candles:hover {
+		background: #003366;
+	}
+	#btn-download-candles:disabled {
+		background: #999;
+		cursor: not-allowed;
+	}
+
+	/* Candle sets table */
+	.candles-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 13px;
+	}
+	.candles-table th,
+	.candles-table td {
+		border: 1px solid #a9bdcd;
+		padding: 7px 10px;
+		text-align: left;
+	}
+	.candles-table th {
+		background: #5c7589;
+		color: #dfefff;
+		font-weight: bold;
+		border-color: #395e83;
+		font-size: 12px;
+	}
+	.candles-table tr:nth-child(even) td {
+		background: #f9f9f9;
+	}
+	.candles-table tr:hover td {
+		background: #eef6ff;
+	}
+	.candles-table td.actions {
+		text-align: center;
+		white-space: nowrap;
+	}
+	.btn-delete-set {
+		padding: 3px 10px;
+		background: #c62828;
+		color: #fff;
+		border: none;
+		border-radius: 3px;
+		font-size: 12px;
+		cursor: pointer;
+		font-family: inherit;
+	}
+	.btn-delete-set:hover {
+		background: #8e0000;
+	}
+	#btn-clear-all {
+		margin-top: 12px;
+		padding: 7px 18px;
+		background: #c62828;
+		color: #fff;
+		border: none;
+		border-radius: 4px;
+		font-size: 13px;
+		cursor: pointer;
+		font-family: inherit;
+	}
+	#btn-clear-all:hover {
+		background: #8e0000;
+	}
+	.empty-message {
+		color: #888;
+		font-style: italic;
+		padding: 12px 0;
+	}
+
+	/* Queue table */
+	.queue-table {
+		width: 100%;
+		border-collapse: collapse;
+		font-size: 13px;
+	}
+	.queue-table th,
+	.queue-table td {
+		border: 1px solid #a9bdcd;
+		padding: 7px 10px;
+		text-align: left;
+	}
+	.queue-table th {
+		background: #5c7589;
+		color: #dfefff;
+		font-weight: bold;
+		border-color: #395e83;
+		font-size: 12px;
+	}
+	.queue-table tr:nth-child(even) td {
+		background: #f9f9f9;
+	}
+	.status-pending {
+		color: #e65100;
+		font-weight: bold;
+	}
+	.status-inprogress {
+		color: #1565c0;
+		font-weight: bold;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="candles-layout">
+	<h1>Candle Management</h1>
+
+	<!-- Download Form -->
+	<div class="candles-section">
+		<h2>Download Candles</h2>
+		<div class="download-form">
+			<div class="form-group">
+				<label for="dl-exchange">Exchange</label>
+				<select id="dl-exchange"></select>
+			</div>
+			<div class="form-group">
+				<label for="dl-ticker">Pair</label>
+				<input type="text" id="dl-ticker" placeholder="BTC/USDT" style="width:120px">
+			</div>
+			<div class="form-group">
+				<label for="dl-market-type">Type</label>
+				<select id="dl-market-type">
+					<option value="futures">futures</option>
+					<option value="spot">spot</option>
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="dl-timeframe">Timeframe</label>
+				<select id="dl-timeframe">
+					<option value="1m">1m</option>
+					<option value="3m">3m</option>
+					<option value="5m">5m</option>
+					<option value="15m">15m</option>
+					<option value="30m">30m</option>
+					<option value="1h" selected>1h</option>
+					<option value="2h">2h</option>
+					<option value="4h">4h</option>
+					<option value="6h">6h</option>
+					<option value="12h">12h</option>
+					<option value="1d">1d</option>
+					<option value="1w">1w</option>
+					<option value="1M">1M</option>
+				</select>
+			</div>
+			<div class="form-group">
+				<label for="dl-days">Days</label>
+				<input type="number" id="dl-days" value="365" min="1" max="3650" style="width:80px">
+			</div>
+			<button id="btn-download-candles">Download</button>
+		</div>
+	</div>
+
+	<!-- Existing Candle Sets -->
+	<div class="candles-section">
+		<h2>Stored Candle Sets</h2>
+		<div id="candle-sets-container">
+			<p class="empty-message">Loading...</p>
+		</div>
+	</div>
+
+	<!-- Queue -->
+	<div class="candles-section">
+		<h2>Download Queue</h2>
+		<div id="candle-queue-container">
+			<p class="empty-message">Loading...</p>
+		</div>
+	</div>
+</div>
+
+<script>
+(function() {
+	const API = '/cgi-bin/api.pl';
+
+	function formatDate(ts) {
+		if (!ts) return '\u2014';
+		const d = new Date(ts * 1000);
+		return d.toISOString().slice(0, 10);
+	}
+
+	function formatDateTime(ts) {
+		if (!ts) return '\u2014';
+		const d = new Date(ts * 1000);
+		return d.toISOString().replace('T', ' ').slice(0, 19);
+	}
+
+	// Load exchanges into the dropdown.
+	async function loadExchanges() {
+		try {
+			const resp = await fetch(API + '?action=get_exchanges');
+			const names = await resp.json();
+			const sel = document.getElementById('dl-exchange');
+			sel.innerHTML = '';
+			names.forEach(function(n) {
+				const opt = document.createElement('option');
+				opt.value = n;
+				opt.textContent = n;
+				sel.appendChild(opt);
+			});
+		} catch (e) {
+			console.error('Failed to load exchanges', e);
+		}
+	}
+
+	// Load and render candle sets.
+	async function loadCandleSets() {
+		const container = document.getElementById('candle-sets-container');
+		try {
+			const resp = await fetch(API + '?action=get_candle_sets');
+			const sets = await resp.json();
+			if (!sets.length) {
+				container.innerHTML = '<p class="empty-message">No candle data stored.</p>';
+				return;
+			}
+			let html = '<table class="candles-table"><thead><tr>'
+				+ '<th>Exchange</th><th>Pair</th><th>Type</th><th>Timeframe</th>'
+				+ '<th>From</th><th>To</th><th>Candles</th><th></th>'
+				+ '</tr></thead><tbody>';
+			sets.forEach(function(s) {
+				html += '<tr>'
+					+ '<td>' + esc(s.exchange) + '</td>'
+					+ '<td>' + esc(s.ticker) + '</td>'
+					+ '<td>' + esc(s.marketType) + '</td>'
+					+ '<td>' + esc(s.timeframe) + '</td>'
+					+ '<td>' + formatDate(s.from) + '</td>'
+					+ '<td>' + formatDate(s.to) + '</td>'
+					+ '<td>' + s.count.toLocaleString() + '</td>'
+					+ '<td class="actions"><button class="btn-delete-set" '
+					+ 'data-exchange="' + esc(s.exchange) + '" '
+					+ 'data-ticker="' + esc(s.ticker) + '" '
+					+ 'data-market="' + esc(s.marketType) + '" '
+					+ 'data-tf="' + esc(s.timeframe) + '"'
+					+ '>\u2715</button></td>'
+					+ '</tr>';
+			});
+			html += '</tbody></table>';
+			html += '<button id="btn-clear-all">Clear All</button>';
+			container.innerHTML = html;
+
+			// Attach delete handlers.
+			container.querySelectorAll('.btn-delete-set').forEach(function(btn) {
+				btn.addEventListener('click', function() {
+					const ex = this.dataset.exchange;
+					const tk = this.dataset.ticker;
+					const mt = this.dataset.market;
+					const tf = this.dataset.tf;
+					if (!confirm('Delete ' + tk + ' ' + tf + ' (' + ex + ', ' + mt + ')?')) return;
+					deleteCandleSet(ex, tk, mt, tf);
+				});
+			});
+
+			document.getElementById('btn-clear-all').addEventListener('click', function() {
+				if (!confirm('Delete ALL candle data? This cannot be undone.')) return;
+				clearAllCandles();
+			});
+		} catch (e) {
+			container.innerHTML = '<p class="empty-message">Failed to load candle sets.</p>';
+			console.error(e);
+		}
+	}
+
+	// Load and render queue.
+	async function loadQueue() {
+		const container = document.getElementById('candle-queue-container');
+		try {
+			const resp = await fetch(API + '?action=get_candle_tasks');
+			const tasks = await resp.json();
+			if (!tasks.length) {
+				container.innerHTML = '<p class="empty-message">No pending downloads.</p>';
+				return;
+			}
+			let html = '<table class="queue-table"><thead><tr>'
+				+ '<th>Exchange</th><th>Pair</th><th>Type</th><th>Timeframe</th>'
+				+ '<th>Period</th><th>Status</th><th>Created</th>'
+				+ '</tr></thead><tbody>';
+			tasks.forEach(function(t) {
+				const statusClass = t.status === 'Pending' ? 'status-pending' : 'status-inprogress';
+				const period = formatDate(t.startTime) + ' \u2014 ' + formatDate(t.endTime);
+				html += '<tr>'
+					+ '<td>' + esc(t.exchange) + '</td>'
+					+ '<td>' + esc(t.ticker) + '</td>'
+					+ '<td>' + esc(t.marketType) + '</td>'
+					+ '<td>' + esc(t.timeframe) + '</td>'
+					+ '<td>' + period + '</td>'
+					+ '<td class="' + statusClass + '">' + esc(t.status) + '</td>'
+					+ '<td>' + formatDateTime(t.createdAt) + '</td>'
+					+ '</tr>';
+			});
+			html += '</tbody></table>';
+			container.innerHTML = html;
+		} catch (e) {
+			container.innerHTML = '<p class="empty-message">Failed to load queue.</p>';
+			console.error(e);
+		}
+	}
+
+	// Delete a specific candle set.
+	async function deleteCandleSet(exchange, ticker, marketType, timeframe) {
+		try {
+			await fetch(API + '?action=delete_candle_set', {
+				method: 'POST',
+				headers: {'Content-Type': 'application/json'},
+				body: JSON.stringify({exchange: exchange, ticker: ticker, marketType: marketType, timeframe: timeframe}),
+			});
+			loadCandleSets();
+		} catch (e) {
+			alert('Failed to delete candle set.');
+			console.error(e);
+		}
+	}
+
+	// Clear all candles.
+	async function clearAllCandles() {
+		try {
+			await fetch(API + '?action=clear_all_candles', {
+				method: 'POST',
+				headers: {'Content-Type': 'application/json'},
+				body: '{}',
+			});
+			loadCandleSets();
+		} catch (e) {
+			alert('Failed to clear candles.');
+			console.error(e);
+		}
+	}
+
+	// Request candle download.
+	document.getElementById('btn-download-candles').addEventListener('click', async function() {
+		const btn = this;
+		const exchange = document.getElementById('dl-exchange').value;
+		const ticker = document.getElementById('dl-ticker').value.trim();
+		const marketType = document.getElementById('dl-market-type').value;
+		const timeframe = document.getElementById('dl-timeframe').value;
+		const days = parseInt(document.getElementById('dl-days').value, 10);
+
+		if (!exchange) { alert('Select an exchange.'); return; }
+		if (!ticker) { alert('Enter a pair ticker (e.g. BTC/USDT).'); return; }
+		if (!days || days < 1) { alert('Enter a valid number of days.'); return; }
+
+		btn.disabled = true;
+		btn.textContent = 'Requesting\u2026';
+		try {
+			const resp = await fetch(API + '?action=request_candles', {
+				method: 'POST',
+				headers: {'Content-Type': 'application/json'},
+				body: JSON.stringify({
+					exchange: exchange,
+					ticker: ticker,
+					marketType: marketType,
+					timeframe: timeframe,
+					days: days,
+				}),
+			});
+			const result = await resp.json();
+			if (result.error) {
+				alert('Error: ' + result.error);
+			} else {
+				loadQueue();
+			}
+		} catch (e) {
+			alert('Request failed.');
+			console.error(e);
+		} finally {
+			btn.disabled = false;
+			btn.textContent = 'Download';
+		}
+	});
+
+	// HTML-escape helper.
+	function esc(s) {
+		const d = document.createElement('div');
+		d.textContent = s;
+		return d.innerHTML;
+	}
+
+	// Initial load.
+	loadExchanges();
+	loadCandleSets();
+	loadQueue();
+
+	// Auto-refresh queue and sets every 5 seconds.
+	setInterval(function() {
+		loadQueue();
+		loadCandleSets();
+	}, 5000);
+})();
+</script>
+{% endblock %}

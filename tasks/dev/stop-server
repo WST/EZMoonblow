@@ -1,0 +1,9 @@
+#!/usr/bin/bash
+
+# Get project's root directory.
+IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+cd "$IZZY_ROOT"
+
+echo "Stopping development web server..."
+docker compose -f docker-compose.dev.yml down

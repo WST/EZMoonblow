@@ -12,6 +12,7 @@ use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Financial\RuntimeCandleRepository;
 use Izzy\System\QueueTask;
+use Throwable;
 
 /**
  * Analyzer application for monitoring and analyzing exchange balances.
@@ -264,30 +265,39 @@ class Analyzer extends ConsoleApplication
 		}
 
 		// Load candles in chunks (same approach as Backtester::loadCandles).
+		// Wrap in a transaction so the entire set appears atomically.
 		$limit = 1000;
 		$startTimeMs = $startTime * 1000;
 		$endTimeMs = $endTime * 1000;
 		$chunkEndMs = $endTimeMs;
 		$totalSaved = 0;
 
-		while (true) {
-			$candles = $exchange->getCandles($pair, $limit, (int)$startTimeMs, (int)$chunkEndMs);
-			if (empty($candles)) {
-				break;
+		$this->database->beginTransaction();
+		try {
+			while (true) {
+				$candles = $exchange->getCandles($pair, $limit, (int)$startTimeMs, (int)$chunkEndMs);
+				if (empty($candles)) {
+					break;
+				}
+				$saved = $repository->saveCandles(
+					$exchangeName,
+					$ticker,
+					$marketType->value,
+					$timeframe->value,
+					$candles
+				);
+				$totalSaved += $saved;
+				$oldestOpenTimeMs = $candles[0]->getOpenTime() * 1000;
+				if ($oldestOpenTimeMs <= $startTimeMs || count($candles) < $limit) {
+					break;
+				}
+				$chunkEndMs = $oldestOpenTimeMs - 1;
 			}
-			$saved = $repository->saveCandles(
-				$exchangeName,
-				$ticker,
-				$marketType->value,
-				$timeframe->value,
-				$candles
-			);
-			$totalSaved += $saved;
-			$oldestOpenTimeMs = $candles[0]->getOpenTime() * 1000;
-			if ($oldestOpenTimeMs <= $startTimeMs || count($candles) < $limit) {
-				break;
-			}
-			$chunkEndMs = $oldestOpenTimeMs - 1;
+			$this->database->commit();
+		} catch (Throwable $e) {
+			$this->database->rollBack();
+			$this->logger->error("Failed to load candles for $ticker $timeframe->value: " . $e->getMessage());
+			return;
 		}
 
 		$this->logger->info("Saved $totalSaved candles for $ticker $timeframe->value ($storage->value storage).");

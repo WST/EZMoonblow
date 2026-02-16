@@ -1,10 +1,12 @@
 #!/usr/bin/bash
 
-# Get project’s root directory.
+# Get project's root directory.
 IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
-# Let’s go to the web directory.
-cd "$IZZY_ROOT/web"
+cd "$IZZY_ROOT"
 
-# Start PHP’s build-in debug web server.
-php -S 127.0.0.1:9090 router.php
+echo "Starting development web server (Nginx + PHP-FPM)..."
+echo "Web UI: http://127.0.0.1:9090"
+echo ""
+
+docker compose -f docker-compose.dev.yml up --build "$@"

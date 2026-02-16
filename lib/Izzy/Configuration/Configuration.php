@@ -164,10 +164,37 @@ class Configuration
 	}
 
 	/**
+	 * Get the names of all configured exchanges without connecting to them.
+	 *
+	 * @return string[] Array of exchange name strings.
+	 */
+	public function getExchangeNames(): array {
+		$exchanges = $this->xpath->query('//exchanges/exchange');
+		$names = [];
+		foreach ($exchanges as $exchangeNode) {
+			if (!$exchangeNode instanceof DOMElement) {
+				continue;
+			}
+			$name = $exchangeNode->getAttribute('name');
+			if ($name !== '') {
+				$names[] = $name;
+			}
+		}
+		return $names;
+	}
+
+	/**
 	 * Get database host from configuration.
+	 * Respects IZZY_DB_HOST env var (useful inside Docker containers
+	 * where 127.0.0.1 from config.xml would point to the container itself).
+	 *
 	 * @return string Database host.
 	 */
 	public function getDatabaseHost(): string {
+		$envHost = getenv('IZZY_DB_HOST');
+		if ($envHost !== false && $envHost !== '') {
+			return $envHost;
+		}
 		return $this->xpath->evaluate('string(//database/host)');
 	}
 
@@ -193,6 +220,22 @@ class Configuration
 	 */
 	public function getDatabasePassword(): string {
 		return $this->xpath->evaluate('string(//database/password)');
+	}
+
+	/**
+	 * Get database port from configuration.
+	 * Respects IZZY_DB_PORT env var.
+	 * Falls back to 3306 if not specified.
+	 *
+	 * @return int Database port.
+	 */
+	public function getDatabasePort(): int {
+		$envPort = getenv('IZZY_DB_PORT');
+		if ($envPort !== false && $envPort !== '') {
+			return (int) $envPort;
+		}
+		$port = $this->xpath->evaluate('string(//database/port)');
+		return $port !== '' ? (int) $port : 3306;
 	}
 
 	/**
@@ -238,7 +281,8 @@ class Configuration
 		$username = $this->getDatabaseUser();
 		$password = $this->getDatabasePassword();
 		$dbname = $this->getDatabaseName();
+		$port = $this->getDatabasePort();
 
-		return new Database($host, $dbname, $username, $password);
+		return new Database($host, $dbname, $username, $password, $port);
 	}
 }

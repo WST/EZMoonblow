@@ -148,6 +148,29 @@ abstract class AbstractCandleRepository
 	}
 
 	/**
+	 * Get distinct (exchange, ticker, market_type, timeframe) combos that have candle data.
+	 *
+	 * @return array<int, array{exchange: string, ticker: string, marketType: string, timeframe: string}>
+	 */
+	public function getAvailablePairs(): array {
+		$p = $this->getColumnPrefix();
+		$table = $this->getTable();
+		$sql = "SELECT DISTINCT {$p}exchange_name AS exchange_name, {$p}ticker AS ticker, "
+			. "{$p}market_type AS market_type, {$p}timeframe AS timeframe FROM {$table}";
+		$rows = $this->database->queryAllRows($sql);
+		$result = [];
+		foreach ($rows as $row) {
+			$result[] = [
+				'exchange' => $row['exchange_name'],
+				'ticker' => $row['ticker'],
+				'marketType' => $row['market_type'],
+				'timeframe' => $row['timeframe'],
+			];
+		}
+		return $result;
+	}
+
+	/**
 	 * Delete candles older than the given timestamp.
 	 *
 	 * @param int $olderThan Unix timestamp (seconds). Candles with open_time < this value are deleted.
@@ -157,6 +180,59 @@ abstract class AbstractCandleRepository
 		$p = $this->getColumnPrefix();
 		$sql = "{$p}open_time < $olderThan";
 		return $this->database->delete($this->getTable(), $sql);
+	}
+
+	/**
+	 * Get candle sets grouped by (exchange, ticker, market_type, timeframe) with time ranges and counts.
+	 *
+	 * @return array<int, array{exchange: string, ticker: string, marketType: string, timeframe: string, from: int, to: int, count: int}>
+	 */
+	public function getGroupedSets(): array {
+		$p = $this->getColumnPrefix();
+		$table = $this->getTable();
+		$sql = "SELECT {$p}exchange_name AS exchange_name, {$p}ticker AS ticker, "
+			. "{$p}market_type AS market_type, {$p}timeframe AS timeframe, "
+			. "MIN({$p}open_time) AS min_time, MAX({$p}open_time) AS max_time, COUNT(*) AS cnt "
+			. "FROM {$table} "
+			. "GROUP BY {$p}exchange_name, {$p}ticker, {$p}market_type, {$p}timeframe "
+			. "ORDER BY {$p}exchange_name, {$p}ticker, {$p}timeframe";
+		return array_map(fn(array $row) => [
+			'exchange' => $row['exchange_name'],
+			'ticker' => $row['ticker'],
+			'marketType' => $row['market_type'],
+			'timeframe' => $row['timeframe'],
+			'from' => (int)$row['min_time'],
+			'to' => (int)$row['max_time'],
+			'count' => (int)$row['cnt'],
+		], $this->database->queryAllRows($sql));
+	}
+
+	/**
+	 * Delete all candles matching a specific series key (exchange + ticker + market type + timeframe).
+	 *
+	 * @param string $exchange Exchange name.
+	 * @param string $ticker Pair ticker.
+	 * @param string $marketType Market type value.
+	 * @param string $timeframe Timeframe value.
+	 * @return bool True on success.
+	 */
+	public function deleteBySeriesKey(string $exchange, string $ticker, string $marketType, string $timeframe): bool {
+		$p = $this->getColumnPrefix();
+		return $this->database->delete($this->getTable(), [
+			"{$p}exchange_name" => $exchange,
+			"{$p}ticker" => $ticker,
+			"{$p}market_type" => $marketType,
+			"{$p}timeframe" => $timeframe,
+		]);
+	}
+
+	/**
+	 * Delete all candles from the table.
+	 *
+	 * @return bool True on success.
+	 */
+	public function truncateAll(): bool {
+		return $this->database->delete($this->getTable(), '1');
 	}
 
 	/**

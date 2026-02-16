@@ -7,7 +7,7 @@ use Izzy\Financial\Candle;
 use Izzy\Financial\Market;
 use Izzy\Interfaces\IIndicator;
 use Izzy\Interfaces\IIndicatorVisualizer;
-use Izzy\Strategies\DCASettings;
+use Izzy\Financial\DCASettings;
 
 class Chart extends Image
 {

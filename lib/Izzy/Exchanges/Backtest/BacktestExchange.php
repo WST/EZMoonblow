@@ -147,28 +147,21 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 	public function buyAdditional(IMarket $market, Money $amount): bool {
-		$position = $market->getStoredPosition();
-		if (!$position instanceof BacktestStoredPosition) {
+		$currentPrice = $this->getCurrentPrice($market);
+		if (!$currentPrice || $currentPrice->getAmount() <= 0) {
 			return false;
 		}
-		// Do not deduct from balance: margin stays on the account.
-		$currentPrice = $this->getCurrentPrice($market);
-		if ($currentPrice) {
-			$position->updateInfo($market);
-		}
-		$position->save();
-		$this->logger->backtestProgress("  DCA {$market->getTicker()} +" . number_format($amount->getAmount(), 2) . " -> balance " . number_format($this->virtualBalance, 2) . " USDT");
-		return true;
+		$volumeBase = $amount->getAmount() / $currentPrice->getAmount();
+		return $this->addToPosition($market, $volumeBase, $currentPrice->getAmount());
 	}
 
 	public function sellAdditional(IMarket $market, Money $amount): bool {
-		$position = $market->getStoredPosition();
-		if (!$position) {
+		$currentPrice = $this->getCurrentPrice($market);
+		if (!$currentPrice || $currentPrice->getAmount() <= 0) {
 			return false;
 		}
-		$position->updateInfo($market);
-		$position->save();
-		return true;
+		$volumeBase = $amount->getAmount() / $currentPrice->getAmount();
+		return $this->addToPosition($market, $volumeBase, $currentPrice->getAmount());
 	}
 
 	public function getCandles(IPair $pair, int $limit = 100, ?int $startTime = null, ?int $endTime = null): array {
