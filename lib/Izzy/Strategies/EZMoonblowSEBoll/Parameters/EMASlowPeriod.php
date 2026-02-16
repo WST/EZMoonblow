@@ -19,6 +19,10 @@ class EMASlowPeriod extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::INT;
 	}
 
+	public function getGroup(): string {
+		return 'EZMoonblowSEBoll';
+	}
+
 	protected function getClassDefault(): string {
 		return '50';
 	}

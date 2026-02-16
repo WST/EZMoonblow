@@ -8,8 +8,10 @@ use Izzy\Web\Controllers\BacktestApiController;
 use Izzy\Web\Middleware\AuthMiddleware;
 use Izzy\Web\Viewers\AuthPage;
 use Izzy\Web\Viewers\BacktestViewer;
+use Izzy\Web\Viewers\CandlesViewer;
 use Izzy\Web\Viewers\DashboardViewer;
 use Izzy\Web\Viewers\PositionsViewer;
+use Izzy\Web\Viewers\ResultsViewer;
 use Izzy\Web\Viewers\StatusViewer;
 use Izzy\Web\Viewers\PairsViewer;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -27,7 +29,9 @@ final class IzzyWeb extends WebApplication
 		$this->slimApp->get('/status.jsp', [$this, 'statusPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/charts/{filename:.+\.png}', [$this, 'serveChartFile'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/balance-chart/{range}', [$this, 'generateBalanceChart'])->add(AuthMiddleware::class);
+		$this->slimApp->get('/candles.jsp', [$this, 'candlesPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/backtest.jsp', [$this, 'backtestPage'])->add(AuthMiddleware::class);
+		$this->slimApp->get('/results.jsp', [$this, 'resultsPage'])->add(AuthMiddleware::class);
 
 		// CGI-bin style API for the visual backtester.
 		$backtestApi = new BacktestApiController($this);
@@ -70,8 +74,18 @@ final class IzzyWeb extends WebApplication
 		return $pageViewer->render($response);
 	}
 
+	public function candlesPage(Request $request, Response $response): Response {
+		$pageViewer = new CandlesViewer($this);
+		return $pageViewer->render($response);
+	}
+
 	public function backtestPage(Request $request, Response $response): Response {
 		$pageViewer = new BacktestViewer($this);
+		return $pageViewer->render($response);
+	}
+
+	public function resultsPage(Request $request, Response $response): Response {
+		$pageViewer = new ResultsViewer($this);
 		return $pageViewer->render($response);
 	}
 

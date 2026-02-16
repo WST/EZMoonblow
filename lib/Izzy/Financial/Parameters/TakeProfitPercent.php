@@ -19,7 +19,11 @@ class TakeProfitPercent extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'Single Entry';
+	}
+
 	protected function getClassDefault(): string {
-		return '3';
+		return '10';
 	}
 }

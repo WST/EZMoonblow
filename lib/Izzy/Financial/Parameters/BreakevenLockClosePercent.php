@@ -19,7 +19,18 @@ class BreakevenLockClosePercent extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'Single Entry';
+	}
+
 	protected function getClassDefault(): string {
 		return '25';
+	}
+
+	public function getEnabledCondition(): ?array {
+		return [
+			'paramKey' => BreakevenLockEnabled::getName(),
+			'value' => 'true'
+		];
 	}
 }

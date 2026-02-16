@@ -8,6 +8,7 @@ use Izzy\Backtest\BacktestEventWriter;
 use Izzy\Backtest\BacktestFinancialResult;
 use Izzy\Backtest\BacktestOpenPosition;
 use Izzy\Backtest\BacktestResult;
+use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Backtest\BacktestRiskRatios;
 use Izzy\Backtest\BacktestTradeStats;
 use Izzy\Enums\MarginModeEnum;
@@ -65,54 +66,65 @@ class Backtester extends ConsoleApplication
 			$marketType = $pair->getMarketType()->value;
 			$timeframe = $pair->getTimeframe()->value;
 			$this->logger->info("Loading candles: $ticker $timeframe $marketType ($exchangeName) for $days days");
-			$chunkEndMs = $endTimeMs;
-			$totalSaved = 0;
-			while (true) {
-				$candles = $exchange->getCandles($pair, $limit, (int) $startTimeMs, (int) $chunkEndMs);
-				if (empty($candles)) {
-					break;
-				}
-				$saved = $repository->saveCandles($exchangeName, $ticker, $marketType, $timeframe, $candles);
-				$totalSaved += $saved;
-				$oldestOpenTimeMs = $candles[0]->getOpenTime() * 1000;
-				if ($oldestOpenTimeMs <= $startTimeMs || count($candles) < $limit) {
-					break;
-				}
-				$chunkEndMs = $oldestOpenTimeMs - 1;
-			}
-			$this->logger->info("Saved $totalSaved candles for $ticker $timeframe $marketType");
 
-			// Load additional timeframes required by the strategy (e.g. daily candles for EMA).
-			$strategyName = $pair->getStrategyName();
-			if ($strategyName) {
-				$strategyClass = StrategyFactory::getStrategyClass($strategyName);
-				if ($strategyClass !== null) {
-					$additionalTimeframes = $strategyClass::requiredTimeframes();
-					foreach ($additionalTimeframes as $tf) {
-						$tfValue = $tf->value;
-						if ($tfValue === $timeframe) {
-							continue; // Already loaded above.
-						}
-						$this->logger->info("Loading additional timeframe candles: $ticker $tfValue $marketType ($exchangeName) for $days days");
-						$tfPair = new Pair($ticker, $tf, $exchangeName, $pair->getMarketType());
-						$tfChunkEndMs = $endTimeMs;
-						$tfTotalSaved = 0;
-						while (true) {
-							$tfCandles = $exchange->getCandles($tfPair, $limit, (int) $startTimeMs, (int) $tfChunkEndMs);
-							if (empty($tfCandles)) {
-								break;
+			// Wrap the entire pair loading (main TF + additional TFs) in a transaction
+			// so all candles appear atomically.
+			$this->database->beginTransaction();
+			try {
+				$chunkEndMs = $endTimeMs;
+				$totalSaved = 0;
+				while (true) {
+					$candles = $exchange->getCandles($pair, $limit, (int) $startTimeMs, (int) $chunkEndMs);
+					if (empty($candles)) {
+						break;
+					}
+					$saved = $repository->saveCandles($exchangeName, $ticker, $marketType, $timeframe, $candles);
+					$totalSaved += $saved;
+					$oldestOpenTimeMs = $candles[0]->getOpenTime() * 1000;
+					if ($oldestOpenTimeMs <= $startTimeMs || count($candles) < $limit) {
+						break;
+					}
+					$chunkEndMs = $oldestOpenTimeMs - 1;
+				}
+				$this->logger->info("Saved $totalSaved candles for $ticker $timeframe $marketType");
+
+				// Load additional timeframes required by the strategy (e.g. daily candles for EMA).
+				$strategyName = $pair->getStrategyName();
+				if ($strategyName) {
+					$strategyClass = StrategyFactory::getStrategyClass($strategyName);
+					if ($strategyClass !== null) {
+						$additionalTimeframes = $strategyClass::requiredTimeframes();
+						foreach ($additionalTimeframes as $tf) {
+							$tfValue = $tf->value;
+							if ($tfValue === $timeframe) {
+								continue; // Already loaded above.
 							}
-							$saved = $repository->saveCandles($exchangeName, $ticker, $marketType, $tfValue, $tfCandles);
-							$tfTotalSaved += $saved;
-							$oldestMs = $tfCandles[0]->getOpenTime() * 1000;
-							if ($oldestMs <= $startTimeMs || count($tfCandles) < $limit) {
-								break;
+							$this->logger->info("Loading additional timeframe candles: $ticker $tfValue $marketType ($exchangeName) for $days days");
+							$tfPair = new Pair($ticker, $tf, $exchangeName, $pair->getMarketType());
+							$tfChunkEndMs = $endTimeMs;
+							$tfTotalSaved = 0;
+							while (true) {
+								$tfCandles = $exchange->getCandles($tfPair, $limit, (int) $startTimeMs, (int) $tfChunkEndMs);
+								if (empty($tfCandles)) {
+									break;
+								}
+								$saved = $repository->saveCandles($exchangeName, $ticker, $marketType, $tfValue, $tfCandles);
+								$tfTotalSaved += $saved;
+								$oldestMs = $tfCandles[0]->getOpenTime() * 1000;
+								if ($oldestMs <= $startTimeMs || count($tfCandles) < $limit) {
+									break;
+								}
+								$tfChunkEndMs = $oldestMs - 1;
 							}
-							$tfChunkEndMs = $oldestMs - 1;
+							$this->logger->info("Saved $tfTotalSaved candles for $ticker $tfValue $marketType");
 						}
-						$this->logger->info("Saved $tfTotalSaved candles for $ticker $tfValue $marketType");
 					}
 				}
+
+				$this->database->commit();
+			} catch (\Throwable $e) {
+				$this->database->rollBack();
+				$this->logger->error("Failed to load candles for $ticker: " . $e->getMessage());
 			}
 		}
 	}
@@ -737,6 +749,7 @@ class Backtester extends ConsoleApplication
 			$tradeIntervals = [];
 			$wins = 0;
 			$losses = 0;
+			$breakevenLocks = 0;
 
 			// Per-direction tracking.
 			$longDurations = [];
@@ -775,7 +788,6 @@ class Backtester extends ConsoleApplication
 						? $vol * ($closePrice - $entry)
 						: $vol * ($entry - $closePrice);
 					$tradePnls[] = $pnl;
-					$pnl > 0 ? $wins++ : $losses++;
 
 					// Detect Breakeven Lock: SL-closed position where SL is
 					// very close to entry (within 0.1%), meaning BL was executed.
@@ -786,6 +798,15 @@ class Backtester extends ConsoleApplication
 							$diff = abs($slPrice - $entry) / $entry;
 							$isBL = $diff < 0.001;
 						}
+					}
+
+					// Count BL separately from wins/losses.
+					if ($isBL) {
+						$breakevenLocks++;
+					} elseif ($pnl > 0) {
+						$wins++;
+					} else {
+						$losses++;
 					}
 
 					if ($isLong) {
@@ -844,6 +865,7 @@ class Backtester extends ConsoleApplication
 					pending: $pendingCount,
 					wins: $wins,
 					losses: $losses,
+					breakevenLocks: $breakevenLocks,
 				),
 				risk: BacktestRiskRatios::fromTradePnls(
 					tradePnls: $tradePnls,
@@ -886,6 +908,7 @@ class Backtester extends ConsoleApplication
 					'trades' => $result->trades->finished,
 					'wins' => $result->trades->wins,
 					'losses' => $result->trades->losses,
+					'breakevenLocks' => $result->trades->breakevenLocks,
 					'winRate' => round($winRate, 1),
 					'sharpe' => $result->risk?->sharpe,
 					'sortino' => $result->risk?->sortino,
@@ -893,6 +916,9 @@ class Backtester extends ConsoleApplication
 					'coinPriceEnd' => $result->financial->coinPriceEnd,
 				]);
 			}
+
+			// Persist the result for the Backtest Results history page.
+			BacktestResultRecord::saveFromResult($this->database, $result);
 		}
 
 		// Print DB query stats to help profile and optimize SQL usage.

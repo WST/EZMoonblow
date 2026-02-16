@@ -37,7 +37,7 @@ class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 	public static function getParameters(): array {
 		return array_merge(parent::getParameters(), [
 			new NumberOfLevelsShort(),
-			new EntryVolumeShort(),
+			new EntryVolumeShort('1%'),
 			new VolumeMultiplierShort(),
 			new PriceDeviationShort(),
 			new PriceDeviationMultiplierShort(),

@@ -19,6 +19,10 @@ class BreakevenLockEnabled extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
+	public function getGroup(): string {
+		return 'Single Entry';
+	}
+
 	protected function getClassDefault(): string {
 		return 'true';
 	}

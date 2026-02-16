@@ -19,6 +19,18 @@ class EMATrendFilter extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
+	public function getGroup(): string {
+		return 'EZMoonblowSEBoll';
+	}
+
+	public function hasExclamationMark(): bool {
+		return true;
+	}
+
+	public function getExclamationMarkTooltip(): string {
+		return 'Requires daily (1d) candles for this pair to be loaded in advance.';
+	}
+
 	protected function getClassDefault(): string {
 		return 'false';
 	}

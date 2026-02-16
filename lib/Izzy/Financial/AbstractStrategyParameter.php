@@ -38,6 +38,11 @@ abstract class AbstractStrategyParameter
 	abstract protected function getClassDefault(): string;
 
 	/**
+	 * Human-readable group name for fieldset grouping in the UI.
+	 */
+	abstract public function getGroup(): string;
+
+	/**
 	 * Effective default value (respects constructor override).
 	 */
 	public function getDefault(): string {
@@ -55,9 +60,47 @@ abstract class AbstractStrategyParameter
 	}
 
 	/**
+	 * Whether to show a question mark icon with a tooltip next to the label.
+	 */
+	public function hasQuestionMark(): bool {
+		return false;
+	}
+
+	/**
+	 * Tooltip text for the question mark icon.
+	 */
+	public function getQuestionMarkTooltip(): string {
+		return '';
+	}
+
+	/**
+	 * Whether to show a red exclamation mark icon with a tooltip next to the label.
+	 */
+	public function hasExclamationMark(): bool {
+		return false;
+	}
+
+	/**
+	 * Tooltip text for the exclamation mark icon.
+	 */
+	public function getExclamationMarkTooltip(): string {
+		return '';
+	}
+
+	/**
+	 * Declarative dependency: this parameter is only enabled when another
+	 * parameter has a specific value. Override in subclasses to declare.
+	 *
+	 * @return array{paramKey: string, value: string}|null Null = always enabled.
+	 */
+	public function getEnabledCondition(): ?array {
+		return null;
+	}
+
+	/**
 	 * Serialize to a plain array suitable for JSON API responses.
 	 *
-	 * @return array{key: string, label: string, type: string, default: string, options?: array<string, string>}
+	 * @return array{key: string, label: string, type: string, default: string, group: string, options?: array<string, string>}
 	 */
 	public function toArray(): array {
 		$data = [
@@ -65,9 +108,19 @@ abstract class AbstractStrategyParameter
 			'label' => $this->getLabel(),
 			'type' => $this->getType()->value,
 			'default' => $this->getDefault(),
+			'group' => $this->getGroup(),
 		];
 		if ($this->getType()->isSelect()) {
 			$data['options'] = $this->getOptions();
+		}
+		if ($this->hasQuestionMark()) {
+			$data['questionMark'] = $this->getQuestionMarkTooltip();
+		}
+		if ($this->hasExclamationMark()) {
+			$data['exclamationMark'] = $this->getExclamationMarkTooltip();
+		}
+		if ($condition = $this->getEnabledCondition()) {
+			$data['enabledWhen'] = $condition;
 		}
 		return $data;
 	}

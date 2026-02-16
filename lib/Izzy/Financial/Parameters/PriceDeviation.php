@@ -19,7 +19,11 @@ class PriceDeviation extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'DCA';
+	}
+
 	protected function getClassDefault(): string {
-		return '10';
+		return '20';
 	}
 }

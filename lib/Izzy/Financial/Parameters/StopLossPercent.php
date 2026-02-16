@@ -19,7 +19,11 @@ class StopLossPercent extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'Single Entry';
+	}
+
 	protected function getClassDefault(): string {
-		return '2';
+		return '5';
 	}
 }

@@ -19,6 +19,10 @@ class BBMultiplier extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'EZMoonblowSEBoll';
+	}
+
 	protected function getClassDefault(): string {
 		return '2.0';
 	}

@@ -19,6 +19,10 @@ class AlwaysMarketEntry extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
+	public function getGroup(): string {
+		return 'DCA';
+	}
+
 	protected function getClassDefault(): string {
 		return 'true';
 	}

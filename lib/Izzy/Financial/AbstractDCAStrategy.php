@@ -5,8 +5,8 @@ namespace Izzy\Financial;
 use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Parameters\AlwaysMarketEntry;
-use Izzy\Financial\Parameters\EntryVolume;
 use Izzy\Financial\Parameters\ExpectedProfit;
+use Izzy\Financial\Parameters\InitialEntryVolume;
 use Izzy\Financial\Parameters\NumberOfLevels;
 use Izzy\Financial\Parameters\OffsetMode;
 use Izzy\Financial\Parameters\PriceDeviation;
@@ -297,7 +297,7 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	public static function getParameters(): array {
 		return [
 			new NumberOfLevels(),
-			new EntryVolume('1%'),
+			new InitialEntryVolume(),
 			new VolumeMultiplier(),
 			new PriceDeviation(),
 			new PriceDeviationMultiplier(),

@@ -20,6 +20,10 @@ class OffsetMode extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::SELECT;
 	}
 
+	public function getGroup(): string {
+		return 'DCA';
+	}
+
 	protected function getClassDefault(): string {
 		return DCAOffsetModeEnum::FROM_PREVIOUS->value;
 	}

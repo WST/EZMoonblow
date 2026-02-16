@@ -3,10 +3,14 @@
 namespace Izzy\Web\Controllers;
 
 use Izzy\AbstractApplications\WebApplication;
+use Izzy\Enums\CandleStorageEnum;
+use Izzy\Enums\TaskStatusEnum;
+use Izzy\Enums\TaskTypeEnum;
 use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\CandleRepository;
 use Izzy\RealApplications\Backtester;
 use Izzy\Financial\StrategyFactory;
+use Izzy\System\QueueTask;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -34,6 +38,9 @@ class BacktestApiController
 		return match ($action) {
 			'get_strategies' => $this->getStrategies($response),
 			'get_pairs' => $this->getPairs($response),
+			'get_candle_sets' => $this->getCandleSets($response),
+			'get_candle_tasks' => $this->getCandleTasks($response),
+			'get_exchanges' => $this->getExchanges($response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
 		};
 	}
@@ -46,6 +53,9 @@ class BacktestApiController
 
 		return match ($action) {
 			'run_backtest' => $this->runBacktest($request, $response),
+			'request_candles' => $this->requestCandles($request, $response),
+			'delete_candle_set' => $this->deleteCandleSet($request, $response),
+			'clear_all_candles' => $this->clearAllCandles($response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
 		};
 	}
@@ -136,6 +146,149 @@ class BacktestApiController
 		exec($cmd);
 
 		return $this->jsonResponse($response, ['sessionId' => $sessionId]);
+	}
+
+	/**
+	 * GET /cgi-bin/api.pl?action=get_candle_sets
+	 * Returns candle sets grouped by (exchange, ticker, marketType, timeframe) with time ranges and counts.
+	 */
+	private function getCandleSets(Response $response): Response {
+		$repo = new CandleRepository($this->app->getDatabase());
+		return $this->jsonResponse($response, $repo->getGroupedSets());
+	}
+
+	/**
+	 * GET /cgi-bin/api.pl?action=get_candle_tasks
+	 * Returns pending and in-progress LOAD_CANDLES tasks targeting the backtest storage.
+	 */
+	private function getCandleTasks(Response $response): Response {
+		$db = $this->app->getDatabase();
+		$rows = $db->selectAllRows(
+			QueueTask::getTableName(),
+			'*',
+			[QueueTask::FType => TaskTypeEnum::LOAD_CANDLES->value],
+		);
+
+		$tasks = [];
+		foreach ($rows as $row) {
+			$status = $row[QueueTask::FStatus];
+			if ($status !== TaskStatusEnum::PENDING->value && $status !== TaskStatusEnum::INPROGRESS->value) {
+				continue;
+			}
+			$attrs = json_decode($row[QueueTask::FAttributes], true);
+			if (($attrs['storage'] ?? '') !== CandleStorageEnum::BACKTEST->value) {
+				continue;
+			}
+			$tasks[] = [
+				'exchange' => $attrs['exchange'] ?? '',
+				'ticker' => $attrs['pair'] ?? '',
+				'marketType' => $attrs['marketType'] ?? '',
+				'timeframe' => $attrs['timeframe'] ?? '',
+				'startTime' => $attrs['startTime'] ?? 0,
+				'endTime' => $attrs['endTime'] ?? 0,
+				'status' => $status,
+				'createdAt' => (int)$row[QueueTask::FCreatedAt],
+			];
+		}
+		return $this->jsonResponse($response, $tasks);
+	}
+
+	/**
+	 * GET /cgi-bin/api.pl?action=get_exchanges
+	 * Returns names of all configured exchanges.
+	 */
+	private function getExchanges(Response $response): Response {
+		$names = $this->app->getConfiguration()->getExchangeNames();
+		return $this->jsonResponse($response, $names);
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=request_candles
+	 * Creates a candle loading task for the Analyzer.
+	 *
+	 * Expected JSON body:
+	 * {
+	 *   "exchange": "Bybit",
+	 *   "ticker": "BTC/USDT",
+	 *   "marketType": "futures",
+	 *   "timeframe": "1h",
+	 *   "days": 365
+	 * }
+	 */
+	private function requestCandles(Request $request, Response $response): Response {
+		$body = json_decode((string) $request->getBody(), true);
+		if (!is_array($body)) {
+			return $this->jsonResponse($response, ['error' => 'Invalid JSON body'], 400);
+		}
+
+		$required = ['exchange', 'ticker', 'marketType', 'timeframe', 'days'];
+		foreach ($required as $field) {
+			if (!isset($body[$field])) {
+				return $this->jsonResponse($response, ['error' => "Missing field: $field"], 400);
+			}
+		}
+
+		$days = (int)$body['days'];
+		if ($days < 1) {
+			return $this->jsonResponse($response, ['error' => 'days must be >= 1'], 400);
+		}
+
+		$endTime = time();
+		$startTime = $endTime - $days * 86400;
+
+		QueueTask::loadCandles(
+			$this->app->getDatabase(),
+			$body['exchange'],
+			$body['ticker'],
+			$body['marketType'],
+			$body['timeframe'],
+			$startTime,
+			$endTime,
+			CandleStorageEnum::BACKTEST,
+		);
+
+		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=delete_candle_set
+	 * Deletes candles matching a specific series key.
+	 *
+	 * Expected JSON body:
+	 * {
+	 *   "exchange": "Bybit",
+	 *   "ticker": "BTC/USDT",
+	 *   "marketType": "futures",
+	 *   "timeframe": "1h"
+	 * }
+	 */
+	private function deleteCandleSet(Request $request, Response $response): Response {
+		$body = json_decode((string) $request->getBody(), true);
+		if (!is_array($body)) {
+			return $this->jsonResponse($response, ['error' => 'Invalid JSON body'], 400);
+		}
+
+		$required = ['exchange', 'ticker', 'marketType', 'timeframe'];
+		foreach ($required as $field) {
+			if (!isset($body[$field])) {
+				return $this->jsonResponse($response, ['error' => "Missing field: $field"], 400);
+			}
+		}
+
+		$repo = new CandleRepository($this->app->getDatabase());
+		$repo->deleteBySeriesKey($body['exchange'], $body['ticker'], $body['marketType'], $body['timeframe']);
+
+		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=clear_all_candles
+	 * Deletes all candles from the backtest candle storage.
+	 */
+	private function clearAllCandles(Response $response): Response {
+		$repo = new CandleRepository($this->app->getDatabase());
+		$repo->truncateAll();
+		return $this->jsonResponse($response, ['ok' => true]);
 	}
 
 	/**

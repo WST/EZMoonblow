@@ -19,6 +19,10 @@ class NumberOfLevelsShort extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::INT;
 	}
 
+	public function getGroup(): string {
+		return 'DCA (Short)';
+	}
+
 	protected function getClassDefault(): string {
 		return '6';
 	}

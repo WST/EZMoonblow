@@ -19,7 +19,11 @@ class NumberOfLevels extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::INT;
 	}
 
+	public function getGroup(): string {
+		return 'DCA';
+	}
+
 	protected function getClassDefault(): string {
-		return '10';
+		return '4';
 	}
 }

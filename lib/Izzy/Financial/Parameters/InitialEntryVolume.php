@@ -5,14 +5,19 @@ namespace Izzy\Financial\Parameters;
 use Izzy\Enums\StrategyParameterTypeEnum;
 use Izzy\Financial\AbstractStrategyParameter;
 
-class EntryVolumeShort extends AbstractStrategyParameter
+/**
+ * Initial entry volume for DCA strategies.
+ * Uses the same config key as EntryVolume ("entryVolume") for backward compatibility,
+ * but belongs to the DCA parameter group and has a DCA-appropriate default.
+ */
+class InitialEntryVolume extends AbstractStrategyParameter
 {
 	public function getName(): string {
-		return 'entryVolumeShort';
+		return 'entryVolume';
 	}
 
 	public function getLabel(): string {
-		return 'Entry volume (Short)';
+		return 'Initial entry volume (USDT, %, %M, or base currency)';
 	}
 
 	public function getType(): StrategyParameterTypeEnum {
@@ -20,10 +25,10 @@ class EntryVolumeShort extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'DCA (Short)';
+		return 'DCA';
 	}
 
 	protected function getClassDefault(): string {
-		return '10';
+		return '1%';
 	}
 }

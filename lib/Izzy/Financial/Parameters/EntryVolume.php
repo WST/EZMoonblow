@@ -19,6 +19,10 @@ class EntryVolume extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::STRING;
 	}
 
+	public function getGroup(): string {
+		return 'Single Entry';
+	}
+
 	protected function getClassDefault(): string {
 		return '100%';
 	}

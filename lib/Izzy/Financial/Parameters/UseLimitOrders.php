@@ -19,7 +19,11 @@ class UseLimitOrders extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
+	public function getGroup(): string {
+		return 'DCA';
+	}
+
 	protected function getClassDefault(): string {
-		return 'false';
+		return 'true';
 	}
 }

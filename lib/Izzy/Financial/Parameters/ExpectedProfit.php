@@ -19,7 +19,11 @@ class ExpectedProfit extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'DCA';
+	}
+
 	protected function getClassDefault(): string {
-		return '1.5';
+		return '2';
 	}
 }

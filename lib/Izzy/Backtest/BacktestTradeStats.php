@@ -22,6 +22,7 @@ readonly class BacktestTradeStats implements Stringable
 		public int $idle,
 		public int $wins,
 		public int $losses,
+		public int $breakevenLocks = 0,
 	) {
 	}
 
@@ -37,6 +38,7 @@ readonly class BacktestTradeStats implements Stringable
 	 * @param int $pending Number of pending positions.
 	 * @param int $wins Number of winning trades.
 	 * @param int $losses Number of losing trades.
+	 * @param int $breakevenLocks Number of trades closed via Breakeven Lock.
 	 * @return self
 	 */
 	public static function fromRawData(
@@ -49,6 +51,7 @@ readonly class BacktestTradeStats implements Stringable
 		int $pending,
 		int $wins,
 		int $losses,
+		int $breakevenLocks = 0,
 	): self {
 		$stats = self::computeDurationStats($durations, $intervals, $simStart, $simEnd);
 		return new self(
@@ -61,6 +64,7 @@ readonly class BacktestTradeStats implements Stringable
 			idle: $stats['idle'],
 			wins: $wins,
 			losses: $losses,
+			breakevenLocks: $breakevenLocks,
 		);
 	}
 
@@ -129,7 +133,12 @@ readonly class BacktestTradeStats implements Stringable
 			$rows[] = ['Time without positions', $this->formatDuration($this->idle)];
 			$total = $this->wins + $this->losses;
 			$winRate = $total > 0 ? ($this->wins / $total) * 100 : 0;
-			$rows[] = ['Win / Loss', "{$this->wins} / {$this->losses} (" . number_format($winRate, 1) . '% win rate)'];
+			$wlStr = "{$this->wins} / {$this->losses}";
+			if ($this->breakevenLocks > 0) {
+				$wlStr .= " / {$this->breakevenLocks} BL";
+			}
+			$wlStr .= ' (' . number_format($winRate, 1) . '% win rate)';
+			$rows[] = ['Win / Loss / BL', $wlStr];
 		}
 		return $this->renderTable('Trades', $h, $rows);
 	}

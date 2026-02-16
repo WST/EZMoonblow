@@ -19,6 +19,10 @@ class CooldownCandles extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::INT;
 	}
 
+	public function getGroup(): string {
+		return 'EZMoonblowSE';
+	}
+
 	protected function getClassDefault(): string {
 		return '0';
 	}

@@ -19,7 +19,18 @@ class BreakevenLockTriggerPercent extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'Single Entry';
+	}
+
 	protected function getClassDefault(): string {
 		return '10';
+	}
+
+	public function getEnabledCondition(): ?array {
+		return [
+			'paramKey' => BreakevenLockEnabled::getName(),
+			'value' => 'true'
+		];
 	}
 }

@@ -19,6 +19,10 @@ class PriceDeviationShort extends AbstractStrategyParameter
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
+	public function getGroup(): string {
+		return 'DCA (Short)';
+	}
+
 	protected function getClassDefault(): string {
 		return '10';
 	}

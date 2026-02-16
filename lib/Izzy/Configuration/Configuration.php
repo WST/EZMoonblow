@@ -164,6 +164,26 @@ class Configuration
 	}
 
 	/**
+	 * Get the names of all configured exchanges without connecting to them.
+	 *
+	 * @return string[] Array of exchange name strings.
+	 */
+	public function getExchangeNames(): array {
+		$exchanges = $this->xpath->query('//exchanges/exchange');
+		$names = [];
+		foreach ($exchanges as $exchangeNode) {
+			if (!$exchangeNode instanceof DOMElement) {
+				continue;
+			}
+			$name = $exchangeNode->getAttribute('name');
+			if ($name !== '') {
+				$names[] = $name;
+			}
+		}
+		return $names;
+	}
+
+	/**
 	 * Get database host from configuration.
 	 * Respects IZZY_DB_HOST env var (useful inside Docker containers
 	 * where 127.0.0.1 from config.xml would point to the container itself).

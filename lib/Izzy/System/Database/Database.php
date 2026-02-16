@@ -82,6 +82,27 @@ class Database
 	}
 
 	/**
+	 * Begin a database transaction.
+	 */
+	public function beginTransaction(): bool {
+		return $this->pdo->beginTransaction();
+	}
+
+	/**
+	 * Commit the current transaction.
+	 */
+	public function commit(): bool {
+		return $this->pdo->commit();
+	}
+
+	/**
+	 * Roll back the current transaction.
+	 */
+	public function rollBack(): bool {
+		return $this->pdo->rollBack();
+	}
+
+	/**
 	 * Execute a raw SQL query and return a single row as associative array.
 	 * @param string $sql SQL query to execute
 	 * @return array|null Associative array of the row data or null if no results

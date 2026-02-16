@@ -14,6 +14,7 @@
 		border-radius: 6px;
 		padding: 16px;
 		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+		text-align: left;
 	}
 	.backtest-sidebar h3 {
 		margin-top: 0;
@@ -24,44 +25,144 @@
 	.backtest-sidebar label {
 		display: block;
 		font-size: 12px;
-		font-weight: bold;
-		margin-bottom: 3px;
-		color: #555;
+		font-weight: 500;
+		margin-bottom: 4px;
+		color: #495057;
 	}
 	.backtest-sidebar select,
 	.backtest-sidebar input[type="number"],
 	.backtest-sidebar input[type="text"] {
 		width: 100%;
-		padding: 6px 8px;
+		padding: 6px 10px;
 		margin-bottom: 10px;
-		border: 1px solid #ccc;
-		border-radius: 4px;
+		border: 1px solid #ced4da;
+		border-radius: 6px;
 		font-size: 13px;
 		box-sizing: border-box;
 		font-family: inherit;
+		background: #fff;
+		color: #212529;
+		transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
 	}
 	.backtest-sidebar select:focus,
 	.backtest-sidebar input:focus {
-		border-color: #005599;
+		border-color: #86b7fe;
 		outline: none;
+		box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
 	}
 	#strategy-params-container {
-		border-top: 1px solid #eee;
-		padding-top: 8px;
 		margin-top: 4px;
 	}
-	#strategy-params-container .param-row label {
+	.param-fieldset {
+		border: 1px solid #dee2e6;
+		border-radius: 6px;
+		padding: 10px 12px 4px;
+		margin: 0 0 10px 0;
+		text-align: left;
+	}
+	.param-fieldset legend {
+		font-size: 11px;
+		font-weight: 600;
+		color: #003366;
+		padding: 0 6px;
+		margin-left: -4px;
+	}
+	.param-fieldset .param-row {
+		margin-bottom: 8px;
+	}
+	.param-fieldset .param-row label {
 		font-weight: normal;
-		color: #666;
+		color: #495057;
 		font-size: 11px;
 	}
-	#strategy-params-container .param-row input[type="checkbox"] {
+	.param-fieldset .param-row input[type="checkbox"] {
+		-webkit-appearance: none;
+		appearance: none;
+		width: 16px;
+		height: 16px;
+		border: 2px solid #ced4da;
+		border-radius: 4px;
 		vertical-align: middle;
-		margin: 0;
 		cursor: pointer;
+		position: relative;
+		transition: background-color 0.15s, border-color 0.15s;
+	}
+	.param-fieldset .param-row input[type="checkbox"]:checked {
+		background-color: #005599;
+		border-color: #005599;
+	}
+	.param-fieldset .param-row input[type="checkbox"]:checked::after {
+		content: '';
+		position: absolute;
+		left: 3px;
+		top: 0px;
+		width: 5px;
+		height: 9px;
+		border: solid #fff;
+		border-width: 0 2px 2px 0;
+		transform: rotate(45deg);
+	}
+	.param-fieldset .param-row input[type="checkbox"]:focus {
+		box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.2);
+	}
+	.param-row.param-disabled {
+		opacity: 0.45;
+		pointer-events: none;
+	}
+	.param-hint {
+		display: inline-block;
+		margin-left: 4px;
+		cursor: help;
+		position: relative;
+		font-weight: bold;
+		font-size: 12px;
+		line-height: 1;
+		vertical-align: middle;
+	}
+	.param-hint-question {
+		color: #005599;
+		border: 1px solid #005599;
+		border-radius: 50%;
+		width: 14px;
+		height: 14px;
+		text-align: center;
+		font-size: 10px;
+		line-height: 14px;
+	}
+	.param-hint-exclamation {
+		color: #c62828;
+		font-size: 14px;
+	}
+	.param-hint .param-tooltip {
+		display: none;
+		position: absolute;
+		left: 50%;
+		bottom: 120%;
+		transform: translateX(-50%);
+		background: #333;
+		color: #fff;
+		font-size: 11px;
+		font-weight: normal;
+		padding: 5px 8px;
+		border-radius: 4px;
+		white-space: nowrap;
+		max-width: 360px;
+		min-width: 200px;
+		white-space: normal;
+		z-index: 100;
+		line-height: 1.3;
+		pointer-events: none;
+	}
+	.param-hint:hover .param-tooltip {
+		display: block;
+	}
+	.sidebar-buttons {
+		display: flex;
+		gap: 8px;
+		margin-top: 8px;
 	}
 	#btn-run-backtest {
-		width: 100%;
+		flex: 1;
 		padding: 10px;
 		background: #005599;
 		color: #fff;
@@ -69,8 +170,21 @@
 		border-radius: 4px;
 		font-size: 14px;
 		cursor: pointer;
-		margin-top: 8px;
 		font-family: inherit;
+	}
+	#btn-make-xml {
+		padding: 10px 14px;
+		background: #f9f9f9;
+		color: #333;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 14px;
+		cursor: pointer;
+		font-family: inherit;
+		white-space: nowrap;
+	}
+	#btn-make-xml:hover {
+		background: #e9e9e9;
 	}
 	#btn-run-backtest:hover {
 		background: #003366;
@@ -78,6 +192,74 @@
 	#btn-run-backtest:disabled {
 		background: #999;
 		cursor: not-allowed;
+	}
+	.xml-modal-overlay {
+		display: none;
+		position: fixed;
+		inset: 0;
+		background: rgba(0,0,0,0.5);
+		z-index: 1000;
+		justify-content: center;
+		align-items: center;
+	}
+	.xml-modal-overlay.active {
+		display: flex;
+	}
+	.xml-modal {
+		background: #fff;
+		border-radius: 8px;
+		padding: 24px;
+		max-width: 640px;
+		width: 90%;
+		max-height: 80vh;
+		display: flex;
+		flex-direction: column;
+		box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+	}
+	.xml-modal h3 {
+		margin: 0 0 12px;
+		font-size: 16px;
+	}
+	.xml-modal textarea {
+		flex: 1;
+		min-height: 200px;
+		font-family: 'Fira Code', monospace;
+		font-size: 10px;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		padding: 10px;
+		resize: vertical;
+		tab-size: 4;
+		white-space: pre;
+		overflow: auto;
+	}
+	.xml-modal-buttons {
+		display: flex;
+		gap: 8px;
+		margin-top: 12px;
+		justify-content: flex-end;
+	}
+	.xml-modal-buttons button {
+		padding: 8px 16px;
+		border-radius: 4px;
+		font-size: 13px;
+		cursor: pointer;
+		font-family: inherit;
+	}
+	#btn-xml-copy {
+		background: #005599;
+		color: #fff;
+		border: none;
+	}
+	#btn-xml-copy:hover {
+		background: #003366;
+	}
+	#btn-xml-close {
+		background: #f9f9f9;
+		border: 1px solid #ccc;
+	}
+	#btn-xml-close:hover {
+		background: #e9e9e9;
 	}
 	.backtest-main {
 		display: flex;
@@ -170,6 +352,7 @@
 		justify-content: space-between;
 		align-items: baseline;
 		padding: 4px 0;
+		line-height: 18px;
 		border-bottom: 1px solid #f0f0f0;
 	}
 	.info-item:last-child { border-bottom: none; }
@@ -177,11 +360,13 @@
 		font-size: 11px;
 		color: #999;
 		text-transform: uppercase;
+		flex-shrink: 0;
 	}
 	.info-item .info-value {
-		font-size: 14px;
+		font-size: 12px;
 		font-weight: bold;
 		color: #333;
+		text-align: right;
 	}
 	.info-value.positive { color: #2e7d32; }
 	.info-value.negative { color: #c62828; }
@@ -191,12 +376,12 @@
 	.dca-grid-table {
 		width: 100%;
 		border-collapse: collapse;
-		font-size: 11px;
+		font-size: 11px !important;
 	}
 	.dca-grid-table caption {
 		text-align: left;
 		font-weight: bold;
-		font-size: 12px;
+        font-size: 11px !important;
 		color: #003366;
 		padding-bottom: 4px;
 	}
@@ -206,60 +391,33 @@
 		padding: 4px 6px;
 		text-align: right;
 		font-weight: normal;
-		font-size: 10px;
+        font-size: 11px !important;
 		text-transform: uppercase;
 	}
 	.dca-grid-table th:first-child { text-align: center; }
 	.dca-grid-table td {
 		padding: 3px 6px;
 		text-align: right;
-		border-bottom: 1px solid #e8e8e8;
 	}
-	.dca-grid-table td:first-child { text-align: center; font-weight: bold; }
+	.dca-grid-table td:first-child { text-align: center; }
 	.dca-grid-table tr:nth-child(even) td { background: #f9f9f9; }
 	.dca-grid-table .offset-danger { color: #c62828; font-weight: bold; }
-	.dca-grid-summary {
-		font-size: 11px;
+	.dca-grid-table tr.grid-filled td { background: #e8f5e9; }
+	.dca-grid-footer {
+		font-size: 10px;
 		color: #666;
-		margin-top: 4px;
 		line-height: 1.6;
+		background: #eef1f4;
+		padding: 6px 8px;
+		text-align: left;
 	}
-	.dca-grid-summary strong { color: #333; }
+	.dca-grid-footer strong { color: #333; }
 	#dca-grids-container .dca-empty-hint {
 		color: #999;
 		font-size: 12px;
 		font-style: italic;
 	}
-	.results-panel {
-		background: #fff;
-		border-radius: 6px;
-		padding: 16px;
-		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-		display: none;
-	}
-	.results-panel h3 {
-		margin-top: 0;
-		color: #003366;
-	}
-	.results-grid {
-		display: grid;
-		grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-		gap: 12px;
-	}
-	.results-grid .result-item {
-		padding: 8px 12px;
-		background: #f8f9fa;
-		border-radius: 4px;
-	}
-	.results-grid .result-item .result-label {
-		font-size: 11px;
-		color: #999;
-		text-transform: uppercase;
-	}
-	.results-grid .result-item .result-value {
-		font-size: 16px;
-		font-weight: bold;
-	}
+	.info-value.liquidated { color: #c62828; font-weight: bold; }
 	#status-text {
 		font-size: 12px;
 		color: #666;
@@ -286,7 +444,7 @@
 		<div id="strategy-params-container"></div>
 
 		<label for="inp-days">Period (days)</label>
-		<input type="number" id="inp-days" value="30" min="1" max="365">
+		<input type="number" id="inp-days" value="365" min="1" max="3650">
 
 		<label for="inp-balance">Initial Balance (USDT)</label>
 		<input type="number" id="inp-balance" value="10000" min="1" step="100">
@@ -294,7 +452,10 @@
 		<label for="inp-leverage">Leverage</label>
 		<input type="number" id="inp-leverage" value="5" min="1" max="125">
 
-		<button id="btn-run-backtest">Run Backtest</button>
+		<div class="sidebar-buttons">
+			<button id="btn-run-backtest">Run Backtest</button>
+			<button id="btn-make-xml">Make XML</button>
+		</div>
 		<div id="status-text"></div>
 	</div>
 
@@ -316,10 +477,6 @@
 			<span id="progress-text">0 / 0</span>
 		</div>
 
-		<div class="results-panel" id="results-panel">
-			<h3>Backtest Results</h3>
-			<div class="results-grid" id="results-grid"></div>
-		</div>
 	</div>
 
 	<div class="backtest-right-sidebar">
@@ -343,9 +500,25 @@
 			</div>
 		</div>
 
+		<div class="right-sidebar-panel" id="results-panel" style="display:none;">
+			<h3>Results</h3>
+			<div id="results-grid"></div>
+		</div>
+
 		<div class="right-sidebar-panel" id="dca-grids-panel">
 			<h3>Order Grid</h3>
 			<div id="dca-grids-container"></div>
+		</div>
+	</div>
+</div>
+
+<div class="xml-modal-overlay" id="xml-modal-overlay">
+	<div class="xml-modal">
+		<h3>Pair XML configuration</h3>
+		<textarea id="xml-output" readonly></textarea>
+		<div class="xml-modal-buttons">
+			<button id="btn-xml-copy">Copy</button>
+			<button id="btn-xml-close">Close</button>
 		</div>
 	</div>
 </div>
@@ -376,6 +549,7 @@
 	let initialBalance = 0;
 	let currentBalance = 0;
 	let currentPosition = null;
+	let dcaFilledLevel = 0; // Highest filled DCA level (0 = entry only).
 
 	// Liquidation alarm sound (preloaded).
 	const liquidationSound = new Audio('/extras/liquidated.m4a');
@@ -399,6 +573,11 @@
 	const elBalance = document.getElementById('inp-balance');
 	const elLeverage = document.getElementById('inp-leverage');
 	const elRunBtn = document.getElementById('btn-run-backtest');
+	const elMakeXmlBtn = document.getElementById('btn-make-xml');
+	const elXmlOverlay = document.getElementById('xml-modal-overlay');
+	const elXmlOutput = document.getElementById('xml-output');
+	const elXmlCopy = document.getElementById('btn-xml-copy');
+	const elXmlClose = document.getElementById('btn-xml-close');
 	const elStatusText = document.getElementById('status-text');
 	const elClearBtn = document.getElementById('btn-clear');
 	const elSpeedSlider = document.getElementById('speed-slider');
@@ -448,81 +627,127 @@
 		initChart();
 	}
 
+	/** Create hint icon(s) for a parameter (question mark and/or exclamation mark). */
+	function createParamHints(p) {
+		const frag = document.createDocumentFragment();
+		if (p.exclamationMark) {
+			const span = document.createElement('span');
+			span.className = 'param-hint param-hint-exclamation';
+			span.textContent = '\u26A0';
+			const tip = document.createElement('span');
+			tip.className = 'param-tooltip';
+			tip.textContent = p.exclamationMark;
+			span.appendChild(tip);
+			frag.appendChild(span);
+		}
+		if (p.questionMark) {
+			const span = document.createElement('span');
+			span.className = 'param-hint param-hint-question';
+			span.textContent = '?';
+			const tip = document.createElement('span');
+			tip.className = 'param-tooltip';
+			tip.textContent = p.questionMark;
+			span.appendChild(tip);
+			frag.appendChild(span);
+		}
+		return frag;
+	}
+
 	function renderStrategyParams() {
 		const name = elStrategy.value;
 		const strat = strategies.find(s => s.name === name);
 		elParamsContainer.innerHTML = '';
 		if (!strat) return;
+
+		// Collect unique groups in order of appearance.
+		const groups = [];
 		strat.params.forEach(p => {
-			const row = document.createElement('div');
-			row.className = 'param-row';
-			const lbl = document.createElement('label');
-			lbl.setAttribute('for', 'param-' + p.key);
-
-			let control;
-			switch (p.type) {
-				case 'bool':
-					control = document.createElement('input');
-					control.type = 'checkbox';
-					control.id = 'param-' + p.key;
-					control.name = p.key;
-					control.dataset.paramType = 'bool';
-					control.checked = (p.default === 'true' || p.default === '1' || p.default === 'yes');
-					lbl.style.display = 'inline';
-					lbl.style.fontWeight = 'normal';
-					lbl.style.marginLeft = '6px';
-					lbl.style.cursor = 'pointer';
-					lbl.textContent = p.label;
-					row.style.marginBottom = '8px';
-					row.appendChild(control);
-					row.appendChild(lbl);
-					elParamsContainer.appendChild(row);
-					return;
-
-				case 'int':
-					control = document.createElement('input');
-					control.type = 'number';
-					control.step = '1';
-					control.min = '0';
-					control.value = p.default;
-					break;
-
-				case 'float':
-					control = document.createElement('input');
-					control.type = 'number';
-					control.step = 'any';
-					control.min = '0';
-					control.value = p.default;
-					break;
-
-				case 'select':
-					control = document.createElement('select');
-					if (p.options) {
-						Object.entries(p.options).forEach(([val, label]) => {
-							const opt = document.createElement('option');
-							opt.value = val;
-							opt.textContent = label;
-							if (val === p.default) opt.selected = true;
-							control.appendChild(opt);
-						});
-					}
-					break;
-
-				default: // 'string' or unknown
-					control = document.createElement('input');
-					control.type = 'text';
-					control.value = p.default;
-					break;
-			}
-
-			control.id = 'param-' + p.key;
-			control.name = p.key;
-			control.dataset.paramType = p.type;
-			lbl.textContent = p.label;
-			row.appendChild(lbl);
-			row.appendChild(control);
-			elParamsContainer.appendChild(row);
+			if (!groups.includes(p.group)) groups.push(p.group);
 		});
+
+		groups.forEach(group => {
+			const fieldset = document.createElement('fieldset');
+			fieldset.className = 'param-fieldset';
+			const legend = document.createElement('legend');
+			legend.textContent = group;
+			fieldset.appendChild(legend);
+
+			strat.params.filter(p => p.group === group).forEach(p => {
+				const row = document.createElement('div');
+				row.className = 'param-row';
+				const lbl = document.createElement('label');
+				lbl.setAttribute('for', 'param-' + p.key);
+
+				let control;
+				switch (p.type) {
+					case 'bool':
+						control = document.createElement('input');
+						control.type = 'checkbox';
+						control.id = 'param-' + p.key;
+						control.name = p.key;
+						control.dataset.paramType = 'bool';
+						control.checked = (p.default === 'true' || p.default === '1' || p.default === 'yes');
+						lbl.style.display = 'inline';
+						lbl.style.marginLeft = '6px';
+						lbl.style.cursor = 'pointer';
+						lbl.textContent = p.label;
+						row.appendChild(control);
+						row.appendChild(lbl);
+						row.appendChild(createParamHints(p));
+						fieldset.appendChild(row);
+						return;
+
+					case 'int':
+						control = document.createElement('input');
+						control.type = 'number';
+						control.step = '1';
+						control.min = '0';
+						control.value = p.default;
+						break;
+
+					case 'float':
+						control = document.createElement('input');
+						control.type = 'number';
+						control.step = 'any';
+						control.min = '0';
+						control.value = p.default;
+						break;
+
+					case 'select':
+						control = document.createElement('select');
+						if (p.options) {
+							Object.entries(p.options).forEach(([val, label]) => {
+								const opt = document.createElement('option');
+								opt.value = val;
+								opt.textContent = label;
+								if (val === p.default) opt.selected = true;
+								control.appendChild(opt);
+							});
+						}
+						break;
+
+					default:
+						control = document.createElement('input');
+						control.type = 'text';
+						control.value = p.default;
+						break;
+				}
+
+				control.id = 'param-' + p.key;
+				control.name = p.key;
+				control.dataset.paramType = p.type;
+				lbl.textContent = p.label;
+				lbl.appendChild(createParamHints(p));
+				row.appendChild(lbl);
+				row.appendChild(control);
+				fieldset.appendChild(row);
+			});
+
+			elParamsContainer.appendChild(fieldset);
+		});
+
+		// Wire up declarative dependencies (enabledWhen).
+		applyParamDependencies(strat.params);
 
 		// Attach live-update listeners for DCA grid preview.
 		attachParamListeners();
@@ -544,6 +769,33 @@
 			}
 		});
 		return params;
+	}
+
+	/**
+	 * Apply declarative enabledWhen dependencies.
+	 * For each param that declares enabledWhen, find the controlling checkbox
+	 * and toggle enabled/disabled state of the dependent field.
+	 */
+	function applyParamDependencies(params) {
+		params.forEach(p => {
+			if (!p.enabledWhen) return;
+			const depEl = document.getElementById('param-' + p.key);
+			const ctrlEl = document.getElementById('param-' + p.enabledWhen.paramKey);
+			if (!depEl || !ctrlEl) return;
+
+			const row = depEl.closest('.param-row');
+			const apply = () => {
+				const currentVal = ctrlEl.type === 'checkbox'
+					? (ctrlEl.checked ? 'true' : 'false')
+					: ctrlEl.value;
+				const enabled = currentVal === p.enabledWhen.value;
+				depEl.disabled = !enabled;
+				if (row) row.classList.toggle('param-disabled', !enabled);
+			};
+
+			apply();
+			ctrlEl.addEventListener('change', apply);
+		});
 	}
 
 	/** Attach input/change listeners to every param control. */
@@ -693,14 +945,16 @@
 		let totalVol = 0;
 		let hasWarning = false;
 
+		const dir = label === 'Long' ? 'LONG' : 'SHORT';
 		let rows = '';
-		for (const lv of levels) {
+		for (let i = 0; i < levels.length; i++) {
+			const lv = levels[i];
 			const resolved = resolveVolume(lv.volume, volumeMode, balance, leverage);
 			totalVol += resolved;
 			const offsetDanger = (label === 'Long' && lv.offset < -100);
 			if (offsetDanger) hasWarning = true;
 			const offsetCls = offsetDanger ? ' class="offset-danger"' : '';
-			rows += '<tr>'
+			rows += '<tr data-dir="' + dir + '" data-level="' + i + '">'
 				+ '<td>' + escapeHtml(String(lv.level)) + '</td>'
 				+ '<td>' + formatGridMoney(resolved) + '</td>'
 				+ '<td' + offsetCls + '>' + lv.offset.toFixed(2) + '%</td>'
@@ -712,28 +966,50 @@
 		s += '<caption>' + escapeHtml(label) + ' positions</caption>';
 		s += '<thead><tr><th>Level</th><th>Volume</th><th>Offset</th></tr></thead>';
 		s += '<tbody>' + rows + '</tbody>';
-		s += '</table>';
-		s += '<div class="dca-grid-summary">';
-		s += 'Max volume: <strong>' + formatGridMoney(totalVol) + '</strong>';
+
+		// Footer with summary info.
+		let footerLine1 = '';
 		if (expectedProfit > 0) {
-			s += ' &middot; TP: <strong>' + expectedProfit.toFixed(2) + '%</strong>';
+			footerLine1 += 'TP: <strong>' + expectedProfit.toFixed(2) + '%</strong>';
 		}
 		if (volumeMode !== 'ABSOLUTE') {
 			const modeLabel = volumeMode === 'PERCENT_BALANCE' ? '% balance' : '% margin';
-			s += ' &middot; Mode: <strong>' + modeLabel + '</strong>';
+			if (footerLine1) footerLine1 += ' &middot; ';
+			footerLine1 += 'Volume mode: <strong>' + modeLabel + '</strong>';
 		}
-		s += '</div>';
+		let footerLine2 = 'Max volume: <strong>' + formatGridMoney(totalVol) + '</strong>';
 		if (hasWarning) {
-			s += '<div style="color:#c62828;font-size:11px;margin-top:4px;font-weight:bold;">'
+			footerLine2 += '<br><span class="offset-danger">'
 				+ '\u26A0 Offset below \u2212100%: orders at zero price will never fill'
-				+ '</div>';
+				+ '</span>';
 		}
+
+		s += '<tfoot><tr><td colspan="3" class="dca-grid-footer">';
+		if (footerLine1) s += footerLine1 + '<br>';
+		s += footerLine2;
+		s += '</td></tr></tfoot>';
+
+		s += '</table>';
 		s += '</div>';
 		return s;
 	}
 
 	function formatGridMoney(v) {
 		return v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' USDT';
+	}
+
+	/** Highlight filled DCA levels in the order grid tables. */
+	function updateGridHighlights() {
+		const rows = elDCAGridsContainer.querySelectorAll('tr[data-dir][data-level]');
+		rows.forEach(row => {
+			const rowDir = row.dataset.dir;
+			const rowLevel = parseInt(row.dataset.level);
+			if (currentPosition && currentPosition.dir === rowDir && rowLevel <= dcaFilledLevel) {
+				row.classList.add('grid-filled');
+			} else {
+				row.classList.remove('grid-filled');
+			}
+		});
 	}
 
 	function initChart() {
@@ -829,6 +1105,7 @@
 		totalCandles = 0;
 		markers = [];
 		currentPosition = null;
+		dcaFilledLevel = 0;
 		currentBalance = 0;
 		initialBalance = body.initialBalance;
 
@@ -927,7 +1204,9 @@
 			processEvent(eventBuffer.shift());
 			processed++;
 		}
-		if (eventBuffer.length > 0) {
+		// Keep polling while SSE is still open, even if the buffer is
+		// temporarily empty — new events will arrive shortly.
+		if (eventBuffer.length > 0 || sseSource) {
 			playbackTimer = requestAnimationFrame(drainAll);
 		} else {
 			playbackTimer = null;
@@ -951,6 +1230,7 @@
 		totalCandles = 0;
 		markers = [];
 		currentPosition = null;
+		dcaFilledLevel = 0;
 		currentBalance = 0;
 		sessionId = null;
 
@@ -998,29 +1278,34 @@
 
 			case 'position_open':
 				currentPosition = { dir: evt.dir, price: evt.price, volume: evt.volume };
-				elInfoPosition.textContent = evt.dir + ' @ ' + evt.price.toFixed(4);
+				dcaFilledLevel = 0;
+				elInfoPosition.textContent = evt.dir + ' @ ' + evt.price.toFixed(4) + ' (' + formatMoney(evt.price * evt.volume) + ')';
 				addMarker(evt.time, evt.dir === 'LONG' ? 'arrowUp' : 'arrowDown',
 					evt.dir === 'LONG' ? '#26a69a' : '#ef5350',
 					evt.dir === 'LONG' ? 'L' : 'S');
+				updateGridHighlights();
 				break;
 
 			case 'position_close':
 				currentPosition = null;
+				dcaFilledLevel = 0;
 				elInfoPosition.textContent = '--';
-				const shape = evt.reason === 'TP' ? 'circle' : (evt.reason === 'SL' ? 'square' : 'diamond');
+				const shape = evt.reason === 'TP' ? 'circle' : (evt.reason === 'SL' ? 'circle' : 'diamond');
 				const color = evt.pnl >= 0 ? '#26a69a' : '#ef5350';
 				addMarker(evt.time, shape, color, evt.reason);
+				updateGridHighlights();
 				break;
 
 			case 'dca_fill':
+				dcaFilledLevel++;
 				if (currentPosition) {
 					currentPosition.volume = evt.totalVolume;
 					currentPosition.price = evt.newAvgEntry;
-					elInfoPosition.textContent = currentPosition.dir + ' @ ' + evt.newAvgEntry.toFixed(4)
-						+ ' vol ' + evt.totalVolume.toFixed(4);
+					elInfoPosition.textContent = currentPosition.dir + ' @ ' + evt.newAvgEntry.toFixed(4) + ' (' + formatMoney(evt.newAvgEntry * evt.totalVolume) + ')';
 				}
 				addMarker(evt.time, 'arrowUp', '#ff9800',
 					evt.dir === 'LONG' ? 'DCA↓' : 'DCA↑');
+				updateGridHighlights();
 				break;
 
 			case 'breakeven_lock':
@@ -1107,29 +1392,32 @@
 
 	function showResults(evt) {
 		elResultsPanel.style.display = 'block';
+
+		const pnlSign = evt.pnlPercent >= 0 ? '+' : '';
+		const pnlClass = evt.pnl >= 0 ? 'positive' : 'negative';
 		const items = [
-			['Initial Balance', formatMoney(evt.initialBalance)],
-			['Final Balance', formatMoney(evt.finalBalance)],
-			['PnL', formatMoney(evt.pnl) + ' (' + (evt.pnlPercent >= 0 ? '+' : '') + evt.pnlPercent + '%)'],
-			['Max Drawdown', formatMoney(evt.maxDrawdown)],
-			['Total Trades', evt.trades],
-			['Win Rate', evt.winRate + '%'],
-			['Wins / Losses', evt.wins + ' / ' + evt.losses],
+			['Initial Balance', formatMoney(evt.initialBalance), ''],
+			['Final Balance', formatMoney(evt.finalBalance), ''],
+			['PnL', formatMoney(evt.pnl) + ' (' + pnlSign + evt.pnlPercent + '%)', pnlClass],
+			['Max Drawdown', formatMoney(evt.maxDrawdown), 'negative'],
+			['Total Trades', evt.trades, ''],
+			['Win Rate', evt.winRate + '%', ''],
+			['Win / Loss / BL', evt.wins + ' / ' + evt.losses + (evt.breakevenLocks ? ' / ' + evt.breakevenLocks + ' BL' : ''), ''],
 		];
-		if (evt.sharpe != null) items.push(['Sharpe Ratio', evt.sharpe.toFixed(2)]);
-		if (evt.sortino != null) items.push(['Sortino Ratio', evt.sortino.toFixed(2)]);
+		if (evt.sharpe != null) items.push(['Sharpe', evt.sharpe.toFixed(2), '']);
+		if (evt.sortino != null) items.push(['Sortino', evt.sortino.toFixed(2), '']);
 		if (evt.liquidated) {
-			items.push(['Status', 'LIQUIDATED']);
+			items.push(['Status', 'LIQUIDATED', 'liquidated']);
 			liquidationSound.currentTime = 0;
 			liquidationSound.play().catch(() => {});
 		}
 
 		elResultsGrid.innerHTML = '';
-		items.forEach(([label, value]) => {
+		items.forEach(([label, value, cls]) => {
 			const div = document.createElement('div');
-			div.className = 'result-item';
-			div.innerHTML = '<div class="result-label">' + escapeHtml(label) + '</div>'
-				+ '<div class="result-value">' + escapeHtml(String(value)) + '</div>';
+			div.className = 'info-item';
+			div.innerHTML = '<span class="info-label">' + escapeHtml(label) + '</span>'
+				+ '<span class="info-value' + (cls ? ' ' + cls : '') + '">' + escapeHtml(String(value)) + '</span>';
 			elResultsGrid.appendChild(div);
 		});
 	}
@@ -1148,6 +1436,60 @@
 		div.textContent = str;
 		return div.innerHTML;
 	}
+
+	// =========================================================================
+	// Make XML
+	// =========================================================================
+	function generatePairXML() {
+		const pairData = JSON.parse(elPair.value);
+		const strategyName = elStrategy.value;
+		const params = collectParams();
+		const days = elDays.value;
+		const balance = elBalance.value;
+		const leverage = elLeverage.value;
+		const ticker = pairData.ticker;
+		const timeframe = pairData.timeframe;
+
+		const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+		let xml = '<pair ticker="' + esc(ticker) + '" timeframe="' + esc(timeframe) + '" trade="yes" leverage="' + esc(leverage) + '">\n';
+		xml += '\t<strategy name="' + esc(strategyName) + '" backtest_days="' + esc(days) + '" backtest_initial_balance="' + esc(balance) + '">\n';
+
+		for (const [key, val] of Object.entries(params)) {
+			if (val === '' || val === undefined || val === null) continue;
+			xml += '\t\t<param name="' + esc(key) + '" value="' + esc(val) + '"/>\n';
+		}
+
+		xml += '\t</strategy>\n';
+		xml += '</pair>';
+		return xml;
+	}
+
+	elMakeXmlBtn.addEventListener('click', () => {
+		if (!elPair.value || !elStrategy.value) return;
+		elXmlOutput.value = generatePairXML();
+		elXmlOverlay.classList.add('active');
+		elXmlOutput.focus();
+		elXmlOutput.select();
+	});
+
+	elXmlCopy.addEventListener('click', () => {
+		elXmlOutput.select();
+		navigator.clipboard.writeText(elXmlOutput.value).then(() => {
+			elXmlCopy.textContent = 'Copied!';
+			setTimeout(() => { elXmlCopy.textContent = 'Copy'; }, 1500);
+		});
+	});
+
+	elXmlClose.addEventListener('click', () => {
+		elXmlOverlay.classList.remove('active');
+	});
+
+	elXmlOverlay.addEventListener('click', (e) => {
+		if (e.target === elXmlOverlay) {
+			elXmlOverlay.classList.remove('active');
+		}
+	});
 
 	// =========================================================================
 	// Boot
