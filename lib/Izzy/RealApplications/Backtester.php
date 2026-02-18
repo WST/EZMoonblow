@@ -3,6 +3,7 @@
 namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\Backtest\BacktestBalanceChart;
 use Izzy\Backtest\BacktestDirectionStats;
 use Izzy\Backtest\BacktestEventWriter;
 use Izzy\Backtest\BacktestFinancialResult;
@@ -356,6 +357,7 @@ class Backtester extends ConsoleApplication
 			 * ============================================================
 			 */
 			$candleDuration = $pair->getTimeframe()->toSeconds();
+			$balanceSnapshots = [];
 
 			for ($i = 0; $i < $n; $i++) {
 				$slice = array_slice($candles, 0, $i + 1);
@@ -507,16 +509,27 @@ class Backtester extends ConsoleApplication
 										$tickTime,
 									);
 								}
-								// Breakeven Lock: volume decreased and SL moved to near entry.
-								if ($postVolume < $preVolume && $postSL !== null && $postSL !== $preSL) {
-									$closedVolume = $preVolume - $postVolume;
-									$entry = $postPos->getAverageEntryPrice()->getAmount();
+							// Volume decreased — partial close or Breakeven Lock.
+							if ($postVolume < $preVolume) {
+								$closedVolume = $preVolume - $postVolume;
+								$entry = $postPos->getAverageEntryPrice()->getAmount();
+
+								if ($postSL !== null && $postSL !== $preSL) {
+									// SL moved — Breakeven Lock.
 									$lockedProfit = $postPos->getDirection()->isLong()
 										? $closedVolume * ($postSL - $entry)
 										: $closedVolume * ($entry - $postSL);
 									$writer->writeBreakevenLock($closedVolume, $postSL, abs($lockedProfit), $tickTime);
-									$writer->writeBalance($backtestExchange->getVirtualBalance()->getAmount());
+								} else {
+									// SL unchanged — Partial Close.
+									$closePrice = $tickPrice;
+									$lockedProfit = $postPos->getDirection()->isLong()
+										? $closedVolume * ($closePrice - $entry)
+										: $closedVolume * ($entry - $closePrice);
+									$writer->writePartialClose($closedVolume, $closePrice, abs($lockedProfit), $tickTime);
 								}
+								$writer->writeBalance($backtestExchange->getVirtualBalance()->getAmount());
+							}
 							}
 						}
 					}
@@ -661,6 +674,9 @@ class Backtester extends ConsoleApplication
 						break 2; // Exit both tick and candle loops.
 					}
 				}
+
+				// Record balance snapshot at the end of each candle for the chart.
+				$balanceSnapshots[] = [$candleTime, $backtestExchange->getVirtualBalance()->getAmount()];
 
 				// After all 4 ticks of a candle: emit candle + progress events.
 				if ($writer !== null) {
@@ -907,8 +923,16 @@ class Backtester extends ConsoleApplication
 				]);
 			}
 
+			// Generate balance chart PNG from collected snapshots.
+			$chartPng = BacktestBalanceChart::generate(
+				$balanceSnapshots,
+				$simStartTime,
+				$simEndTime,
+				$candleDuration,
+			);
+
 			// Persist the result for the Backtest Results history page.
-			BacktestResultRecord::saveFromResult($this->database, $result);
+			BacktestResultRecord::saveFromResult($this->database, $result, $chartPng);
 		}
 
 		// Print DB query stats to help profile and optimize SQL usage.

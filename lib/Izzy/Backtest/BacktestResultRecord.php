@@ -2,6 +2,7 @@
 
 namespace Izzy\Backtest;
 
+use Izzy\Financial\Pair;
 use Izzy\Financial\StrategyFactory;
 use Izzy\System\Database\Database;
 use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
@@ -59,6 +60,8 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	const string FSimEnd = 'br_sim_end';
 	const string FCreatedAt = 'br_created_at';
 	const string FOpenPositions = 'br_open_positions';
+	const string FPairXml = 'br_pair_xml';
+	const string FBalanceChart = 'br_balance_chart';
 
 	public function __construct(Database $database, array $row) {
 		parent::__construct($database, $row, self::FId);
@@ -69,9 +72,44 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	}
 
 	/**
+	 * Generate the `<pair>` XML configuration block from a Pair object.
+	 */
+	public static function buildPairXml(Pair $pair): string {
+		$e = fn(string $s): string => htmlspecialchars($s, ENT_QUOTES | ENT_XML1, 'UTF-8');
+
+		$ticker = $pair->getTicker();
+		$timeframe = $pair->getTimeframe()->value;
+		$strategyName = $pair->getStrategyName();
+		$days = $pair->getBacktestDays();
+		$balance = $pair->getBacktestInitialBalance();
+		$params = $pair->getStrategyParams();
+
+		$xml = '<pair ticker="' . $e($ticker) . '" timeframe="' . $e($timeframe) . '" trade="yes">' . "\n";
+		$xml .= "\t" . '<strategy name="' . $e($strategyName) . '"';
+		if ($days !== null) {
+			$xml .= ' backtest_days="' . $e((string) $days) . '"';
+		}
+		if ($balance !== null) {
+			$xml .= ' backtest_initial_balance="' . $e((string) $balance) . '"';
+		}
+		$xml .= '>' . "\n";
+
+		foreach ($params as $key => $value) {
+			if ($value === '' || $value === null) {
+				continue;
+			}
+			$xml .= "\t\t" . '<param name="' . $e($key) . '" value="' . $e((string) $value) . '"/>' . "\n";
+		}
+
+		$xml .= "\t" . '</strategy>' . "\n";
+		$xml .= '</pair>';
+		return $xml;
+	}
+
+	/**
 	 * Persist a BacktestResult DTO into the database.
 	 */
-	public static function saveFromResult(Database $database, BacktestResult $result): void {
+	public static function saveFromResult(Database $database, BacktestResult $result, ?string $chartPng = null): void {
 		$pair = $result->pair;
 		$fin = $result->financial;
 		$trades = $result->trades;
@@ -90,6 +128,8 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 				'timeHangingSec' => $p->timeHangingSec,
 			], $result->openPositions), JSON_UNESCAPED_UNICODE);
 		}
+
+		$pairXml = self::buildPairXml($pair);
 
 		$row = [
 			self::FExchangeName => $pair->getExchangeName(),
@@ -138,19 +178,60 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			self::FSimEnd => $result->simEndTime,
 			self::FCreatedAt => time(),
 			self::FOpenPositions => $openPositionsJson,
+			self::FPairXml => $pairXml,
+			self::FBalanceChart => $chartPng,
 		];
 
 		$record = new self($database, $row);
-		$record->save();
+		$savedId = $record->save();
+		if ($savedId === false) {
+			error_log("BacktestResultRecord::saveFromResult failed: " . $database->getErrorMessage());
+		}
 	}
 
 	/**
 	 * Load all backtest results, newest first.
+	 * Excludes the balance chart blob to avoid loading large binary data.
 	 *
 	 * @return self[]
 	 */
 	public static function loadAll(Database $database): array {
-		return $database->selectAllObjects(self::class, [], self::FCreatedAt . ' DESC');
+		$table = self::getTableName();
+		$columns = self::getColumnsWithoutChart();
+		$rows = $database->selectAllRows($table, $columns, [], self::FCreatedAt . ' DESC');
+		return array_map(fn(array $row) => new self($database, $row), $rows);
+	}
+
+	/**
+	 * Load a single backtest result by ID (includes chart blob).
+	 */
+	public static function loadById(Database $database, int $id): ?self {
+		$table = self::getTableName();
+		$rows = $database->selectAllRows($table, '*', [self::FId => $id], '', 1);
+		if (empty($rows)) {
+			return null;
+		}
+		return new self($database, $rows[0]);
+	}
+
+	/**
+	 * Build a column list for SELECT that excludes the balance chart blob
+	 * but includes a computed flag indicating whether the chart exists.
+	 */
+	private static function getColumnsWithoutChart(): string {
+		$reflection = new \ReflectionClass(self::class);
+		$columns = [];
+		foreach ($reflection->getConstants() as $name => $value) {
+			if (str_starts_with($name, 'F') && is_string($value) && str_starts_with($value, 'br_')) {
+				if ($value === self::FBalanceChart) {
+					continue;
+				}
+				$columns[] = "`$value`";
+			}
+		}
+		// Add a lightweight flag so hasBalanceChart() works without loading the blob.
+		$columns[] = '(' . self::FBalanceChart . ' IS NOT NULL) AS _has_chart';
+		return implode(', ', $columns);
 	}
 
 	// ---- Getters ----
@@ -387,6 +468,23 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		return json_decode($json, true) ?: [];
 	}
 
+	public function getPairXml(): ?string {
+		return $this->row[self::FPairXml] ?? null;
+	}
+
+	public function getBalanceChart(): ?string {
+		return $this->row[self::FBalanceChart] ?? null;
+	}
+
+	public function hasBalanceChart(): bool {
+		// When loaded via loadAll() (without blob), the _has_chart flag is set.
+		// When loaded via loadById() (with blob), check the actual data.
+		if (isset($this->row['_has_chart'])) {
+			return (bool) $this->row['_has_chart'];
+		}
+		return !empty($this->row[self::FBalanceChart]);
+	}
+
 	public function getWinRate(): float {
 		$total = $this->getTradesWins() + $this->getTradesLosses();
 		return $total > 0 ? ($this->getTradesWins() / $total) * 100 : 0.0;
@@ -450,6 +548,8 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'winRate' => $this->getWinRate(),
 			'simDurationDays' => $this->getSimDurationDays(),
 			'openPositions' => $this->getOpenPositions(),
+			'pairXml' => $this->getPairXml(),
+			'hasBalanceChart' => $this->hasBalanceChart(),
 		];
 	}
 }

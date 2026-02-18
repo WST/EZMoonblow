@@ -54,6 +54,21 @@ class ExchangeConfiguration
 		return $this->exchangeElement->getAttribute('enabled') === 'yes';
 	}
 
+	/**
+	 * Get the maximum number of simultaneously open positions allowed on this exchange.
+	 * Configured via the "max-positions" attribute on the <exchange> tag.
+	 *
+	 * @return int|null Maximum positions, or null if unlimited.
+	 */
+	public function getMaxPositions(): ?int {
+		$attr = $this->exchangeElement->getAttribute('max-positions');
+		if ($attr === '' || !is_numeric($attr)) {
+			return null;
+		}
+		$value = (int) $attr;
+		return $value > 0 ? $value : null;
+	}
+
 	public function getSpotPairs(IExchangeDriver $exchangeDriver): array {
 		$spot = $this->getChildElementByTagName($this->exchangeElement, 'spot');
 		if (!$spot)

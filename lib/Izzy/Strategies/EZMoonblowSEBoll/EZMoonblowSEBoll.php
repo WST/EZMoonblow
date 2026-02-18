@@ -2,17 +2,17 @@
 
 namespace Izzy\Strategies\EZMoonblowSEBoll;
 
-use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Indicators\BollingerBands;
-use Izzy\Indicators\EMA;
-use Izzy\Interfaces\ICandle;
+use Izzy\Indicators\RSI;
 use Izzy\Interfaces\IMarket;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBMultiplier;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBPeriod;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\CooldownCandles;
-use Izzy\Strategies\EZMoonblowSEBoll\Parameters\EMASlowPeriod;
-use Izzy\Strategies\EZMoonblowSEBoll\Parameters\EMATrendFilter;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSINeutralFilter;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSINeutralHigh;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSINeutralLow;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSIPeriod;
 use Izzy\System\Logger;
 
 /**
@@ -50,20 +50,23 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		return 'Bollinger Bands Single Entry';
 	}
 
-	/** How many daily candles to request for EMA calculation. */
-	private const int DAILY_CANDLES_COUNT = 250;
-
-	/** Whether to use the daily EMA trend filter. */
-	private bool $emaTrendFilter;
-
-	/** Slow EMA period for the daily trend filter (only used when emaTrendFilter is enabled). */
-	private int $emaSlowPeriod;
-
 	/** Bollinger Bands period (SMA window). */
 	private int $bbPeriod;
 
 	/** Bollinger Bands standard-deviation multiplier. */
 	private float $bbMultiplier;
+
+	/** Whether RSI neutral zone filter is enabled. */
+	private bool $rsiNeutralFilter;
+
+	/** RSI calculation period. */
+	private int $rsiPeriod;
+
+	/** Lower boundary of the RSI neutral zone. */
+	private float $rsiNeutralLow;
+
+	/** Upper boundary of the RSI neutral zone. */
+	private float $rsiNeutralHigh;
 
 	/** Minimum candles to wait between entries (prevents whipsaw). */
 	private int $cooldownCandles;
@@ -73,10 +76,12 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->emaTrendFilter = in_array(strtolower($params['emaTrendFilter'] ?? 'yes'), ['yes', 'true', '1'], true);
-		$this->emaSlowPeriod = (int)($params['emaSlowPeriod'] ?? 50);
 		$this->bbPeriod = (int)($params['bbPeriod'] ?? 20);
 		$this->bbMultiplier = (float)($params['bbMultiplier'] ?? 2.0);
+		$this->rsiNeutralFilter = in_array(strtolower($params['rsiNeutralFilter'] ?? 'false'), ['yes', 'true', '1'], true);
+		$this->rsiPeriod = (int)($params['rsiPeriod'] ?? 14);
+		$this->rsiNeutralLow = (float)($params['rsiNeutralLow'] ?? 30);
+		$this->rsiNeutralHigh = (float)($params['rsiNeutralHigh'] ?? 70);
 		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 6);
 	}
 
@@ -91,19 +96,6 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		return [];
 	}
 
-	/**
-	 * Timeframes needed beyond the market's native timeframe.
-	 *
-	 * Always declares 1D so that the backtester preloads daily candles into DB.
-	 * This is a one-time cost during initialization. At runtime, daily candles
-	 * are only fetched when emaTrendFilter is enabled.
-	 *
-	 * @return TimeFrameEnum[]
-	 */
-	public static function requiredTimeframes(): array {
-		return [TimeFrameEnum::TF_1DAY];
-	}
-
 	// ------------------------------------------------------------------
 	// Entry signal detection
 	// ------------------------------------------------------------------
@@ -111,13 +103,12 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/**
 	 * @inheritDoc
 	 */
-	public function shouldLong(): bool {
+	protected function detectLongSignal(): bool {
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
 
-		// Optional daily EMA trend filter: only allow longs in an uptrend.
-		if ($this->emaTrendFilter && !$this->dailyTrendIsUp()) {
+		if ($this->rsiNeutralFilter && !$this->rsiInNeutralZone()) {
 			return false;
 		}
 
@@ -133,13 +124,12 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/**
 	 * @inheritDoc
 	 */
-	public function shouldShort(): bool {
+	protected function detectShortSignal(): bool {
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
 
-		// Optional daily EMA trend filter: only allow shorts in a downtrend.
-		if ($this->emaTrendFilter && !$this->dailyTrendIsDown()) {
+		if ($this->rsiNeutralFilter && !$this->rsiInNeutralZone()) {
 			return false;
 		}
 
@@ -167,73 +157,41 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
-	// Daily EMA trend filter
+	// RSI neutral zone filter
 	// ------------------------------------------------------------------
 
 	/**
-	 * Check if the daily trend is up (close > EMA slow).
-	 * Only called when emaTrendFilter is enabled.
+	 * Check if the current RSI value is inside the neutral zone.
+	 * A neutral RSI (between low and high thresholds) indicates
+	 * a sideways/range-bound market — ideal for mean-reversion entries.
 	 */
-	private function dailyTrendIsUp(): bool {
+	private function rsiInNeutralZone(): bool {
 		$log = Logger::getLogger();
-		$dailyCandles = $this->getDailyCandles();
-		if ($dailyCandles === null || empty($dailyCandles)) {
-			$log->debug("[BOLL-LONG] No daily candles available");
+		$candles = $this->market->getCandles();
+
+		if (count($candles) < $this->rsiPeriod + 1) {
+			$log->debug("[RSI-NEUTRAL] Not enough candles for RSI calculation");
 			return false;
 		}
 
-		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
-		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
-		if (empty($emaSlow)) {
-			$log->debug("[BOLL-LONG] EMA array empty");
+		$closePrices = array_map(fn($c) => $c->getClosePrice(), $candles);
+		$rsiValues = RSI::calculateFromPrices($closePrices, $this->rsiPeriod);
+
+		if (empty($rsiValues)) {
+			$log->debug("[RSI-NEUTRAL] RSI calculation returned empty");
 			return false;
 		}
 
-		$latestEmaSlow = end($emaSlow);
-		$latestDailyClose = end($closePrices);
+		$latestRSI = end($rsiValues);
+		$inZone = $latestRSI >= $this->rsiNeutralLow && $latestRSI <= $this->rsiNeutralHigh;
 
-		if ($latestDailyClose <= $latestEmaSlow) {
-			$log->debug(sprintf(
-				"[BOLL-LONG] Trend filter FAIL: close=%.8f <= EMA(%d)=%.8f",
-				$latestDailyClose, $this->emaSlowPeriod, $latestEmaSlow,
-			));
-			return false;
-		}
+		$log->debug(sprintf(
+			"[RSI-NEUTRAL] RSI=%.2f zone=[%.0f–%.0f] | %s",
+			$latestRSI, $this->rsiNeutralLow, $this->rsiNeutralHigh,
+			$inZone ? 'PASS — sideways market' : 'FAIL — trending/extreme',
+		));
 
-		return true;
-	}
-
-	/**
-	 * Check if the daily trend is down (close < EMA slow).
-	 * Only called when emaTrendFilter is enabled.
-	 */
-	private function dailyTrendIsDown(): bool {
-		$log = Logger::getLogger();
-		$dailyCandles = $this->getDailyCandles();
-		if ($dailyCandles === null || empty($dailyCandles)) {
-			$log->debug("[BOLL-SHORT] No daily candles available");
-			return false;
-		}
-
-		$closePrices = array_map(fn($c) => $c->getClosePrice(), $dailyCandles);
-		$emaSlow = EMA::calculateFromPrices($closePrices, $this->emaSlowPeriod);
-		if (empty($emaSlow)) {
-			$log->debug("[BOLL-SHORT] EMA array empty");
-			return false;
-		}
-
-		$latestEmaSlow = end($emaSlow);
-		$latestDailyClose = end($closePrices);
-
-		if ($latestDailyClose >= $latestEmaSlow) {
-			$log->debug(sprintf(
-				"[BOLL-SHORT] Trend filter FAIL: close=%.8f >= EMA(%d)=%.8f",
-				$latestDailyClose, $this->emaSlowPeriod, $latestEmaSlow,
-			));
-			return false;
-		}
-
-		return true;
+		return $inZone;
 	}
 
 	// ------------------------------------------------------------------
@@ -360,25 +318,6 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
-	// Multi-timeframe helpers
-	// ------------------------------------------------------------------
-
-	/**
-	 * Request daily candles for EMA calculation.
-	 *
-	 * @return ICandle[]|null Array of daily candles or null if still loading.
-	 */
-	private function getDailyCandles(): ?array {
-		$candles = $this->market->getCandles();
-		if (empty($candles)) {
-			return null;
-		}
-		$endTime = (int)end($candles)->getOpenTime();
-		$startTime = $endTime - self::DAILY_CANDLES_COUNT * TimeFrameEnum::TF_1DAY->toSeconds();
-		return $this->market->requestCandles(TimeFrameEnum::TF_1DAY, $startTime, $endTime);
-	}
-
-	// ------------------------------------------------------------------
 	// Parameter definitions
 	// ------------------------------------------------------------------
 
@@ -387,10 +326,12 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	 */
 	public static function getParameters(): array {
 		return array_merge(parent::getParameters(), [
-			new EMATrendFilter(),
-			new EMASlowPeriod(),
 			new BBPeriod(),
 			new BBMultiplier(),
+			new RSINeutralFilter(),
+			new RSIPeriod(),
+			new RSINeutralLow(),
+			new RSINeutralHigh(),
 			new CooldownCandles(),
 		]);
 	}

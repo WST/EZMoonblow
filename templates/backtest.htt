@@ -444,10 +444,10 @@
 		<div id="strategy-params-container"></div>
 
 		<label for="inp-days">Period (days)</label>
-		<input type="number" id="inp-days" value="365" min="1" max="3650">
+		<input type="number" id="inp-days" value="30" min="1" max="365">
 
 		<label for="inp-balance">Initial Balance (USDT)</label>
-		<input type="number" id="inp-balance" value="100" min="1" step="100">
+		<input type="number" id="inp-balance" value="1000" min="10" step="100">
 
 		<div class="sidebar-buttons">
 			<button id="btn-run-backtest">Run Backtest</button>
@@ -1007,6 +1007,8 @@
 		});
 	}
 
+	let chartResizeObserver = null;
+
 	function initChart() {
 		const container = document.getElementById('chart');
 		chart = LightweightCharts.createChart(container, {
@@ -1040,11 +1042,37 @@
 		bbLowerSeries = chart.addLineSeries({ color: 'rgba(33, 150, 243, 0.4)', lineWidth: 1, priceLineVisible: false, lastValueVisible: false });
 
 		// Resize handler.
-		const resizeObserver = new ResizeObserver(entries => {
+		if (chartResizeObserver) {
+			chartResizeObserver.disconnect();
+		}
+		chartResizeObserver = new ResizeObserver(entries => {
 			const rect = entries[0].contentRect;
 			chart.applyOptions({ width: rect.width, height: rect.height });
 		});
-		resizeObserver.observe(container);
+		chartResizeObserver.observe(container);
+	}
+
+	/**
+	 * Destroy the chart widget completely and recreate it from scratch.
+	 * This resets the price scale so switching between assets with very
+	 * different price ranges (e.g. 0.005 → 68000) works without manual
+	 * zoom adjustments.
+	 */
+	function resetChart() {
+		if (chart) {
+			if (chartResizeObserver) {
+				chartResizeObserver.disconnect();
+				chartResizeObserver = null;
+			}
+			chart.remove();
+			chart = null;
+			candleSeries = null;
+			bbUpperSeries = null;
+			bbMiddleSeries = null;
+			bbLowerSeries = null;
+		}
+		markers = [];
+		initChart();
 	}
 
 	// =========================================================================
@@ -1102,12 +1130,8 @@
 		currentBalance = 0;
 		initialBalance = body.initialBalance;
 
-		// Clear chart.
-		candleSeries.setData([]);
-		bbUpperSeries.setData([]);
-		bbMiddleSeries.setData([]);
-		bbLowerSeries.setData([]);
-		candleSeries.setMarkers([]);
+		// Fully recreate chart to reset price scale for the new asset.
+		resetChart();
 
 		try {
 			const resp = await fetch('/cgi-bin/api.pl?action=run_backtest', {
@@ -1227,12 +1251,8 @@
 		currentBalance = 0;
 		sessionId = null;
 
-		// Clear chart data.
-		candleSeries.setData([]);
-		bbUpperSeries.setData([]);
-		bbMiddleSeries.setData([]);
-		bbLowerSeries.setData([]);
-		candleSeries.setMarkers([]);
+		// Fully recreate chart to reset price scale.
+		resetChart();
 
 		// Reset info panel.
 		elInfoBalance.textContent = '--';
@@ -1303,6 +1323,10 @@
 
 			case 'breakeven_lock':
 				addMarker(evt.time, 'diamond', '#ff9800', 'BL');
+				break;
+
+			case 'partial_close':
+				addMarker(evt.time, 'diamond', '#2196f3', 'PC');
 				break;
 
 			case 'balance':

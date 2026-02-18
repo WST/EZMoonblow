@@ -67,11 +67,19 @@ readonly class BacktestRiskRatios implements Stringable
 		$sharpe = $stdDev > 0 ? ($meanReturn / $stdDev) * $annualizationFactor : null;
 		$sortino = $downsideDev > 0 ? ($meanReturn / $downsideDev) * $annualizationFactor : null;
 
+		// Guard against INF/NaN from near-zero denominators.
+		if ($sharpe !== null && !is_finite($sharpe)) {
+			$sharpe = null;
+		}
+		if ($sortino !== null && !is_finite($sortino)) {
+			$sortino = null;
+		}
+
 		return new self(
 			sharpe: $sharpe,
 			sortino: $sortino,
-			avgReturn: $meanReturn,
-			stdDeviation: $stdDev,
+			avgReturn: is_finite($meanReturn) ? $meanReturn : 0.0,
+			stdDeviation: is_finite($stdDev) ? $stdDev : 0.0,
 		);
 	}
 

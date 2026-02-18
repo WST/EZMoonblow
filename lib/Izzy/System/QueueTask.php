@@ -8,6 +8,7 @@ use Izzy\Enums\TaskRecipientEnum;
 use Izzy\Enums\TaskStatusEnum;
 use Izzy\Enums\TaskTypeEnum;
 use Izzy\Financial\Market;
+use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\RealApplications\Analyzer;
@@ -183,8 +184,20 @@ class QueueTask extends SurrogatePKDatabaseRecord
 			return;
 		}
 
-		// New attributes.
+		// New attributes — include candle data so Analyzer can draw
+		// the chart without making redundant exchange API calls.
 		$attributes = $sender->getTaskMarketAttributes();
+		$attributes['candles'] = array_map(
+			fn(ICandle $c) => [
+				$c->getOpenTime(),
+				$c->getOpenPrice(),
+				$c->getHighPrice(),
+				$c->getLowPrice(),
+				$c->getClosePrice(),
+				$c->getVolume(),
+			],
+			$sender->getCandles(),
+		);
 
 		// New row.
 		$row = [

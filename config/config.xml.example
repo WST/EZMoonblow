@@ -17,7 +17,7 @@
 	</web>
 	
 	<exchanges>
-		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes">
+		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes" max-positions="3">
 			<spot>
 				<pair ticker="SOL/USDT" timeframe="4h" trade="no" notify="yes">
 					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365" backtest_initial_balance="10000">

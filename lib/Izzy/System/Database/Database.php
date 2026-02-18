@@ -427,6 +427,9 @@ class Database
 		$stmt = $this->pdo->prepare($sql);
 		$result = $stmt->execute($data);
 		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		if (!$result) {
+			$this->setError(new \Exception(implode(' | ', $stmt->errorInfo())));
+		}
 		return $result;
 	}
 

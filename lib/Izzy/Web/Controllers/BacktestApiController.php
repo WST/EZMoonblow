@@ -3,6 +3,7 @@
 namespace Izzy\Web\Controllers;
 
 use Izzy\AbstractApplications\WebApplication;
+use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\TaskStatusEnum;
 use Izzy\Enums\TaskTypeEnum;
@@ -41,6 +42,7 @@ class BacktestApiController
 			'get_candle_sets' => $this->getCandleSets($response),
 			'get_candle_tasks' => $this->getCandleTasks($response),
 			'get_exchanges' => $this->getExchanges($response),
+			'backtest_chart' => $this->getBacktestChart($request, $response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
 		};
 	}
@@ -295,6 +297,32 @@ class BacktestApiController
 		$repo = new CandleRepository($this->app->getDatabase());
 		$repo->truncateAll();
 		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	/**
+	 * GET /cgi-bin/api.pl?action=backtest_chart&id=123
+	 * Returns the balance chart PNG for a specific backtest result.
+	 */
+	private function getBacktestChart(Request $request, Response $response): Response {
+		$id = (int) ($request->getQueryParams()['id'] ?? 0);
+		if ($id <= 0) {
+			return $response->withStatus(400);
+		}
+
+		$record = BacktestResultRecord::loadById($this->app->getDatabase(), $id);
+		if ($record === null) {
+			return $response->withStatus(404);
+		}
+
+		$chartPng = $record->getBalanceChart();
+		if ($chartPng === null || $chartPng === '') {
+			return $response->withStatus(404);
+		}
+
+		$response->getBody()->write($chartPng);
+		return $response
+			->withHeader('Content-Type', 'image/png')
+			->withHeader('Cache-Control', 'public, max-age=86400');
 	}
 
 	/**

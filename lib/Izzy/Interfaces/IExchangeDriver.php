@@ -182,6 +182,26 @@ interface IExchangeDriver
 	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool;
 
 	/**
+	 * Place a reduce-only limit order to partially close a position.
+	 *
+	 * Unlike partialClose() which executes at market price immediately,
+	 * this places a limit order at the specified price and returns the
+	 * exchange order ID. The caller must monitor the order for fill.
+	 *
+	 * @param IMarket $market Market with the position.
+	 * @param Money $volume Volume to close (in base currency).
+	 * @param Money $price Limit price for the close order.
+	 * @param PositionDirectionEnum $direction Position direction (needed to determine close side).
+	 * @return string|false Order ID on success, false on failure.
+	 */
+	public function placeLimitClose(
+		IMarket $market,
+		Money $volume,
+		Money $price,
+		PositionDirectionEnum $direction,
+	): string|false;
+
+	/**
 	 * Get the database instance used by this exchange driver.
 	 * @return Database Database instance.
 	 */
@@ -204,6 +224,13 @@ interface IExchangeDriver
 	 * @return ExchangeConfiguration Exchange configuration instance.
 	 */
 	public function getExchangeConfiguration(): ExchangeConfiguration;
+
+	/**
+	 * Get the maximum number of simultaneously open positions on this exchange.
+	 *
+	 * @return int|null Maximum positions, or null if unlimited.
+	 */
+	public function getMaxPositions(): ?int;
 
 	/**
 	 * Check if an order is still active on the exchange.

@@ -345,6 +345,26 @@ class BacktestExchange implements IExchangeDriver
 		return true;
 	}
 
+	/**
+	 * @inheritDoc
+	 *
+	 * In backtests, limit close behaves identically to market close
+	 * (no commission simulation). Delegates to partialClose() and
+	 * returns a fake order ID.
+	 */
+	public function placeLimitClose(
+		IMarket $market,
+		Money $volume,
+		Money $price,
+		PositionDirectionEnum $direction,
+	): string|false {
+		$success = $this->partialClose($market, $volume, closePrice: $price);
+		if (!$success) {
+			return false;
+		}
+		return 'bt-lc-' . (++$this->orderIdCounter);
+	}
+
 	public function getDatabase(): Database {
 		return $this->database;
 	}
@@ -359,6 +379,10 @@ class BacktestExchange implements IExchangeDriver
 
 	public function getExchangeConfiguration(): ExchangeConfiguration {
 		return $this->config;
+	}
+
+	public function getMaxPositions(): ?int {
+		return null;
 	}
 
 	public function hasActiveOrder(IMarket $market, string $orderIdOnExchange): bool {

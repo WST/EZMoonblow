@@ -122,6 +122,18 @@ class BacktestEventWriter
 	}
 
 	/**
+	 * Partial Close executed (no SL movement).
+	 */
+	public function writePartialClose(float $closeVolume, float $closePrice, float $lockedProfit, int $time): void {
+		$this->write('partial_close', [
+			'closeVolume' => $closeVolume,
+			'closePrice' => $closePrice,
+			'lockedProfit' => $lockedProfit,
+			'time' => $time,
+		]);
+	}
+
+	/**
 	 * DCA averaging fill.
 	 */
 	public function writeDCAFill(string $direction, float $price, float $addedVolume, float $newAvgEntry, float $totalVolume, int $time): void {

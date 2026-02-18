@@ -1,6 +1,6 @@
 <?php
 
-namespace Izzy\Strategies\EZMoonblowSEBoll\Parameters;
+namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
 use Izzy\Financial\AbstractStrategyParameter;
@@ -12,7 +12,7 @@ class EMATrendFilter extends AbstractStrategyParameter
 	}
 
 	public function getLabel(): string {
-		return 'EMA daily trend filter';
+		return 'EMA trend filter';
 	}
 
 	public function getType(): StrategyParameterTypeEnum {
@@ -20,7 +20,7 @@ class EMATrendFilter extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'EZMoonblowSEBoll';
+		return 'Single Entry';
 	}
 
 	public function hasExclamationMark(): bool {
@@ -28,7 +28,7 @@ class EMATrendFilter extends AbstractStrategyParameter
 	}
 
 	public function getExclamationMarkTooltip(): string {
-		return 'Requires daily (1d) candles for this pair to be loaded in advance.';
+		return 'Requires candles of the selected filter timeframe to be loaded for this pair.';
 	}
 
 	protected function getClassDefault(): string {

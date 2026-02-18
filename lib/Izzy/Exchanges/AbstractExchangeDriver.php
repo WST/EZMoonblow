@@ -4,6 +4,7 @@ namespace Izzy\Exchanges;
 
 use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Configuration\ExchangeConfiguration;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IExchangeDriver;
@@ -147,8 +148,8 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 			$this->lastChartUpdate = $now;
 		}
 
-		// Default sleep time of 60 seconds.
-		return 60;
+		// Default sleep time of 30 seconds.
+		return 30;
 	}
 
 	/**
@@ -282,10 +283,31 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 
 	/**
 	 * @inheritDoc
+	 */
+	public function getMaxPositions(): ?int {
+		return $this->config->getMaxPositions();
+	}
+
+	/**
+	 * @inheritDoc
 	 *
 	 * Default: not supported. Override in exchange-specific drivers.
 	 */
 	public function switchMarginMode(IMarket $market, \Izzy\Enums\MarginModeEnum $mode): bool {
+		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default: not supported. Override in exchange-specific drivers.
+	 */
+	public function placeLimitClose(
+		IMarket $market,
+		Money $volume,
+		Money $price,
+		PositionDirectionEnum $direction,
+	): string|false {
 		return false;
 	}
 }

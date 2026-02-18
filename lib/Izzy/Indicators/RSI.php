@@ -64,6 +64,45 @@ class RSI extends AbstractIndicator
 	}
 
 	/**
+	 * Calculate RSI values directly from an array of close prices.
+	 * Convenience method for strategies that compute RSI without
+	 * going through the indicator system.
+	 *
+	 * @param float[] $closePrices Array of close prices.
+	 * @param int $period RSI period (default 14).
+	 * @return float[] Array of RSI values.
+	 */
+	public static function calculateFromPrices(array $closePrices, int $period = self::DEFAULT_PERIOD): array {
+		$count = count($closePrices);
+		if ($count < $period + 1) {
+			return [];
+		}
+
+		$rsi = [];
+		$changes = [];
+		for ($i = 1; $i < $count; $i++) {
+			$changes[] = $closePrices[$i] - $closePrices[$i - 1];
+		}
+
+		$gains = array_map(fn($c) => $c > 0 ? $c : 0, array_slice($changes, 0, $period));
+		$losses = array_map(fn($c) => $c < 0 ? abs($c) : 0, array_slice($changes, 0, $period));
+
+		$avgGain = array_sum($gains) / $period;
+		$avgLoss = array_sum($losses) / $period;
+
+		$rsi[] = $avgLoss == 0 ? 100.0 : 100 - (100 / (1 + $avgGain / $avgLoss));
+
+		for ($i = $period; $i < count($changes); $i++) {
+			$change = $changes[$i];
+			$avgGain = (($avgGain * ($period - 1)) + ($change > 0 ? $change : 0)) / $period;
+			$avgLoss = (($avgLoss * ($period - 1)) + ($change < 0 ? abs($change) : 0)) / $period;
+			$rsi[] = $avgLoss == 0 ? 100.0 : 100 - (100 / (1 + $avgGain / $avgLoss));
+		}
+
+		return $rsi;
+	}
+
+	/**
 	 * Calculate RSI values from close prices.
 	 *
 	 * @param array $prices Array of close prices.

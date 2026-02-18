@@ -1,18 +1,18 @@
 <?php
 
-namespace Izzy\Strategies\EZMoonblowSEBoll\Parameters;
+namespace Izzy\Strategies\EZMoonblowSEMACD\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
 use Izzy\Financial\AbstractStrategyParameter;
 
-class EMASlowPeriod extends AbstractStrategyParameter
+class ADXPeriod extends AbstractStrategyParameter
 {
 	public function getName(): string {
-		return 'emaSlowPeriod';
+		return 'adxPeriod';
 	}
 
 	public function getLabel(): string {
-		return 'EMA trend filter period (1D)';
+		return 'ADX period';
 	}
 
 	public function getType(): StrategyParameterTypeEnum {
@@ -20,10 +20,14 @@ class EMASlowPeriod extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'EZMoonblowSEBoll';
+		return 'EZMoonblowSEMACD';
+	}
+
+	public function getEnabledCondition(): ?array {
+		return ['paramKey' => 'adxFilter', 'value' => 'true'];
 	}
 
 	protected function getClassDefault(): string {
-		return '50';
+		return '14';
 	}
 }

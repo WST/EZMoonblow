@@ -790,6 +790,46 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
+	public function placeLimitClose(
+		IMarket $market,
+		Money $volume,
+		Money $price,
+		PositionDirectionEnum $direction,
+	): string|false {
+		$pair = $market->getPair();
+		try {
+			// Reduce-only limit order: sell if long, buy if short.
+			$closeSide = $direction->isLong() ? 'Sell' : 'Buy';
+
+			$params = [
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $pair->getExchangeTicker($this),
+				BybitParam::Side => $closeSide,
+				BybitParam::OrderType => OrderTypeEnum::LIMIT->value,
+				BybitParam::Qty => $volume->formatForOrder($this->getQtyStep($market)),
+				BybitParam::Price => $price->formatForOrder($this->getTickSize($market)),
+				BybitParam::IsReduceOnly => true,
+				BybitParam::PositionIdx => $this->getPositionIdxByDirection($direction),
+			];
+
+			$response = $this->api->tradeApi()->placeOrder($params);
+
+			if (isset($response[BybitParam::OrderId])) {
+				$this->logger->info("Placed limit close on {$market->getTicker()}: {$volume->format()} @ {$price->format()}");
+				return $response[BybitParam::OrderId];
+			}
+
+			$this->logger->error("Failed to place limit close on {$market->getTicker()}: " . json_encode($response));
+			return false;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to place limit close on {$market->getTicker()}: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function getMarginMode(IMarket $market): ?MarginModeEnum {
 		$pair = $market->getPair();
 		$symbol = $pair->getExchangeTicker($this);

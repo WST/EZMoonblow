@@ -7,7 +7,9 @@ use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\AbstractCandleRepository;
+use Izzy\Financial\Candle;
 use Izzy\Financial\CandleRepository;
+use Izzy\Financial\Market;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Financial\RuntimeCandleRepository;
@@ -316,8 +318,7 @@ class Analyzer extends ConsoleApplication
 		};
 	}
 
-	private function handleDrawCandlestickChartTask($attributes): void {
-		// Important task attributes
+	private function handleDrawCandlestickChartTask(array $attributes): void {
 		$ticker = $attributes['pair'];
 		$timeframe = TimeFrameEnum::from($attributes['timeframe']);
 		$exchangeName = $attributes['exchange'];
@@ -326,16 +327,28 @@ class Analyzer extends ConsoleApplication
 		$this->logger->info("Got a task for drawing a candlestick chart for $pair ($marketType->value, $timeframe->value) on $exchangeName");
 
 		$exchange = $this->configuration->connectExchange($this, $exchangeName);
-		if (!$exchange)
+		if (!$exchange) {
 			return;
+		}
 
-		$market = $exchange->createMarket($pair);
-		if (!$market)
-			return;
+		// When candle data is provided in the task (sent by Trader), use it
+		// directly to avoid redundant exchange API calls.
+		if (!empty($attributes['candles'])) {
+			$market = new Market($exchange, $pair);
+			$candles = array_map(
+				fn(array $c) => new Candle($c[0], $c[1], $c[2], $c[3], $c[4], $c[5]),
+				$attributes['candles'],
+			);
+			$market->setCandles($candles);
+			$market->initializeStrategy();
+		} else {
+			// Fallback for tasks without embedded candles (legacy).
+			$market = $exchange->createMarket($pair);
+			if (!$market) {
+				return;
+			}
+		}
 
-		// Initialize and calculate indicators before drawing chart
-		$market->initializeIndicators();
-		$market->calculateIndicators();
 		$market->drawChart();
 	}
 }

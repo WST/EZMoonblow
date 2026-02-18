@@ -59,7 +59,7 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	/**
 	 * @inheritDoc
 	 */
-	public function shouldLong(): bool {
+	protected function detectLongSignal(): bool {
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
@@ -75,7 +75,7 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 	/**
 	 * @inheritDoc
 	 */
-	public function shouldShort(): bool {
+	protected function detectShortSignal(): bool {
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}

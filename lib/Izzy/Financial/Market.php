@@ -743,6 +743,24 @@ class Market implements IMarket
 			return;
 		}
 
+		// Check if the exchange-wide position limit has been reached.
+		$maxPositions = $this->exchange->getMaxPositions();
+		if ($maxPositions !== null) {
+			$openCount = $this->database->countRows(
+				StoredPosition::getTableName(),
+				[
+					StoredPosition::FExchangeName => $this->getExchangeName(),
+					StoredPosition::FStatus => [PositionStatusEnum::OPEN->value, PositionStatusEnum::PENDING->value],
+				],
+			);
+			if ($openCount >= $maxPositions) {
+				$this->exchange->getLogger()->info(
+					"Position limit reached for {$this->getExchangeName()} ($openCount/$maxPositions), skipping entry for $this"
+				);
+				return;
+			}
+		}
+
 		// Validate exchange settings before trading.
 		// Results are cached (see VALIDATION_CACHE_TTL), so this does not
 		// hit the exchange API on every cycle.

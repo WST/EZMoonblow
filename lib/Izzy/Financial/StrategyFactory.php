@@ -10,6 +10,8 @@ use Izzy\Strategies\EZMoonblowDCAAlwaysLong\EZMoonblowDCAAlwaysLong;
 use Izzy\Strategies\EZMoonblowDCAWithShorts\EZMoonblowDCAWithShorts;
 use Izzy\Strategies\EZMoonblowSE\EZMoonblowSE;
 use Izzy\Strategies\EZMoonblowSEBoll\EZMoonblowSEBoll;
+use Izzy\Strategies\EZMoonblowSEIchimoku\EZMoonblowSEIchimoku;
+use Izzy\Strategies\EZMoonblowSEMACD\EZMoonblowSEMACD;
 
 /**
  * Factory for creating trading strategies.
@@ -27,6 +29,8 @@ class StrategyFactory
 		'EZMoonblowDCAAlwaysLong' => EZMoonblowDCAAlwaysLong::class,
 		'EZMoonblowSE' => EZMoonblowSE::class,
 		'EZMoonblowSEBoll' => EZMoonblowSEBoll::class,
+		'EZMoonblowSEMACD' => EZMoonblowSEMACD::class,
+		'EZMoonblowSEIchimoku' => EZMoonblowSEIchimoku::class,
 	];
 
 	/**

@@ -150,6 +150,38 @@
 	.detail-buttons button:hover {
 		background: #e8e8e8;
 	}
+	.xml-block {
+		position: relative;
+		margin-top: 4px;
+	}
+	.xml-block textarea {
+		width: 100%;
+		min-height: 120px;
+		font-family: 'Courier New', Courier, monospace;
+		font-size: 12px;
+		border: 1px solid #d0d0d0;
+		border-radius: 4px;
+		padding: 8px;
+		background: #f8f9fa;
+		resize: vertical;
+		box-sizing: border-box;
+		tab-size: 4;
+	}
+	.xml-copy-btn {
+		position: absolute;
+		top: 4px;
+		right: 4px;
+		padding: 3px 10px;
+		font-size: 11px;
+		border: 1px solid #bbb;
+		border-radius: 3px;
+		background: #fff;
+		cursor: pointer;
+		font-family: inherit;
+	}
+	.xml-copy-btn:hover {
+		background: #eee;
+	}
 </style>
 {% endblock %}
 
@@ -302,6 +334,16 @@
 		}
 		html += renderSection('Financial', finRows);
 
+		// Balance chart
+		if (r.hasBalanceChart) {
+			html += '<div class="detail-section"><h4>Balance Chart</h4>'
+				+ '<img src="/cgi-bin/api.pl?action=backtest_chart&id=' + r.id + '" '
+				+ 'alt="Balance chart" '
+				+ 'style="max-width:100%;border-radius:4px;border:1px solid #e0e0e0;" '
+				+ 'onerror="this.parentNode.style.display=\'none\'">'
+				+ '</div>';
+		}
+
 		// Trades
 		var tradeRows = metricRow('Finished', r.tradesFinished)
 			+ metricRow('Open', r.tradesOpen)
@@ -354,6 +396,15 @@
 			html += '<div class="detail-section"><h4>Open / Pending positions at end</h4>' + posHtml + '</div>';
 		}
 
+		// Pair XML configuration
+		if (r.pairXml) {
+			html += '<div class="detail-section"><h4>Pair XML configuration</h4>'
+				+ '<div class="xml-block">'
+				+ '<textarea readonly id="detail-xml-output">' + esc(r.pairXml) + '</textarea>'
+				+ '<button class="xml-copy-btn" id="detail-xml-copy">Copy</button>'
+				+ '</div></div>';
+		}
+
 		return html;
 	}
 
@@ -389,6 +440,20 @@
 			detailTitle.textContent = r.ticker + ' ' + r.strategy + ' — ' + new Date(r.createdAt * 1000).toISOString().replace('T', ' ').substring(0, 16);
 			detailBody.innerHTML = buildDetail(r);
 			overlay.classList.add('active');
+
+			// Bind Copy button for the XML block (created dynamically).
+			var copyBtn = document.getElementById('detail-xml-copy');
+			if (copyBtn) {
+				copyBtn.addEventListener('click', function() {
+					var ta = document.getElementById('detail-xml-output');
+					if (!ta) return;
+					ta.select();
+					navigator.clipboard.writeText(ta.value).then(function() {
+						copyBtn.textContent = 'Copied!';
+						setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+					});
+				});
+			}
 		});
 	});
 
