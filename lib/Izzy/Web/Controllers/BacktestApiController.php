@@ -4,6 +4,7 @@ namespace Izzy\Web\Controllers;
 
 use Izzy\AbstractApplications\WebApplication;
 use Izzy\Backtest\BacktestResultRecord;
+use Izzy\Configuration\StrategyConfiguration;
 use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\TaskStatusEnum;
 use Izzy\Enums\TaskTypeEnum;
@@ -39,6 +40,7 @@ class BacktestApiController
 		return match ($action) {
 			'get_strategies' => $this->getStrategies($response),
 			'get_pairs' => $this->getPairs($response),
+			'get_pair_configs' => $this->getPairConfigs($response),
 			'get_candle_sets' => $this->getCandleSets($response),
 			'get_candle_tasks' => $this->getCandleTasks($response),
 			'get_exchanges' => $this->getExchanges($response),
@@ -78,9 +80,6 @@ class BacktestApiController
 				: [];
 			$params = [];
 			foreach ($parameters as $parameter) {
-				if (!$parameter->isBacktestRelevant()) {
-					continue;
-				}
 				$params[] = $parameter->toArray();
 			}
 			$isDCA = is_subclass_of($class, AbstractDCAStrategy::class);
@@ -154,6 +153,36 @@ class BacktestApiController
 		exec($cmd);
 
 		return $this->jsonResponse($response, ['sessionId' => $sessionId]);
+	}
+
+	/**
+	 * GET /cgi-bin/api.pl?action=get_pair_configs
+	 * Returns strategy configurations for all pairs from config.xml.
+	 * Only safe data is exposed (strategy name + params); no exchange credentials.
+	 */
+	private function getPairConfigs(Response $response): Response {
+		$config = $this->app->getConfiguration();
+		$result = [];
+		foreach ($config->getExchangeNames() as $exchangeName) {
+			$exchConfig = $config->getExchangeConfiguration($exchangeName);
+			if (!$exchConfig) {
+				continue;
+			}
+			foreach ($exchConfig->getAllPairConfigs() as $pc) {
+				$sc = new StrategyConfiguration($pc['strategyName'], $pc['params']);
+				$result[] = [
+					'exchangeName' => $pc['exchangeName'],
+					'ticker' => $pc['ticker'],
+					'marketType' => $pc['marketType'],
+					'timeframe' => $pc['timeframe'],
+					'strategy' => $pc['strategyName'],
+					'params' => $sc->toFullParams(),
+					'backtestDays' => $pc['backtestDays'],
+					'backtestInitialBalance' => $pc['backtestInitialBalance'],
+				];
+			}
+		}
+		return $this->jsonResponse($response, $result);
 	}
 
 	/**

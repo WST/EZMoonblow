@@ -18,6 +18,7 @@ use Izzy\Financial\Parameters\PartialCloseEnabled;
 use Izzy\Financial\Parameters\PartialClosePercent;
 use Izzy\Financial\Parameters\PartialCloseTriggerPercent;
 use Izzy\Financial\Parameters\PartialCloseUseLimitOrder;
+use Izzy\Financial\Parameters\StopLossCooldownMinutes;
 use Izzy\Financial\Parameters\StopLossPercent;
 use Izzy\Financial\Parameters\TakeProfitPercent;
 use Izzy\Indicators\EMA;
@@ -85,6 +86,12 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	/** EMA period for the trend filter. */
 	protected int $emaFilterPeriod;
 
+	/** Minutes to wait before opening a new position after a stop-loss hit. */
+	protected int $stopLossCooldownMinutes;
+
+	/** Timestamp of the most recent stop-loss hit (used for cooldown). */
+	protected int $lastStopLossTime = 0;
+
 	/** How many candles of the filter timeframe to request. */
 	private const int EMA_FILTER_CANDLES_COUNT = 250;
 
@@ -128,6 +135,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		$this->emaTrendFilter = filter_var($this->params['emaTrendFilter'] ?? false, FILTER_VALIDATE_BOOLEAN);
 		$this->emaTrendFilterTimeframe = (string)($this->params['emaTrendFilterTimeframe'] ?? '1d');
 		$this->emaFilterPeriod = (int)($this->params['emaSlowPeriod'] ?? 50);
+		$this->stopLossCooldownMinutes = (int)($this->params['stopLossCooldownMinutes'] ?? 0);
 	}
 
 	/**
@@ -202,6 +210,14 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	 * @inheritDoc
 	 */
 	public function updatePosition(IStoredPosition $position): void {
+		if (
+			$position->getStatus()->isFinished()
+			&& method_exists($position, 'getFinishReason')
+			&& $position->getFinishReason()?->isStopLoss()
+		) {
+			$this->lastStopLossTime = $position->getFinishedAt() ?: time();
+		}
+
 		// Update the TP order on the exchange if the average entry changed.
 		$position->updateTakeProfit($this->market);
 
@@ -739,6 +755,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 			new BreakevenLockTriggerPercent(),
 			new BreakevenLockClosePercent(),
 			new BreakevenLockUseLimitOrder(),
+			new StopLossCooldownMinutes(),
 		];
 	}
 
@@ -782,12 +799,23 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	}
 
 	/**
+	 * Record a stop-loss event so that the cooldown timer starts.
+	 * Called by the backtester and live Market on SL closure.
+	 */
+	public function notifyStopLoss(int $timestamp): void {
+		$this->lastStopLossTime = $timestamp;
+	}
+
+	/**
 	 * @inheritDoc
 	 *
-	 * Applies the EMA trend filter (if enabled) before delegating
+	 * Checks stop-loss cooldown and EMA trend filter before delegating
 	 * to the strategy-specific signal detection.
 	 */
 	public function shouldLong(): bool {
+		if ($this->isStopLossCooldownActive()) {
+			return false;
+		}
 		if ($this->emaTrendFilter && !$this->emaTrendIsUp()) {
 			return false;
 		}
@@ -797,14 +825,29 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	/**
 	 * @inheritDoc
 	 *
-	 * Applies the EMA trend filter (if enabled) before delegating
+	 * Checks stop-loss cooldown and EMA trend filter before delegating
 	 * to the strategy-specific signal detection.
 	 */
 	public function shouldShort(): bool {
+		if ($this->isStopLossCooldownActive()) {
+			return false;
+		}
 		if ($this->emaTrendFilter && !$this->emaTrendIsDown()) {
 			return false;
 		}
 		return $this->detectShortSignal();
+	}
+
+	private function isStopLossCooldownActive(): bool {
+		if ($this->stopLossCooldownMinutes <= 0 || $this->lastStopLossTime === 0) {
+			return false;
+		}
+		$candles = $this->market->getCandles();
+		if (empty($candles)) {
+			return false;
+		}
+		$currentTime = end($candles)->getOpenTime();
+		return ($currentTime - $this->lastStopLossTime) < ($this->stopLossCooldownMinutes * 60);
 	}
 
 	/**
@@ -830,7 +873,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 
 		if ($latestClose <= $latestEma) {
 			$log->debug(sprintf(
-				"[EMA-FILTER↑] Trend filter FAIL: close=%.8f <= EMA(%d)=%.8f [%s]",
+				"[EMA-FILTER↑] Trend is not up: close=%.8f <= EMA(%d)=%.8f [%s]",
 				$latestClose, $this->emaFilterPeriod, $latestEma, $this->emaTrendFilterTimeframe,
 			));
 			return false;
@@ -862,7 +905,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 
 		if ($latestClose >= $latestEma) {
 			$log->debug(sprintf(
-				"[EMA-FILTER↓] Trend filter FAIL: close=%.8f >= EMA(%d)=%.8f [%s]",
+				"[EMA-FILTER↓] Trend is not down: close=%.8f >= EMA(%d)=%.8f [%s]",
 				$latestClose, $this->emaFilterPeriod, $latestEma, $this->emaTrendFilterTimeframe,
 			));
 			return false;

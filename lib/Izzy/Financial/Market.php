@@ -354,17 +354,27 @@ class Market implements IMarket
 		// Skip indicators that were already created by initializeConfiguredIndicators()
 		// with user-specified parameters — otherwise the config values would be
 		// silently overwritten by the strategy's default (parameterless) instance.
-		$strategyIndicatorClasses = $this->strategy->useIndicators();
-		foreach ($strategyIndicatorClasses as $indicatorClass) {
+		//
+		// Each entry may be either a class-name string (backward-compatible)
+		// or an associative array: ['class' => Indicator::class, 'parameters' => [...]].
+		$entries = $this->strategy->useIndicators();
+		foreach ($entries as $entry) {
+			if (is_array($entry)) {
+				$indicatorClass = $entry['class'];
+				$parameters = $entry['parameters'] ?? [];
+			} else {
+				$indicatorClass = $entry;
+				$parameters = [];
+			}
+
 			$name = $indicatorClass::getName();
 			if (isset($this->indicators[$name])) {
 				continue;
 			}
 			try {
-				$indicator = IndicatorFactory::create($this, $indicatorClass);
+				$indicator = IndicatorFactory::create($this, $indicatorClass, $parameters);
 				$this->addIndicator($indicator);
 			} catch (Exception $e) {
-				// Log error but continue with other indicators
 				error_log("Failed to initialize indicator $indicatorClass: " . $e->getMessage());
 			}
 		}
@@ -743,6 +753,15 @@ class Market implements IMarket
 			return;
 		}
 
+		// Check for entry signals first — avoid expensive checks when
+		// the strategy does not want to open a position anyway.
+		$wantsLong = $strategy->shouldLong();
+		$wantsShort = !$wantsLong && $this->isFutures() && $strategy->shouldShort();
+
+		if (!$wantsLong && !$wantsShort) {
+			return;
+		}
+
 		// Check if the exchange-wide position limit has been reached.
 		$maxPositions = $this->exchange->getMaxPositions();
 		if ($maxPositions !== null) {
@@ -789,25 +808,18 @@ class Market implements IMarket
 		// Is trading enabled for this Pair?
 		if (!$this->pair->isTradingEnabled()) {
 			$this->exchange->getLogger()->info("Trading is disabled for $this");
-			// Pair is monitored but not traded — notify user about potential position entry.
 			if ($this->pair->isNotificationsEnabled()) {
 				$this->sendNewPositionIntentNotifications();
 			}
 			return;
 		}
 
-		// Check for long entry signal
-		if ($strategy->shouldLong()) {
+		if ($wantsLong) {
 			$this->exchange->getLogger()->info("Long signal detected for $this.");
 			$this->executeLongEntry();
-			return;
-		}
-
-		// Check for short entry signal (only for futures)
-		if ($this->isFutures() && $strategy->shouldShort()) {
+		} else {
 			$this->exchange->getLogger()->info("Short signal detected for $this.");
 			$this->executeShortEntry();
-			return;
 		}
 	}
 

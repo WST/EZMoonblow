@@ -261,6 +261,46 @@
 	#btn-xml-close:hover {
 		background: #e9e9e9;
 	}
+	.sidebar-btn-secondary {
+		flex: 1;
+		padding: 8px 10px;
+		background: #f9f9f9;
+		color: #333;
+		border: 1px solid #ccc;
+		border-radius: 4px;
+		font-size: 12px;
+		cursor: pointer;
+		font-family: inherit;
+		white-space: nowrap;
+	}
+	.sidebar-btn-secondary:hover {
+		background: #e9e9e9;
+	}
+	.load-config-list {
+		list-style: none;
+		padding: 0;
+		margin: 0;
+		max-height: 400px;
+		overflow-y: auto;
+	}
+	.load-config-list li {
+		padding: 10px 12px;
+		cursor: pointer;
+		border-bottom: 1px solid #eee;
+		font-size: 13px;
+	}
+	.load-config-list li:hover {
+		background: #e8f4fd;
+	}
+	.load-config-list li .pair-label {
+		font-weight: 600;
+		color: #003366;
+	}
+	.load-config-list li .pair-meta {
+		font-size: 11px;
+		color: #666;
+		margin-top: 2px;
+	}
 	.backtest-main {
 		display: flex;
 		flex-direction: column;
@@ -449,9 +489,21 @@
 		<label for="inp-balance">Initial Balance (USDT)</label>
 		<input type="number" id="inp-balance" value="1000" min="10" step="100">
 
+		<label for="sel-ticks">Ticks per candle</label>
+		<select id="sel-ticks">
+			<option value="4" selected>4 (fast)</option>
+			<option value="8">8</option>
+			<option value="16">16</option>
+			<option value="32">32 (precise)</option>
+		</select>
+
 		<div class="sidebar-buttons">
 			<button id="btn-run-backtest">Run Backtest</button>
 			<button id="btn-make-xml">Make XML</button>
+		</div>
+		<div class="sidebar-buttons" style="margin-top:4px;">
+			<button id="btn-load-config" class="sidebar-btn-secondary">Load from Config</button>
+			<button id="btn-load-xml" class="sidebar-btn-secondary">Load XML</button>
 		</div>
 		<div id="status-text"></div>
 	</div>
@@ -516,6 +568,27 @@
 		<div class="xml-modal-buttons">
 			<button id="btn-xml-copy">Copy</button>
 			<button id="btn-xml-close">Close</button>
+		</div>
+	</div>
+</div>
+
+<div class="xml-modal-overlay" id="load-config-overlay">
+	<div class="xml-modal">
+		<h3>Load from Config</h3>
+		<ul class="load-config-list" id="load-config-list"></ul>
+		<div class="xml-modal-buttons">
+			<button id="btn-load-config-close" style="background:#f9f9f9;border:1px solid #ccc;">Close</button>
+		</div>
+	</div>
+</div>
+
+<div class="xml-modal-overlay" id="load-xml-overlay">
+	<div class="xml-modal">
+		<h3>Load XML</h3>
+		<textarea id="load-xml-input" placeholder="Paste &lt;pair&gt;...&lt;/pair&gt; XML here"></textarea>
+		<div class="xml-modal-buttons">
+			<button id="btn-load-xml-apply" style="background:#005599;color:#fff;border:none;">Apply</button>
+			<button id="btn-load-xml-close" style="background:#f9f9f9;border:1px solid #ccc;">Close</button>
 		</div>
 	</div>
 </div>
@@ -621,6 +694,17 @@
 
 		// Initialize the chart.
 		initChart();
+
+		// Apply retest XML from Results page if present.
+		var retestXml = sessionStorage.getItem('retest_xml');
+		if (retestXml) {
+			sessionStorage.removeItem('retest_xml');
+			var retestExchange = sessionStorage.getItem('retest_exchange') || '';
+			var retestMarketType = sessionStorage.getItem('retest_market_type') || '';
+			sessionStorage.removeItem('retest_exchange');
+			sessionStorage.removeItem('retest_market_type');
+			parseAndApplyXml(retestXml, retestExchange, retestMarketType);
+		}
 	}
 
 	/** Create hint icon(s) for a parameter (question mark and/or exclamation mark). */
@@ -649,98 +733,109 @@
 		return frag;
 	}
 
+	function buildParamControl(p) {
+		const row = document.createElement('div');
+		row.className = 'param-row';
+		const lbl = document.createElement('label');
+		lbl.setAttribute('for', 'param-' + p.key);
+
+		let control;
+		switch (p.type) {
+			case 'bool':
+				control = document.createElement('input');
+				control.type = 'checkbox';
+				control.id = 'param-' + p.key;
+				control.name = p.key;
+				control.dataset.paramType = 'bool';
+				control.checked = (p.default === 'true' || p.default === '1' || p.default === 'yes');
+				lbl.style.display = 'inline';
+				lbl.style.marginLeft = '6px';
+				lbl.style.cursor = 'pointer';
+				lbl.textContent = p.label;
+				row.appendChild(control);
+				row.appendChild(lbl);
+				row.appendChild(createParamHints(p));
+				return row;
+
+			case 'int':
+				control = document.createElement('input');
+				control.type = 'number';
+				control.step = '1';
+				control.min = '0';
+				control.value = p.default;
+				break;
+
+			case 'float':
+				control = document.createElement('input');
+				control.type = 'number';
+				control.step = 'any';
+				control.min = '0';
+				control.value = p.default;
+				break;
+
+			case 'select':
+				control = document.createElement('select');
+				if (p.options) {
+					Object.entries(p.options).forEach(([val, label]) => {
+						const opt = document.createElement('option');
+						opt.value = val;
+						opt.textContent = label;
+						if (val === p.default) opt.selected = true;
+						control.appendChild(opt);
+					});
+				}
+				break;
+
+			default:
+				control = document.createElement('input');
+				control.type = 'text';
+				control.value = p.default;
+				break;
+		}
+
+		control.id = 'param-' + p.key;
+		control.name = p.key;
+		control.dataset.paramType = p.type;
+		lbl.textContent = p.label;
+		lbl.appendChild(createParamHints(p));
+		row.appendChild(lbl);
+		row.appendChild(control);
+		return row;
+	}
+
+	function renderParamGroup(params, groupLabel) {
+		const fieldset = document.createElement('fieldset');
+		fieldset.className = 'param-fieldset';
+		const legend = document.createElement('legend');
+		legend.textContent = groupLabel;
+		fieldset.appendChild(legend);
+		params.forEach(p => fieldset.appendChild(buildParamControl(p)));
+		return fieldset;
+	}
+
 	function renderStrategyParams() {
 		const name = elStrategy.value;
 		const strat = strategies.find(s => s.name === name);
 		elParamsContainer.innerHTML = '';
 		if (!strat) return;
 
-		// Collect unique groups in order of appearance.
+		const btParams = strat.params.filter(p => p.backtestRelevant !== false);
+		const nonBtParams = strat.params.filter(p => p.backtestRelevant === false);
+
+		// Backtest-relevant params grouped by their original group.
 		const groups = [];
-		strat.params.forEach(p => {
+		btParams.forEach(p => {
 			if (!groups.includes(p.group)) groups.push(p.group);
 		});
-
 		groups.forEach(group => {
-			const fieldset = document.createElement('fieldset');
-			fieldset.className = 'param-fieldset';
-			const legend = document.createElement('legend');
-			legend.textContent = (group === strat.name) ? (strat.displayName || group) : group;
-			fieldset.appendChild(legend);
-
-			strat.params.filter(p => p.group === group).forEach(p => {
-				const row = document.createElement('div');
-				row.className = 'param-row';
-				const lbl = document.createElement('label');
-				lbl.setAttribute('for', 'param-' + p.key);
-
-				let control;
-				switch (p.type) {
-					case 'bool':
-						control = document.createElement('input');
-						control.type = 'checkbox';
-						control.id = 'param-' + p.key;
-						control.name = p.key;
-						control.dataset.paramType = 'bool';
-						control.checked = (p.default === 'true' || p.default === '1' || p.default === 'yes');
-						lbl.style.display = 'inline';
-						lbl.style.marginLeft = '6px';
-						lbl.style.cursor = 'pointer';
-						lbl.textContent = p.label;
-						row.appendChild(control);
-						row.appendChild(lbl);
-						row.appendChild(createParamHints(p));
-						fieldset.appendChild(row);
-						return;
-
-					case 'int':
-						control = document.createElement('input');
-						control.type = 'number';
-						control.step = '1';
-						control.min = '0';
-						control.value = p.default;
-						break;
-
-					case 'float':
-						control = document.createElement('input');
-						control.type = 'number';
-						control.step = 'any';
-						control.min = '0';
-						control.value = p.default;
-						break;
-
-					case 'select':
-						control = document.createElement('select');
-						if (p.options) {
-							Object.entries(p.options).forEach(([val, label]) => {
-								const opt = document.createElement('option');
-								opt.value = val;
-								opt.textContent = label;
-								if (val === p.default) opt.selected = true;
-								control.appendChild(opt);
-							});
-						}
-						break;
-
-					default:
-						control = document.createElement('input');
-						control.type = 'text';
-						control.value = p.default;
-						break;
-				}
-
-				control.id = 'param-' + p.key;
-				control.name = p.key;
-				control.dataset.paramType = p.type;
-				lbl.textContent = p.label;
-				lbl.appendChild(createParamHints(p));
-				row.appendChild(lbl);
-				row.appendChild(control);
-				fieldset.appendChild(row);
-			});
-
-			elParamsContainer.appendChild(fieldset);
+			const label = (group === strat.name) ? (strat.displayName || group) : group;
+			elParamsContainer.appendChild(renderParamGroup(btParams.filter(p => p.group === group), label));
 		});
+
+		// Non-backtest-relevant params in a single separate fieldset.
+		if (nonBtParams.length > 0) {
+			elParamsContainer.appendChild(renderParamGroup(nonBtParams, 'Live Trading Only'));
+		}
 
 		// Wire up declarative dependencies (enabledWhen).
 		applyParamDependencies(strat.params);
@@ -1113,6 +1208,7 @@
 			params: params,
 			days: parseInt(elDays.value),
 			initialBalance: parseFloat(elBalance.value),
+			ticksPerCandle: parseInt(document.getElementById('sel-ticks').value),
 		};
 
 		elRunBtn.disabled = true;
@@ -1506,6 +1602,189 @@
 			elXmlOverlay.classList.remove('active');
 		}
 	});
+
+	// =========================================================================
+	// Load from Config
+	// =========================================================================
+	const elLoadConfigBtn = document.getElementById('btn-load-config');
+	const elLoadConfigOverlay = document.getElementById('load-config-overlay');
+	const elLoadConfigList = document.getElementById('load-config-list');
+
+	function applyParamsToForm(cfg) {
+		// Set strategy dropdown and re-render params.
+		if (cfg.strategy) {
+			const stratOpt = Array.from(elStrategy.options).find(o => o.value === cfg.strategy);
+			if (stratOpt) {
+				elStrategy.value = cfg.strategy;
+				renderStrategyParams();
+			}
+		}
+
+		// Fill param controls.
+		if (cfg.params) {
+			Object.entries(cfg.params).forEach(([key, val]) => {
+				const el = document.getElementById('param-' + key);
+				if (!el) return;
+				if (el.dataset.paramType === 'bool') {
+					el.checked = (val === 'true' || val === '1' || val === 'yes');
+				} else {
+					el.value = val;
+				}
+			});
+			// Re-apply dependencies after setting values.
+			const strat = strategies.find(s => s.name === cfg.strategy);
+			if (strat) applyParamDependencies(strat.params);
+		}
+
+		// Fill days and balance if present.
+		if (cfg.backtestDays) elDays.value = cfg.backtestDays;
+		if (cfg.backtestInitialBalance) elBalance.value = cfg.backtestInitialBalance;
+	}
+
+	function selectPairDropdown(cfg) {
+		const opt = Array.from(elPair.options).find(o => {
+			try {
+				const p = JSON.parse(o.value);
+				return p.exchange === cfg.exchangeName
+					&& p.ticker === cfg.ticker
+					&& p.marketType === cfg.marketType
+					&& p.timeframe === cfg.timeframe;
+			} catch { return false; }
+		});
+		if (opt) elPair.value = opt.value;
+	}
+
+	elLoadConfigBtn.addEventListener('click', async () => {
+		elLoadConfigList.innerHTML = '<li style="color:#666;font-style:italic;">Loading...</li>';
+		elLoadConfigOverlay.classList.add('active');
+		try {
+			const resp = await fetch('/cgi-bin/api.pl?action=get_pair_configs');
+			const configs = await resp.json();
+			elLoadConfigList.innerHTML = '';
+			if (configs.length === 0) {
+				elLoadConfigList.innerHTML = '<li style="color:#666;">No pairs found in config.xml</li>';
+				return;
+			}
+			configs.forEach(cfg => {
+				const li = document.createElement('li');
+				li.innerHTML = '<div class="pair-label">' + esc(cfg.ticker) + '</div>'
+					+ '<div class="pair-meta">' + esc(cfg.exchangeName) + ' &middot; ' + esc(cfg.marketType) + ' &middot; ' + esc(cfg.timeframe) + ' &middot; ' + esc(cfg.strategy) + '</div>';
+				li.addEventListener('click', () => {
+					selectPairDropdown(cfg);
+					applyParamsToForm(cfg);
+					elLoadConfigOverlay.classList.remove('active');
+				});
+				elLoadConfigList.appendChild(li);
+			});
+		} catch (err) {
+			elLoadConfigList.innerHTML = '<li style="color:#c62828;">Error: ' + esc(err.message) + '</li>';
+		}
+	});
+
+	document.getElementById('btn-load-config-close').addEventListener('click', () => {
+		elLoadConfigOverlay.classList.remove('active');
+	});
+	elLoadConfigOverlay.addEventListener('click', (e) => {
+		if (e.target === elLoadConfigOverlay) elLoadConfigOverlay.classList.remove('active');
+	});
+
+	// =========================================================================
+	// Load XML
+	// =========================================================================
+	const elLoadXmlBtn = document.getElementById('btn-load-xml');
+	const elLoadXmlOverlay = document.getElementById('load-xml-overlay');
+	const elLoadXmlInput = document.getElementById('load-xml-input');
+
+	function parseAndApplyXml(xmlStr, hintExchange, hintMarketType) {
+		const parser = new DOMParser();
+		const doc = parser.parseFromString(xmlStr, 'text/xml');
+		const parseError = doc.querySelector('parsererror');
+		if (parseError) {
+			alert('XML parse error: ' + parseError.textContent.substring(0, 200));
+			return false;
+		}
+
+		const pairEl = doc.querySelector('pair');
+		if (!pairEl) {
+			alert('No <pair> element found in the XML.');
+			return false;
+		}
+
+		const ticker = pairEl.getAttribute('ticker') || '';
+		const timeframe = pairEl.getAttribute('timeframe') || '';
+
+		// Try to select matching pair in dropdown (prefer exact match with exchange/marketType hints).
+		if (ticker && timeframe) {
+			const opts = Array.from(elPair.options);
+			let best = null;
+			for (const o of opts) {
+				try {
+					const p = JSON.parse(o.value);
+					if (p.ticker !== ticker || p.timeframe !== timeframe) continue;
+					if (!best) best = o;
+					if (hintExchange && p.exchange === hintExchange && hintMarketType && p.marketType === hintMarketType) {
+						best = o;
+						break;
+					}
+				} catch { /* skip */ }
+			}
+			if (best) elPair.value = best.value;
+		}
+
+		const stratEl = pairEl.querySelector('strategy');
+		if (!stratEl) {
+			alert('No <strategy> element found inside <pair>.');
+			return false;
+		}
+
+		const strategyName = stratEl.getAttribute('name') || '';
+		const params = {};
+		stratEl.querySelectorAll('param').forEach(p => {
+			const name = p.getAttribute('name');
+			const value = p.getAttribute('value');
+			if (name) params[name] = value || '';
+		});
+
+		const cfg = {
+			strategy: strategyName,
+			params: params,
+			backtestDays: stratEl.getAttribute('backtest_days') || null,
+			backtestInitialBalance: stratEl.getAttribute('backtest_initial_balance') || null,
+		};
+
+		applyParamsToForm(cfg);
+		return true;
+	}
+
+	elLoadXmlBtn.addEventListener('click', () => {
+		elLoadXmlInput.value = '';
+		elLoadXmlOverlay.classList.add('active');
+		elLoadXmlInput.focus();
+	});
+
+	document.getElementById('btn-load-xml-apply').addEventListener('click', () => {
+		const xml = elLoadXmlInput.value.trim();
+		if (!xml) return;
+		if (parseAndApplyXml(xml)) {
+			elLoadXmlOverlay.classList.remove('active');
+		}
+	});
+
+	document.getElementById('btn-load-xml-close').addEventListener('click', () => {
+		elLoadXmlOverlay.classList.remove('active');
+	});
+	elLoadXmlOverlay.addEventListener('click', (e) => {
+		if (e.target === elLoadXmlOverlay) elLoadXmlOverlay.classList.remove('active');
+	});
+
+	// =========================================================================
+	// Escape helper (reusable)
+	// =========================================================================
+	function esc(s) {
+		const d = document.createElement('div');
+		d.textContent = String(s);
+		return d.innerHTML;
+	}
 
 	// =========================================================================
 	// Boot

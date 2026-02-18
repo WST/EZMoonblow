@@ -17,6 +17,7 @@ use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\Backtest\BacktestExchange;
+use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Financial\BacktestStoredPosition;
 use Izzy\Financial\Candle;
 use Izzy\Financial\CandleRepository;
@@ -28,6 +29,9 @@ use Izzy\System\Logger;
 class Backtester extends ConsoleApplication
 {
 	private const float DEFAULT_INITIAL_BALANCE = 10000.0;
+	private const int DEFAULT_TICKS_PER_CANDLE = 4;
+
+	private int $ticksPerCandle = self::DEFAULT_TICKS_PER_CANDLE;
 
 	public function __construct() {
 		parent::__construct();
@@ -170,6 +174,7 @@ class Backtester extends ConsoleApplication
 	 *   - days: int (backtest period in days)
 	 *   - initialBalance: float (starting balance)
 	 *   - leverage: int (leverage multiplier)
+	 *   - ticksPerCandle: int (optional, default 4)
 	 */
 	public function runWebBacktest(string $sessionId, array $config): void {
 		$eventsFile = $this->getEventFilePath($sessionId);
@@ -185,6 +190,8 @@ class Backtester extends ConsoleApplication
 			$pair->setStrategyParams($config['params'] ?? []);
 			$pair->setBacktestDays($config['days']);
 			$pair->setBacktestInitialBalance($config['initialBalance']);
+
+			$this->ticksPerCandle = max(4, (int)($config['ticksPerCandle'] ?? self::DEFAULT_TICKS_PER_CANDLE));
 
 			// Find the real exchange driver for instrument info.
 			$realExchange = $exchanges[$config['exchangeName']] ?? null;
@@ -237,6 +244,7 @@ class Backtester extends ConsoleApplication
 	private function runBacktestLoop(array $pairsForBacktest, ?BacktestEventWriter $writer = null): void {
 		$repository = new CandleRepository($this->database);
 
+		$this->database->beginTransaction();
 		foreach ($pairsForBacktest as $entry) {
 			$pair = $entry['pair'];
 			assert($pair instanceof Pair);
@@ -375,68 +383,36 @@ class Backtester extends ConsoleApplication
 				$candleVolume = $currentCandle->getVolume();
 				$isBullish = $closePrice >= $openPrice;
 
-				// Build 4 ticks: [time, price] pairs that approximate the price path.
-				$ticks = $isBullish
-					? [
-						[$candleTime,                                    $openPrice],
-						[$candleTime + (int) ($candleDuration / 3),      $lowPrice],
-						[$candleTime + (int) ($candleDuration * 2 / 3),  $highPrice],
-						[$candleTime + $candleDuration - 1,              $closePrice],
-					]
-					: [
-						[$candleTime,                                    $openPrice],
-						[$candleTime + (int) ($candleDuration / 3),      $highPrice],
-						[$candleTime + (int) ($candleDuration * 2 / 3),  $lowPrice],
-						[$candleTime + $candleDuration - 1,              $closePrice],
-					];
+				// Generate N ticks that linearly interpolate the intra-candle price path.
+				// The 4 OHLC waypoints are connected by 3 segments; intermediate
+				// ticks are evenly distributed across these segments.
+				$ticks = $this->generateTicks(
+					$openPrice, $highPrice, $lowPrice, $closePrice,
+					$candleTime, $candleDuration, $this->ticksPerCandle, $isBullish,
+				);
 
 				/*
 				 * PARTIAL CANDLE SNAPSHOTS — lookahead bias prevention.
 				 *
-				 * Without this, the current candle in the slice already has its
-				 * final high/low/close at every tick, so indicators (EMA, RSI, etc.)
-				 * would "see the future" — e.g. RSI computed from the final close
-				 * of a candle that hasn't actually closed yet.
-				 *
-				 * We create 4 progressive snapshots that reflect how the candle
-				 * looks at each phase of its formation:
-				 *
-				 *   Bullish (close >= open): open → low → high → close
-				 *     Phase 0 (open):  O=open  H=open  L=open  C=open  — just opened.
-				 *     Phase 1 (low):   O=open  H=open  L=low   C=low   — dipped to low.
-				 *     Phase 2 (high):  O=open  H=high  L=low   C=high  — rallied to high.
-				 *     Phase 3 (close): O=open  H=high  L=low   C=close — fully formed.
-				 *
-				 *   Bearish (close < open): open → high → low → close
-				 *     Phase 0 (open):  O=open  H=open  L=open  C=open  — just opened.
-				 *     Phase 1 (high):  O=open  H=high  L=open  C=high  — rallied to high.
-				 *     Phase 2 (low):   O=open  H=high  L=low   C=low   — dropped to low.
-				 *     Phase 3 (close): O=open  H=high  L=low   C=close — fully formed.
-				 *
-				 * Before each tick, the last candle in the slice is replaced with
-				 * the corresponding partial snapshot, then indicators are recalculated.
-				 * Volume is distributed proportionally: 0%, 25%, 75%, 100%.
+				 * For each tick, we build a Candle that represents the candle's
+				 * state at this moment: open stays fixed, close = tickPrice,
+				 * high/low = running max/min of all tick prices so far.
+				 * Volume is distributed proportionally across ticks.
 				 */
-				$partialCandles = $isBullish
-					? [
-						new Candle($candleTime, $openPrice, $openPrice, $openPrice, $openPrice, 0.0, $market),
-						new Candle($candleTime, $openPrice, $openPrice, $lowPrice,  $lowPrice,  $candleVolume * 0.25, $market),
-						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $highPrice, $candleVolume * 0.75, $market),
-						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $closePrice, $candleVolume, $market),
-					]
-					: [
-						new Candle($candleTime, $openPrice, $openPrice, $openPrice, $openPrice, 0.0, $market),
-						new Candle($candleTime, $openPrice, $highPrice, $openPrice, $highPrice, $candleVolume * 0.25, $market),
-						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $lowPrice,  $candleVolume * 0.75, $market),
-						new Candle($candleTime, $openPrice, $highPrice, $lowPrice,  $closePrice, $candleVolume, $market),
-					];
-
 				$sliceLastIdx = count($slice) - 1;
+				$totalTicks = count($ticks);
+				$runningHigh = $openPrice;
+				$runningLow = $openPrice;
 				$tickIdx = 0;
 				foreach ($ticks as [$tickTime, $tickPrice]) {
-					// Replace the last candle with a partial snapshot so that
-					// indicators only see the candle's state at this tick phase.
-					$slice[$sliceLastIdx] = $partialCandles[$tickIdx];
+					$runningHigh = max($runningHigh, $tickPrice);
+					$runningLow = min($runningLow, $tickPrice);
+					$volumeFraction = $totalTicks > 1 ? $tickIdx / ($totalTicks - 1) : 1.0;
+					$partialCandle = new Candle(
+						$candleTime, $openPrice, $runningHigh, $runningLow, $tickPrice,
+						$candleVolume * $volumeFraction, $market,
+					);
+					$slice[$sliceLastIdx] = $partialCandle;
 					$market->setCandles($slice);
 					$tickIdx++;
 
@@ -640,6 +616,10 @@ class Backtester extends ConsoleApplication
 						if ($writer !== null) {
 							$writer->writePositionClose($sl, $pnl, 'SL', $tickTime);
 							$writer->writeBalance($balanceAfter);
+						}
+						$strategy = $market->getStrategy();
+						if ($strategy instanceof AbstractSingleEntryStrategy) {
+							$strategy->notifyStopLoss($tickTime);
 						}
 					}
 
@@ -934,6 +914,7 @@ class Backtester extends ConsoleApplication
 			// Persist the result for the Backtest Results history page.
 			BacktestResultRecord::saveFromResult($this->database, $result, $chartPng);
 		}
+		$this->database->commit();
 
 		// Print DB query stats to help profile and optimize SQL usage.
 		$queryStats = Logger::getLogger()->getQueryStats();
@@ -941,4 +922,70 @@ class Backtester extends ConsoleApplication
 		echo "\n\033[90mDB stats: {$queryStats['count']} queries, {$totalSec}s total query time\033[0m\n";
 	}
 
+	// ------------------------------------------------------------------
+	// Tick interpolation
+	// ------------------------------------------------------------------
+
+	/**
+	 * Generate N ticks that linearly interpolate the intra-candle price path.
+	 *
+	 * The path has 4 waypoints connected by 3 segments:
+	 *   Bullish: open -> low  -> high -> close
+	 *   Bearish: open -> high -> low  -> close
+	 *
+	 * Ticks are evenly distributed across the 3 segments.
+	 * With ticksPerCandle <= 4, each waypoint gets exactly 1 tick (original behavior).
+	 *
+	 * @return array<array{int, float}> Array of [timestamp, price] pairs.
+	 */
+	private function generateTicks(
+		float $open, float $high, float $low, float $close,
+		int $candleTime, int $candleDuration, int $ticksPerCandle, bool $isBullish,
+	): array {
+		$waypoints = $isBullish
+			? [$open, $low, $high, $close]
+			: [$open, $high, $low, $close];
+
+		if ($ticksPerCandle <= 4) {
+			$seg = $candleDuration / 3;
+			return [
+				[$candleTime, $waypoints[0]],
+				[$candleTime + (int)($seg), $waypoints[1]],
+				[$candleTime + (int)($seg * 2), $waypoints[2]],
+				[$candleTime + $candleDuration - 1, $waypoints[3]],
+			];
+		}
+
+		// Distribute ticks across 3 segments as evenly as possible.
+		// Total intervals = ticksPerCandle - 1, split into 3 segments.
+		$totalIntervals = $ticksPerCandle - 1;
+		$base = intdiv($totalIntervals, 3);
+		$remainder = $totalIntervals % 3;
+		// Give extra intervals to segments 0,1,2 in order.
+		$segIntervals = [
+			$base + ($remainder > 0 ? 1 : 0),
+			$base + ($remainder > 1 ? 1 : 0),
+			$base,
+		];
+
+		$ticks = [];
+		$tickNumber = 0;
+		for ($seg = 0; $seg < 3; $seg++) {
+			$startPrice = $waypoints[$seg];
+			$endPrice = $waypoints[$seg + 1];
+			$n = $segIntervals[$seg];
+			// Include the start of each segment, exclude end (next segment's start).
+			for ($j = 0; $j < $n; $j++) {
+				$fraction = $n > 0 ? $j / $n : 0.0;
+				$price = $startPrice + ($endPrice - $startPrice) * $fraction;
+				$time = $candleTime + (int)(($tickNumber / $totalIntervals) * ($candleDuration - 1));
+				$ticks[] = [$time, $price];
+				$tickNumber++;
+			}
+		}
+		// Final tick: the last waypoint (close).
+		$ticks[] = [$candleTime + $candleDuration - 1, $waypoints[3]];
+
+		return $ticks;
+	}
 }

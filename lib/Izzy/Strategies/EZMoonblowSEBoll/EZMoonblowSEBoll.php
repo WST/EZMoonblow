@@ -7,6 +7,7 @@ use Izzy\Indicators\BollingerBands;
 use Izzy\Indicators\RSI;
 use Izzy\Interfaces\IMarket;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBMultiplier;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBOffset;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBPeriod;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\CooldownCandles;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSINeutralFilter;
@@ -56,6 +57,9 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/** Bollinger Bands standard-deviation multiplier. */
 	private float $bbMultiplier;
 
+	/** Percentage beyond the BB that price must penetrate before entry. */
+	private float $bbOffset;
+
 	/** Whether RSI neutral zone filter is enabled. */
 	private bool $rsiNeutralFilter;
 
@@ -78,6 +82,7 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		parent::__construct($market, $params);
 		$this->bbPeriod = (int)($params['bbPeriod'] ?? 20);
 		$this->bbMultiplier = (float)($params['bbMultiplier'] ?? 2.0);
+		$this->bbOffset = (float)($params['bbOffset'] ?? 0);
 		$this->rsiNeutralFilter = in_array(strtolower($params['rsiNeutralFilter'] ?? 'false'), ['yes', 'true', '1'], true);
 		$this->rsiPeriod = (int)($params['rsiPeriod'] ?? 14);
 		$this->rsiNeutralLow = (float)($params['rsiNeutralLow'] ?? 30);
@@ -88,12 +93,20 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/**
 	 * @inheritDoc
 	 *
-	 * Bollinger Bands are calculated directly via calculateFromPrices()
-	 * to use strategy-specific period/multiplier parameters. No need
-	 * to register them through the indicator system.
+	 * Register Bollinger Bands with the strategy's custom period/multiplier
+	 * so the indicator system streams values to the chart overlay.
+	 * The strategy still computes BB internally for crossing detection.
 	 */
 	public function useIndicators(): array {
-		return [];
+		return [
+			[
+				'class' => BollingerBands::class,
+				'parameters' => [
+					'period' => $this->bbPeriod,
+					'multiplier' => $this->bbMultiplier,
+				],
+			],
+		];
 	}
 
 	// ------------------------------------------------------------------
@@ -241,11 +254,14 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		$prevLower = $bands[$count - 2]['lower'];
 		$currLower = $bands[$count - 1]['lower'];
 
-		$cross = $prevClose > $prevLower && $currClose <= $currLower;
+		// Apply penetration offset: require price to move bbOffset% beyond the band.
+		$adjustedLower = $currLower * (1 - $this->bbOffset / 100);
+
+		$cross = $prevClose > $prevLower && $currClose <= $adjustedLower;
 
 		$log->debug(sprintf(
-			"[BB↓] prevClose=%.8f prevLower=%.8f | currClose=%.8f currLower=%.8f | cross=%s",
-			$prevClose, $prevLower, $currClose, $currLower,
+			"[BB↓] prevClose=%.8f prevLower=%.8f | currClose=%.8f adjLower=%.8f (offset=%.2f%%) | cross=%s",
+			$prevClose, $prevLower, $currClose, $adjustedLower, $this->bbOffset,
 			$cross ? 'YES — SIGNAL!' : 'no',
 		));
 
@@ -275,11 +291,14 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		$prevUpper = $bands[$count - 2]['upper'];
 		$currUpper = $bands[$count - 1]['upper'];
 
-		$cross = $prevClose < $prevUpper && $currClose >= $currUpper;
+		// Apply penetration offset: require price to move bbOffset% beyond the band.
+		$adjustedUpper = $currUpper * (1 + $this->bbOffset / 100);
+
+		$cross = $prevClose < $prevUpper && $currClose >= $adjustedUpper;
 
 		$log->debug(sprintf(
-			"[BB↑] prevClose=%.8f prevUpper=%.8f | currClose=%.8f currUpper=%.8f | cross=%s",
-			$prevClose, $prevUpper, $currClose, $currUpper,
+			"[BB↑] prevClose=%.8f prevUpper=%.8f | currClose=%.8f adjUpper=%.8f (offset=%.2f%%) | cross=%s",
+			$prevClose, $prevUpper, $currClose, $adjustedUpper, $this->bbOffset,
 			$cross ? 'YES — SIGNAL!' : 'no',
 		));
 
@@ -328,6 +347,7 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		return array_merge(parent::getParameters(), [
 			new BBPeriod(),
 			new BBMultiplier(),
+			new BBOffset(),
 			new RSINeutralFilter(),
 			new RSIPeriod(),
 			new RSINeutralLow(),

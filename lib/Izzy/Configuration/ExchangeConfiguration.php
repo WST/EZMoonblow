@@ -357,6 +357,41 @@ class ExchangeConfiguration
 		return $value;
 	}
 
+	/**
+	 * Get strategy configurations for all pairs without connecting to the exchange.
+	 *
+	 * @return array<int, array{exchangeName: string, ticker: string, marketType: string, timeframe: string, strategyName: string, params: array}>
+	 */
+	public function getAllPairConfigs(): array {
+		$configs = [];
+		foreach (['spot' => MarketTypeEnum::SPOT, 'futures' => MarketTypeEnum::FUTURES] as $tag => $type) {
+			$el = $this->getChildElementByTagName($this->exchangeElement, $tag);
+			if (!$el) {
+				continue;
+			}
+			foreach ($el->getElementsByTagName('pair') as $pairEl) {
+				if (!$pairEl instanceof DOMElement) {
+					continue;
+				}
+				$sc = $this->parseStrategyConfig($pairEl);
+				if (!$sc) {
+					continue;
+				}
+				$configs[] = [
+					'exchangeName' => $this->getName(),
+					'ticker' => $pairEl->getAttribute('ticker'),
+					'marketType' => $type->value,
+					'timeframe' => $pairEl->getAttribute('timeframe'),
+					'strategyName' => $sc['name'],
+					'params' => $sc['params'],
+					'backtestDays' => $sc['backtest_days'],
+					'backtestInitialBalance' => $sc['backtest_initial_balance'],
+				];
+			}
+		}
+		return $configs;
+	}
+
 	private function getChildElementByTagName(DOMElement $parent, string $tagName): ?DOMElement {
 		foreach ($parent->childNodes as $child) {
 			if ($child instanceof DOMElement && $child->tagName === $tagName) {

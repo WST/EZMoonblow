@@ -107,6 +107,27 @@ abstract class AbstractStrategyParameter
 	}
 
 	/**
+	 * Normalize a raw config value to a canonical string form.
+	 * Used for smart comparison between configs (e.g. "yes" == "true" for bools).
+	 *
+	 * @param mixed $value Raw value from XML or backtest params.
+	 * @return string Canonical string representation.
+	 */
+	public function normalizeValue(mixed $value): string {
+		$str = (string)$value;
+		return match ($this->getType()) {
+			StrategyParameterTypeEnum::BOOL => self::normalizeBool($str),
+			StrategyParameterTypeEnum::INT => (string)(int)$str,
+			StrategyParameterTypeEnum::FLOAT => rtrim(rtrim(number_format((float)$str, 10, '.', ''), '0'), '.'),
+			default => $str,
+		};
+	}
+
+	private static function normalizeBool(string $value): string {
+		return in_array(strtolower($value), ['true', 'yes', '1'], true) ? 'true' : 'false';
+	}
+
+	/**
 	 * Serialize to a plain array suitable for JSON API responses.
 	 *
 	 * @return array{key: string, label: string, type: string, default: string, group: string, options?: array<string, string>}
@@ -127,6 +148,9 @@ abstract class AbstractStrategyParameter
 		}
 		if ($this->hasExclamationMark()) {
 			$data['exclamationMark'] = $this->getExclamationMarkTooltip();
+		}
+		if (!$this->isBacktestRelevant()) {
+			$data['backtestRelevant'] = false;
 		}
 		if ($condition = $this->getEnabledCondition()) {
 			$data['enabledWhen'] = $condition;

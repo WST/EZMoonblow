@@ -182,6 +182,12 @@
 	.xml-copy-btn:hover {
 		background: #eee;
 	}
+	.results-table tbody tr.config-match td {
+		background-color: #d5f5e3 !important;
+	}
+	.results-table tbody tr.config-match:hover td {
+		background-color: #abebc6 !important;
+	}
 </style>
 {% endblock %}
 
@@ -193,6 +199,7 @@
 	<table class="results-table">
 		<thead>
 			<tr>
+				<th>ID</th>
 				<th>Date</th>
 				<th>Pair</th>
 				<th>EX</th>
@@ -209,7 +216,8 @@
 		</thead>
 		<tbody>
 			{% for r in results %}
-			<tr data-idx="{{ loop.index0 }}">
+			<tr data-idx="{{ loop.index0 }}"{% if r.matchesCurrentConfig %} class="config-match"{% endif %}>
+				<td>{{ r.id }}</td>
 				<td style="white-space:nowrap;">{{ r.createdAt|date('Y-m-d H:i') }}</td>
 				<td><strong>{{ r.ticker }}</strong></td>
 				<td>{{ r.exchangeName }}</td>
@@ -252,6 +260,7 @@
 		<h3 id="detail-title">Backtest Details</h3>
 		<div id="detail-body"></div>
 		<div class="detail-buttons">
+			<button id="btn-detail-retest" style="background:#005599;color:#fff;border:none;">Retest</button>
 			<button id="btn-detail-close">Close</button>
 		</div>
 	</div>
@@ -431,15 +440,20 @@
 	var overlay = document.getElementById('detail-overlay');
 	var detailTitle = document.getElementById('detail-title');
 	var detailBody = document.getElementById('detail-body');
+	var currentDetailResult = null;
 
 	document.querySelectorAll('.results-table tbody tr').forEach(function(tr) {
 		tr.addEventListener('click', function() {
 			var idx = parseInt(this.dataset.idx, 10);
 			var r = results[idx];
 			if (!r) return;
+			currentDetailResult = r;
 			detailTitle.textContent = r.ticker + ' ' + r.strategy + ' — ' + new Date(r.createdAt * 1000).toISOString().replace('T', ' ').substring(0, 16);
 			detailBody.innerHTML = buildDetail(r);
 			overlay.classList.add('active');
+
+			var retestBtn = document.getElementById('btn-detail-retest');
+			retestBtn.style.display = r.pairXml ? '' : 'none';
 
 			// Bind Copy button for the XML block (created dynamically).
 			var copyBtn = document.getElementById('detail-xml-copy');
@@ -455,6 +469,14 @@
 				});
 			}
 		});
+	});
+
+	document.getElementById('btn-detail-retest').addEventListener('click', function() {
+		if (!currentDetailResult || !currentDetailResult.pairXml) return;
+		sessionStorage.setItem('retest_xml', currentDetailResult.pairXml);
+		sessionStorage.setItem('retest_exchange', currentDetailResult.exchangeName);
+		sessionStorage.setItem('retest_market_type', currentDetailResult.marketType);
+		window.location.href = '/backtest.jsp';
 	});
 
 	document.getElementById('btn-detail-close').addEventListener('click', function() {
