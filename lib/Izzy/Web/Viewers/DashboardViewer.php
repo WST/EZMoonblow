@@ -4,6 +4,7 @@ namespace Izzy\Web\Viewers;
 
 use Izzy\AbstractApplications\WebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 class DashboardViewer extends PageViewer
 {
@@ -17,7 +18,7 @@ class DashboardViewer extends PageViewer
 		parent::__construct($webApp);
 	}
 
-	public function render(Response $response): Response {
+	public function render(Response $response, ?Request $request = null): Response {
 		$selectedRange = $_GET['range'] ?? 'day';
 
 		// Validate selected range

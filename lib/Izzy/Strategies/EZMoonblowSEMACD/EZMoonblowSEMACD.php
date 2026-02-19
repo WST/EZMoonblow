@@ -32,6 +32,37 @@ use Izzy\System\Logger;
  *    Requires ADX to be above a configurable threshold (default 20),
  *    confirming that the market is actually trending (not range-bound)
  *    before acting on the MACD crossover.
+ *
+ * Example configuration for UNI/USDT 15m (backtested +87.81% over 100 days):
+ *
+ *   <pair ticker="UNI/USDT" timeframe="15m" trade="yes">
+ *     <strategy name="EZMoonblowSEMACD" backtest_days="100" backtest_initial_balance="1000">
+ *       <param name="entryVolume"                 value="100%"/>
+ *       <param name="stopLossPercent"              value="3"/>
+ *       <param name="takeProfitPercent"            value="6"/>
+ *       <param name="emaTrendFilter"               value="true"/>
+ *       <param name="emaTrendFilterTimeframe"      value="1d"/>
+ *       <param name="emaSlowPeriod"                value="30"/>
+ *       <param name="breakevenLockEnabled"         value="true"/>
+ *       <param name="breakevenLockTriggerPercent"  value="65"/>
+ *       <param name="breakevenLockClosePercent"    value="35"/>
+ *       <param name="stopLossCooldownMinutes"      value="180"/>
+ *       <param name="macdFastPeriod"               value="38"/>
+ *       <param name="macdSlowPeriod"               value="78"/>
+ *       <param name="macdSignalPeriod"             value="24"/>
+ *       <param name="adxFilter"                    value="true"/>
+ *       <param name="adxPeriod"                    value="28"/>
+ *       <param name="adxThreshold"                 value="23"/>
+ *       <param name="cooldownCandles"              value="8"/>
+ *     </strategy>
+ *   </pair>
+ *
+ * Key tuning notes for shorter timeframes (e.g. 15m vs 1h):
+ *   - Scale MACD/ADX periods proportionally (×2 for 15m relative to 1h)
+ *     so they cover the same wall-clock window.
+ *   - Tighten SL/TP to match lower per-candle volatility (3%/6% vs 5%/10%).
+ *   - Keep the EMA trend filter on daily to avoid counter-trend entries.
+ *   - Increase cooldownCandles to preserve a similar real-time gap between entries.
  */
 class EZMoonblowSEMACD extends AbstractSingleEntryStrategy
 {

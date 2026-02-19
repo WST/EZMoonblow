@@ -106,23 +106,22 @@ class DetailViewer extends TableViewer
 	}
 
 	private function renderWithoutHeader(): string {
-		$html = '<table class="'.$this->getTableClass().'">';
+		$html = '<table class="' . $this->getTableClass() . '">';
 
 		if (!empty($this->caption)) {
-			$html .= '<caption>'.htmlspecialchars($this->caption).'</caption>';
+			$html .= '<caption>' . htmlspecialchars($this->caption) . '</caption>';
 		}
 
 		$html .= '<tbody>';
-		foreach ($this->data as $index => $row) {
-			$rowClass = $this->getRowClass($index);
-			$html .= '<tr class="'.$rowClass.'">';
+		foreach ($this->data as $row) {
+			$html .= '<tr>';
 
 			foreach ($this->columns as $key => $column) {
 				$value = $row[$key] ?? '';
-				$formattedValue = $this->formatValue($value, $column);
+				$formattedValue = $this->formatValue($value, $column, $row);
 
-				$html .= '<td class="'.$column['class'].'" style="text-align: '.$column['align'].';">';
-				if ($column['type']->isHtml()) {
+				$html .= '<td class="' . $column['class'] . '" style="text-align:' . $column['align'] . ';">';
+				if ($column['type']->rendersHtml()) {
 					$html .= $formattedValue;
 				} else {
 					$html .= htmlspecialchars($formattedValue);

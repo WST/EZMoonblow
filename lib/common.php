@@ -25,7 +25,7 @@ const IZZY_CONFIG = IZZY_ROOT.'/config';
 // Allow overriding the configuration file via --config CLI option.
 // This is supported by all components: trader, analyzer, notifier,
 // backtester, migrations, etc.
-$cliOptions = getopt('', ['config:']);
+$cliOptions = getopt('', ['config:', 'ticks:']);
 if (isset($cliOptions['config'])) {
 	$configPath = $cliOptions['config'];
 	// Resolve relative paths from the current working directory.
@@ -36,6 +36,9 @@ if (isset($cliOptions['config'])) {
 } else {
 	define('IZZY_CONFIG_XML', IZZY_CONFIG.'/config.xml');
 }
+
+// Ticks-per-candle resolution for backtesting (higher = more accurate).
+define('IZZY_TICKS_PER_CANDLE', isset($cliOptions['ticks']) ? max(4, (int)$cliOptions['ticks']) : null);
 
 // RRD databases location.
 const IZZY_RRD = IZZY_ROOT.'/rrd';

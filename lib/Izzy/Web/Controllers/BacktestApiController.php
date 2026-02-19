@@ -60,6 +60,7 @@ class BacktestApiController
 			'request_candles' => $this->requestCandles($request, $response),
 			'delete_candle_set' => $this->deleteCandleSet($request, $response),
 			'clear_all_candles' => $this->clearAllCandles($response),
+			'delete_result' => $this->deleteResult($request, $response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
 		};
 	}
@@ -352,6 +353,28 @@ class BacktestApiController
 		return $response
 			->withHeader('Content-Type', 'image/png')
 			->withHeader('Cache-Control', 'public, max-age=86400');
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=delete_result
+	 * Deletes a single backtest result by ID.
+	 *
+	 * Expected JSON body: { "id": 123 }
+	 */
+	private function deleteResult(Request $request, Response $response): Response {
+		$body = json_decode((string) $request->getBody(), true);
+		$id = (int)($body['id'] ?? 0);
+		if ($id <= 0) {
+			return $this->jsonResponse($response, ['error' => 'Missing or invalid id'], 400);
+		}
+
+		$record = BacktestResultRecord::loadById($this->app->getDatabase(), $id);
+		if ($record === null) {
+			return $this->jsonResponse($response, ['error' => 'Record not found'], 404);
+		}
+
+		$record->remove();
+		return $this->jsonResponse($response, ['ok' => true]);
 	}
 
 	/**

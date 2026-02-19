@@ -140,6 +140,12 @@ class Backtester extends ConsoleApplication
 	 */
 	public function runBacktest(): void {
 		$this->logger->info('Starting backtest...');
+
+		if (defined('IZZY_TICKS_PER_CANDLE') && IZZY_TICKS_PER_CANDLE !== null) {
+			$this->ticksPerCandle = IZZY_TICKS_PER_CANDLE;
+			$this->logger->info("Using {$this->ticksPerCandle} ticks per candle (from --ticks CLI option)");
+		}
+
 		$exchanges = $this->configuration->connectExchanges($this);
 		$pairsForBacktest = $this->configuration->getPairsForBacktest($exchanges);
 		if (empty($pairsForBacktest)) {
@@ -461,12 +467,12 @@ class Backtester extends ConsoleApplication
 						if ($posCountAfter > $posCountBefore) {
 							$newPos = $market->getStoredPosition();
 							if ($newPos !== false) {
-								$writer->writePositionOpen(
-									$newPos->getDirection()->value,
-									$newPos->getAverageEntryPrice()->getAmount(),
-									$newPos->getVolume()->getAmount(),
-									$tickTime,
-								);
+							$writer->writePositionOpen(
+								$newPos->getDirection()->value,
+								$newPos->getAverageEntryPrice()->getAmount(),
+								$newPos->getVolume()->getAmount(),
+								$candleTime,
+							);
 							}
 						}
 						// DCA fill: volume increased while the same position stays open.
@@ -476,14 +482,14 @@ class Backtester extends ConsoleApplication
 								$postVolume = $postPos->getVolume()->getAmount();
 								$postSL = $postPos->getStopLossPrice()?->getAmount();
 								if ($postVolume > $preVolume) {
-									$writer->writeDCAFill(
-										$postPos->getDirection()->value,
-										$tickPrice,
-										$postVolume - $preVolume,
-										$postPos->getAverageEntryPrice()->getAmount(),
-										$postVolume,
-										$tickTime,
-									);
+								$writer->writeDCAFill(
+									$postPos->getDirection()->value,
+									$tickPrice,
+									$postVolume - $preVolume,
+									$postPos->getAverageEntryPrice()->getAmount(),
+									$postVolume,
+									$candleTime,
+								);
 								}
 							// Volume decreased — partial close or Breakeven Lock.
 							if ($postVolume < $preVolume) {
@@ -495,14 +501,14 @@ class Backtester extends ConsoleApplication
 									$lockedProfit = $postPos->getDirection()->isLong()
 										? $closedVolume * ($postSL - $entry)
 										: $closedVolume * ($entry - $postSL);
-									$writer->writeBreakevenLock($closedVolume, $postSL, abs($lockedProfit), $tickTime);
+									$writer->writeBreakevenLock($closedVolume, $postSL, abs($lockedProfit), $candleTime);
 								} else {
 									// SL unchanged — Partial Close.
 									$closePrice = $tickPrice;
 									$lockedProfit = $postPos->getDirection()->isLong()
 										? $closedVolume * ($closePrice - $entry)
 										: $closedVolume * ($entry - $closePrice);
-									$writer->writePartialClose($closedVolume, $closePrice, abs($lockedProfit), $tickTime);
+									$writer->writePartialClose($closedVolume, $closePrice, abs($lockedProfit), $candleTime);
 								}
 								$writer->writeBalance($backtestExchange->getVirtualBalance()->getAmount());
 							}
@@ -522,14 +528,14 @@ class Backtester extends ConsoleApplication
 							if ($writer !== null) {
 								$filledPos = $market->getStoredPosition();
 								if ($filledPos !== false) {
-									$writer->writeDCAFill(
-										$order['direction']->value,
-										$order['price'],
-										$order['volumeBase'],
-										$filledPos->getAverageEntryPrice()->getAmount(),
-										$filledPos->getVolume()->getAmount(),
-										$tickTime,
-									);
+							$writer->writeDCAFill(
+									$order['direction']->value,
+									$order['price'],
+									$order['volumeBase'],
+									$filledPos->getAverageEntryPrice()->getAmount(),
+									$filledPos->getVolume()->getAmount(),
+									$candleTime,
+								);
 								}
 							}
 						}
@@ -579,9 +585,9 @@ class Backtester extends ConsoleApplication
 						$dir = $position->getDirection()->value;
 						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 						if ($writer !== null) {
-							$writer->writePositionClose($tp, $profit, 'TP', $tickTime);
-							$writer->writeBalance($balanceAfter);
-						}
+						$writer->writePositionClose($tp, $profit, 'TP', $candleTime);
+						$writer->writeBalance($balanceAfter);
+					}
 					}
 
 					// --- 5.5. Check Stop-Loss hits ---
@@ -614,9 +620,9 @@ class Backtester extends ConsoleApplication
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 						if ($writer !== null) {
-							$writer->writePositionClose($sl, $pnl, 'SL', $tickTime);
-							$writer->writeBalance($balanceAfter);
-						}
+						$writer->writePositionClose($sl, $pnl, 'SL', $candleTime);
+						$writer->writeBalance($balanceAfter);
+					}
 						$strategy = $market->getStrategy();
 						if ($strategy instanceof AbstractSingleEntryStrategy) {
 							$strategy->notifyStopLoss($tickTime);
@@ -648,9 +654,9 @@ class Backtester extends ConsoleApplication
 						$log->backtestProgress("  LIQUIDATION at candle " . ($i + 1) . "/$n ($dateStr): balance " . number_format($balance, 2) . " USDT + unrealized PnL " . number_format($unrealizedPnl, 2) . " USDT <= 0");
 						$this->logger->warning("Backtest stopped: liquidated at candle " . ($i + 1) . " $dateStr.");
 						if ($writer !== null) {
-							$writer->writePositionClose($tickPrice, $balance + $unrealizedPnl, 'LIQUIDATION', $tickTime);
-							$writer->writeBalance(0.0);
-						}
+						$writer->writePositionClose($tickPrice, $balance + $unrealizedPnl, 'LIQUIDATION', $candleTime);
+						$writer->writeBalance(0.0);
+					}
 						break 2; // Exit both tick and candle loops.
 					}
 				}

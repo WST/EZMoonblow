@@ -4,6 +4,7 @@ namespace Izzy\Web\Viewers;
 
 use Izzy\AbstractApplications\WebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 class PageViewer
 {
@@ -24,7 +25,7 @@ class PageViewer
 		$this->webApp = $webApp;
 	}
 
-	public function render(Response $response): Response {
+	public function render(Response $response, ?Request $request = null): Response {
 		$body = $this->webApp->getTwig()->render('page.htt', ['menu' => $this->menu]);
 		$response->getBody()->write($body);
 		return $response;

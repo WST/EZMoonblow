@@ -4,6 +4,7 @@ namespace Izzy\Web\Viewers;
 
 use Izzy\AbstractApplications\WebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Renders the visual backtesting page with configuration form and chart area.
@@ -14,7 +15,7 @@ class BacktestViewer extends PageViewer
 		parent::__construct($webApp);
 	}
 
-	public function render(Response $response): Response {
+	public function render(Response $response, ?Request $request = null): Response {
 		$body = $this->webApp->getTwig()->render('backtest.htt', [
 			'menu' => $this->menu,
 		]);

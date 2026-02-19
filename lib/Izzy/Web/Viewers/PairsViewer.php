@@ -11,6 +11,7 @@ use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Financial\DCAOrderGrid;
 use Izzy\Financial\StrategyFactory;
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 class PairsViewer extends PageViewer
 {
@@ -18,7 +19,7 @@ class PairsViewer extends PageViewer
 		parent::__construct($webApp);
 	}
 
-	public function render(Response $response): Response {
+	public function render(Response $response, ?Request $request = null): Response {
 		$pairs = $this->getPairs();
 
 		// Prepare data for display using viewers

@@ -86,7 +86,7 @@ final class IzzyWeb extends WebApplication
 
 	public function resultsPage(Request $request, Response $response): Response {
 		$pageViewer = new ResultsViewer($this);
-		return $pageViewer->render($response);
+		return $pageViewer->render($response, $request);
 	}
 
 	public function generateBalanceChart(Request $request, Response $response, array $args): Response {

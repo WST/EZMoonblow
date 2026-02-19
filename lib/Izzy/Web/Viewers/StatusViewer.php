@@ -6,6 +6,7 @@ use Izzy\AbstractApplications\WebApplication;
 use Izzy\Enums\TaskStatusEnum;
 use Izzy\System\SystemHeartbeat;
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Viewer for the System Status page.
@@ -20,7 +21,7 @@ class StatusViewer extends PageViewer
 		parent::__construct($webApp);
 	}
 
-	public function render(Response $response): Response {
+	public function render(Response $response, ?Request $request = null): Response {
 		$database = $this->webApp->getDatabase();
 
 		// Get component statuses.

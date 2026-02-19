@@ -5,6 +5,7 @@ namespace Izzy\Web\Viewers;
 use Izzy\AbstractApplications\WebApplication;
 use Izzy\Financial\StoredPosition;
 use Psr\Http\Message\ResponseInterface as Response;
+use Psr\Http\Message\ServerRequestInterface as Request;
 
 /**
  * Viewer for the Open Positions page.
@@ -16,7 +17,7 @@ class PositionsViewer extends PageViewer
 		parent::__construct($webApp);
 	}
 
-	public function render(Response $response): Response {
+	public function render(Response $response, ?Request $request = null): Response {
 		$database = $this->webApp->getDatabase();
 		$positions = StoredPosition::loadAll($database);
 

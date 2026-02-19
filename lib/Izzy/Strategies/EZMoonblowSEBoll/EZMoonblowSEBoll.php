@@ -9,6 +9,9 @@ use Izzy\Interfaces\IMarket;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBMultiplier;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBOffset;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBPeriod;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopeFilter;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopeMax;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopePeriod;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\CooldownCandles;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSINeutralFilter;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\RSINeutralHigh;
@@ -72,6 +75,15 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/** Upper boundary of the RSI neutral zone. */
 	private float $rsiNeutralHigh;
 
+	/** Whether the BB slope filter is enabled. */
+	private bool $bbSlopeFilter;
+
+	/** Number of candles to look back when measuring band slope. */
+	private int $bbSlopePeriod;
+
+	/** Maximum allowed absolute % change of the band over the lookback. */
+	private float $bbSlopeMax;
+
 	/** Minimum candles to wait between entries (prevents whipsaw). */
 	private int $cooldownCandles;
 
@@ -87,6 +99,9 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		$this->rsiPeriod = (int)($params['rsiPeriod'] ?? 14);
 		$this->rsiNeutralLow = (float)($params['rsiNeutralLow'] ?? 30);
 		$this->rsiNeutralHigh = (float)($params['rsiNeutralHigh'] ?? 70);
+		$this->bbSlopeFilter = in_array(strtolower($params['bbSlopeFilter'] ?? 'false'), ['yes', 'true', '1'], true);
+		$this->bbSlopePeriod = max(2, (int)($params['bbSlopePeriod'] ?? 5));
+		$this->bbSlopeMax = (float)($params['bbSlopeMax'] ?? 1.0);
 		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 6);
 	}
 
@@ -125,8 +140,11 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 			return false;
 		}
 
-		// Bollinger Band touch: price crosses below the lower band.
 		if (!$this->priceCrossesBelowLowerBand()) {
+			return false;
+		}
+
+		if ($this->bbSlopeFilter && !$this->bandSlopeWithinLimit('lower')) {
 			return false;
 		}
 
@@ -146,8 +164,11 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 			return false;
 		}
 
-		// Bollinger Band touch: price crosses above the upper band.
 		if (!$this->priceCrossesAboveUpperBand()) {
+			return false;
+		}
+
+		if ($this->bbSlopeFilter && !$this->bandSlopeWithinLimit('upper')) {
 			return false;
 		}
 
@@ -306,6 +327,56 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	}
 
 	// ------------------------------------------------------------------
+	// Bollinger Band slope filter
+	// ------------------------------------------------------------------
+
+	/**
+	 * Check whether the slope of the specified band is within the allowed limit.
+	 *
+	 * Measures the percentage change of the band value over the last
+	 * bbSlopePeriod candles. A steep slope means the band is trending
+	 * strongly — price is "riding" the band rather than bouncing off it,
+	 * so a mean-reversion entry is unlikely to succeed.
+	 *
+	 * @param string $band 'upper' or 'lower'.
+	 */
+	private function bandSlopeWithinLimit(string $band): bool {
+		$log = Logger::getLogger();
+		$bb = $this->calculateBB();
+		if ($bb === null) {
+			$log->debug("[BB-SLOPE] Not enough data");
+			return true;
+		}
+
+		$bands = $bb['bands'];
+		$count = count($bands);
+
+		if ($count < $this->bbSlopePeriod + 1) {
+			$log->debug("[BB-SLOPE] Not enough BB values for slope lookback");
+			return true;
+		}
+
+		$current = $bands[$count - 1][$band];
+		$previous = $bands[$count - 1 - $this->bbSlopePeriod][$band];
+
+		if (abs($previous) < 1e-12) {
+			return true;
+		}
+
+		$slopePercent = ($current - $previous) / $previous * 100;
+		$pass = abs($slopePercent) <= $this->bbSlopeMax;
+
+		$log->debug(sprintf(
+			"[BB-SLOPE] %s band: %.8f → %.8f over %d candles = %+.4f%% (max ±%.4f%%) | %s",
+			strtoupper($band), $previous, $current, $this->bbSlopePeriod,
+			$slopePercent, $this->bbSlopeMax,
+			$pass ? 'PASS — flat enough' : 'FAIL — band too steep',
+		));
+
+		return $pass;
+	}
+
+	// ------------------------------------------------------------------
 	// Cooldown logic
 	// ------------------------------------------------------------------
 
@@ -348,6 +419,9 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 			new BBPeriod(),
 			new BBMultiplier(),
 			new BBOffset(),
+			new BBSlopeFilter(),
+			new BBSlopePeriod(),
+			new BBSlopeMax(),
 			new RSINeutralFilter(),
 			new RSIPeriod(),
 			new RSINeutralLow(),

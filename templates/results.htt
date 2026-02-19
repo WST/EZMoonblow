@@ -2,191 +2,11 @@
 
 {% block extracss %}
 <style>
-	.results-page {
-		text-align: left;
-		max-width: 1500px;
-		margin: 0 auto;
-	}
-	.results-page h1 {
-		text-align: center;
-		margin-bottom: 30px;
-	}
-	.results-table {
-		width: 100%;
-		border-collapse: collapse;
-		background-color: white;
-		border-radius: 8px;
-		overflow: hidden;
-		box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-	}
-	.results-table th,
-	.results-table td {
-		text-align: center;
-		vertical-align: middle;
-		border: 0px none;
+	.results-page .data-table th,
+	.results-page .data-table td {
 		font-size: 11px;
 		padding: 6px 8px;
-	}
-	.results-table th {
-		background-color: #5c7589;
-		color: #dfefff;
-		font-weight: bold;
-		white-space: nowrap;
-	}
-	.results-table tbody tr {
-		cursor: pointer;
-	}
-	.results-table tbody tr:hover td {
-		background-color: #f0f5fa;
-	}
-	.pnl-positive { color: #2e7d32; font-weight: bold; }
-	.pnl-negative { color: #c62828; font-weight: bold; }
-	.pnl-zero { color: #666; }
-	.market-badge {
-		display: inline-block;
-		padding: 1px 5px;
-		border-radius: 3px;
-		font-size: 10px;
-		text-transform: uppercase;
-	}
-	.market-spot { background-color: #e1f5fe; color: #0277bd; }
-	.market-futures { background-color: #f3e5f5; color: #7b1fa2; }
-	.status-badge {
-		display: inline-block;
-		padding: 2px 8px;
-		border-radius: 4px;
-		font-size: 11px;
-		font-weight: bold;
-	}
-	.status-ok { background-color: #e8f5e9; color: #2e7d32; }
-	.status-liquidated { background-color: #ffebee; color: #c62828; }
-	.no-results {
-		text-align: center;
-		padding: 40px;
-		color: #666;
-		font-style: italic;
-	}
-
-	/* Detail modal */
-	.detail-overlay {
-		display: none;
-		position: fixed;
-		inset: 0;
-		background: rgba(0,0,0,0.5);
-		z-index: 1000;
-		justify-content: center;
-		align-items: center;
-	}
-	.detail-overlay.active {
-		display: flex;
-	}
-	.detail-modal {
-		background: #fff;
-		border-radius: 8px;
-		padding: 24px;
-		max-width: 800px;
-		width: 92%;
-		max-height: 85vh;
-		overflow-y: auto;
-		display: flex;
-		flex-direction: column;
-	}
-	.detail-modal h3 {
-		margin: 0 0 16px;
-		font-size: 16px;
-		color: #003366;
-	}
-	.detail-section {
-		margin-bottom: 16px;
-	}
-	.detail-section h4 {
-		margin: 0 0 8px;
-		font-size: 13px;
-		color: #005599;
-		border-bottom: 1px solid #ccc;
-		padding-bottom: 4px;
-	}
-	.detail-table {
-		width: 100%;
-		border-collapse: collapse;
-		font-size: 12px;
-		margin-bottom: 4px;
-	}
-	.detail-table th,
-	.detail-table td {
-		padding: 4px 8px;
-		border: 1px solid #e0e0e0;
-		text-align: left;
-	}
-	.detail-table th {
-		background: #f5f7f9;
-		font-weight: 600;
-		width: 45%;
-	}
-	.detail-table td {
-		font-size: 11px;
-	}
-	.detail-two-col {
-		display: flex;
-		gap: 16px;
-	}
-	.detail-two-col .detail-section {
-		flex: 1;
-	}
-	.detail-buttons {
-		display: flex;
-		justify-content: flex-end;
-		margin-top: 12px;
-	}
-	.detail-buttons button {
-		padding: 8px 20px;
-		border-radius: 4px;
-		font-size: 13px;
-		cursor: pointer;
-		font-family: inherit;
-		border: 1px solid #ccc;
-		background: #f5f5f5;
-	}
-	.detail-buttons button:hover {
-		background: #e8e8e8;
-	}
-	.xml-block {
-		position: relative;
-		margin-top: 4px;
-	}
-	.xml-block textarea {
-		width: 100%;
-		min-height: 120px;
-		font-family: 'Courier New', Courier, monospace;
-		font-size: 12px;
-		border: 1px solid #d0d0d0;
-		border-radius: 4px;
-		padding: 8px;
-		background: #f8f9fa;
-		resize: vertical;
-		box-sizing: border-box;
-		tab-size: 4;
-	}
-	.xml-copy-btn {
-		position: absolute;
-		top: 4px;
-		right: 4px;
-		padding: 3px 10px;
-		font-size: 11px;
-		border: 1px solid #bbb;
-		border-radius: 3px;
-		background: #fff;
-		cursor: pointer;
-		font-family: inherit;
-	}
-	.xml-copy-btn:hover {
-		background: #eee;
-	}
-	.results-table tbody tr.config-match td {
-		background-color: #d5f5e3 !important;
-	}
-	.results-table tbody tr.config-match:hover td {
-		background-color: #abebc6 !important;
+		border: 0 none;
 	}
 </style>
 {% endblock %}
@@ -195,63 +15,13 @@
 <div class="results-page">
 	<h1>Backtest Results</h1>
 
+	{{ filterHtml | raw }}
+
 	{% if results|length > 0 %}
-	<table class="results-table">
-		<thead>
-			<tr>
-				<th>ID</th>
-				<th>Date</th>
-				<th>Pair</th>
-				<th>EX</th>
-				<th>Type</th>
-				<th>TF</th>
-				<th>Strategy</th>
-				<th>Balance</th>
-				<th>PnL</th>
-				<th>Trades</th>
-				<th>Win Rate</th>
-				<th>Sharpe</th>
-				<th>Status</th>
-			</tr>
-		</thead>
-		<tbody>
-			{% for r in results %}
-			<tr data-idx="{{ loop.index0 }}"{% if r.matchesCurrentConfig %} class="config-match"{% endif %}>
-				<td>{{ r.id }}</td>
-				<td style="white-space:nowrap;">{{ r.createdAt|date('Y-m-d H:i') }}</td>
-				<td><strong>{{ r.ticker }}</strong></td>
-				<td>{{ r.exchangeName }}</td>
-				<td>
-					{% if r.marketType == 'spot' %}
-						<span class="market-badge market-spot">Spot</span>
-					{% else %}
-						<span class="market-badge market-futures">Futures</span>
-					{% endif %}
-				</td>
-				<td>{{ r.timeframe }}</td>
-				<td>{{ r.strategy }}</td>
-				<td style="white-space:nowrap;">{{ r.initialBalance|number_format(2) }} &rarr; {{ r.finalBalance|number_format(2) }}</td>
-				<td>
-					<span class="{% if r.pnl > 0 %}pnl-positive{% elseif r.pnl < 0 %}pnl-negative{% else %}pnl-zero{% endif %}">
-						{% if r.pnl > 0 %}+{% endif %}{{ r.pnl|number_format(2) }} ({{ r.pnlPercent|number_format(2) }}%)
-					</span>
-				</td>
-				<td>{{ r.tradesFinished }}</td>
-				<td>{{ r.winRate|number_format(1) }}%</td>
-				<td>{% if r.sharpe is not null %}{{ r.sharpe|number_format(2) }}{% else %}&mdash;{% endif %}</td>
-				<td>
-					{% if r.liquidated %}
-						<span class="status-badge status-liquidated">Liquidated</span>
-					{% else %}
-						<span class="status-badge status-ok">OK</span>
-					{% endif %}
-				</td>
-			</tr>
-			{% endfor %}
-		</tbody>
-	</table>
+		{{ tableHtml | raw }}
+		{{ paginationHtml | raw }}
 	{% else %}
-	<div class="no-results">No backtest results yet. Run a backtest to see results here.</div>
+		<div class="no-results">No backtest results match your filters.</div>
 	{% endif %}
 </div>
 
@@ -270,6 +40,71 @@
 (function() {
 	var results = {{ results|json_encode|raw }};
 
+	// ─── Multi-select widget logic ───
+	document.querySelectorAll('.multi-select').forEach(function(ms) {
+		var trigger = ms.querySelector('.multi-select-trigger');
+		var hidden = ms.querySelector('input[type="hidden"]');
+		var checkboxes = ms.querySelectorAll('.multi-select-dropdown input[type="checkbox"]');
+
+		trigger.addEventListener('click', function(e) {
+			e.preventDefault();
+			e.stopPropagation();
+			document.querySelectorAll('.multi-select.open').forEach(function(other) {
+				if (other !== ms) other.classList.remove('open');
+			});
+			ms.classList.toggle('open');
+		});
+
+		checkboxes.forEach(function(cb) {
+			cb.addEventListener('change', function() {
+				var selected = [];
+				var labels = [];
+				checkboxes.forEach(function(c) {
+					if (c.checked) {
+						selected.push(c.value);
+						labels.push(c.parentElement.textContent.trim());
+					}
+				});
+				hidden.value = selected.join(',');
+				trigger.textContent = labels.length > 0 ? labels.join(', ') : 'All';
+				trigger.title = trigger.textContent;
+			});
+		});
+	});
+
+	document.addEventListener('click', function(e) {
+		if (!e.target.closest('.multi-select')) {
+			document.querySelectorAll('.multi-select.open').forEach(function(ms) {
+				ms.classList.remove('open');
+			});
+		}
+	});
+
+	// ─── Delete action handler ───
+	document.addEventListener('click', function(e) {
+		var btn = e.target.closest('[data-action="delete"]');
+		if (!btn) return;
+		e.stopPropagation();
+		var id = btn.dataset.id;
+		var endpoint = btn.dataset.endpoint;
+		var msg = btn.dataset.confirm || 'Delete this record?';
+		if (!confirm(msg)) return;
+		fetch(endpoint, {
+			method: 'POST',
+			headers: {'Content-Type': 'application/json'},
+			body: JSON.stringify({id: parseInt(id, 10)})
+		}).then(function(resp) { return resp.json(); })
+		.then(function(data) {
+			if (data.ok) {
+				var row = btn.closest('tr');
+				if (row) row.remove();
+			} else {
+				alert(data.error || 'Delete failed');
+			}
+		}).catch(function() { alert('Network error'); });
+	});
+
+	// ─── Detail modal helpers ───
 	function esc(s) {
 		var d = document.createElement('div');
 		d.textContent = String(s);
@@ -278,16 +113,16 @@
 
 	function fmt(n, d) {
 		if (n === null || n === undefined) return '&mdash;';
-		return Number(n).toLocaleString('en-US', { minimumFractionDigits: d, maximumFractionDigits: d });
+		return Number(n).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
 	}
 
 	function formatDuration(sec) {
 		if (!sec || sec <= 0) return '0s';
-		var d = Math.floor(sec / 86400);
+		var days = Math.floor(sec / 86400);
 		var h = Math.floor((sec % 86400) / 3600);
 		var m = Math.floor((sec % 3600) / 60);
 		var parts = [];
-		if (d > 0) parts.push(d + 'd');
+		if (days > 0) parts.push(days + 'd');
 		if (h > 0) parts.push(h + 'h');
 		if (m > 0) parts.push(m + 'm');
 		if (parts.length === 0) parts.push(sec + 's');
@@ -306,7 +141,6 @@
 	function buildDetail(r) {
 		var html = '';
 
-		// Period
 		var simDays = r.simDurationDays ? Number(r.simDurationDays).toFixed(1) : '0.0';
 		var statusStr = r.liquidated ? 'LIQUIDATED' : 'Completed';
 		var periodRows = metricRow('Pair', esc(r.ticker) + ' ' + esc(r.marketType) + ' ' + esc(r.timeframe) + ' (' + esc(r.exchangeName) + ')')
@@ -317,7 +151,6 @@
 			+ metricRow('Duration', simDays + ' days');
 		html += renderSection('Period', periodRows);
 
-		// Strategy Parameters
 		if (r.strategyParams && r.strategyParams.length > 0) {
 			var paramRows = '';
 			r.strategyParams.forEach(function(p) {
@@ -326,7 +159,6 @@
 			html += renderSection('Strategy Parameters', paramRows);
 		}
 
-		// Financial
 		var pnlStr = fmt(r.pnl, 2) + ' USDT (' + fmt(r.pnlPercent, 2) + '%)';
 		var drawdownStr = fmt(r.maxDrawdown, 2) + ' USDT';
 		if (r.initialBalance > 0 && Math.abs(r.maxDrawdown) > 0) {
@@ -343,7 +175,6 @@
 		}
 		html += renderSection('Financial', finRows);
 
-		// Balance chart
 		if (r.hasBalanceChart) {
 			html += '<div class="detail-section"><h4>Balance Chart</h4>'
 				+ '<img src="/cgi-bin/api.pl?action=backtest_chart&id=' + r.id + '" '
@@ -353,7 +184,6 @@
 				+ '</div>';
 		}
 
-		// Trades
 		var tradeRows = metricRow('Finished', r.tradesFinished)
 			+ metricRow('Open', r.tradesOpen)
 			+ metricRow('Pending', r.tradesPending);
@@ -371,7 +201,6 @@
 		}
 		html += renderSection('Trades', tradeRows);
 
-		// Longs / Shorts (side by side)
 		if (r.longFinished > 0 || r.shortFinished > 0) {
 			html += '<div class="detail-two-col">';
 			html += buildDirectionSection('Longs', r.longFinished, r.longWins, r.longLosses, r.longBL, r.longShortest, r.longLongest, r.longAverage);
@@ -379,7 +208,6 @@
 			html += '</div>';
 		}
 
-		// Risk Ratios
 		if (r.sharpe !== null || r.sortino !== null) {
 			var riskRows = metricRow('Sharpe Ratio', r.sharpe !== null ? fmt(r.sharpe, 2) : 'N/A (zero volatility)')
 				+ metricRow('Sortino Ratio', r.sortino !== null ? fmt(r.sortino, 2) : 'N/A (no downside)')
@@ -388,7 +216,6 @@
 			html += renderSection('Risk Ratios', riskRows);
 		}
 
-		// Open / Pending positions
 		if (r.openPositions && r.openPositions.length > 0) {
 			var posHtml = '<table class="detail-table"><tr><th>Direction</th><th>Entry</th><th>Volume</th><th>Created</th><th>Time open</th><th>Unrealized PnL</th></tr>';
 			r.openPositions.forEach(function(p) {
@@ -405,7 +232,6 @@
 			html += '<div class="detail-section"><h4>Open / Pending positions at end</h4>' + posHtml + '</div>';
 		}
 
-		// Pair XML configuration
 		if (r.pairXml) {
 			html += '<div class="detail-section"><h4>Pair XML configuration</h4>'
 				+ '<div class="xml-block">'
@@ -436,14 +262,15 @@
 		return renderSection(label, rows);
 	}
 
-	// Modal logic
+	// ─── Modal logic ───
 	var overlay = document.getElementById('detail-overlay');
 	var detailTitle = document.getElementById('detail-title');
 	var detailBody = document.getElementById('detail-body');
 	var currentDetailResult = null;
 
-	document.querySelectorAll('.results-table tbody tr').forEach(function(tr) {
-		tr.addEventListener('click', function() {
+	document.querySelectorAll('.data-table tbody tr').forEach(function(tr) {
+		tr.addEventListener('click', function(e) {
+			if (e.target.closest('[data-action]')) return;
 			var idx = parseInt(this.dataset.idx, 10);
 			var r = results[idx];
 			if (!r) return;
@@ -455,7 +282,6 @@
 			var retestBtn = document.getElementById('btn-detail-retest');
 			retestBtn.style.display = r.pairXml ? '' : 'none';
 
-			// Bind Copy button for the XML block (created dynamically).
 			var copyBtn = document.getElementById('detail-xml-copy');
 			if (copyBtn) {
 				copyBtn.addEventListener('click', function() {
@@ -484,9 +310,7 @@
 	});
 
 	overlay.addEventListener('click', function(e) {
-		if (e.target === overlay) {
-			overlay.classList.remove('active');
-		}
+		if (e.target === overlay) overlay.classList.remove('active');
 	});
 
 	document.addEventListener('keydown', function(e) {

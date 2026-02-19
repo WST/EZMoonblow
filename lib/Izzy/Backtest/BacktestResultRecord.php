@@ -203,6 +203,69 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	}
 
 	/**
+	 * Load filtered results with ordering and pagination.
+	 *
+	 * @return self[]
+	 */
+	public static function loadFiltered(
+		Database $database,
+		string|array $where = [],
+		string $order = '',
+		?int $limit = null,
+		?int $offset = null,
+	): array {
+		$table = self::getTableName();
+		$columns = self::getColumnsWithoutChart();
+		if (empty($order)) {
+			$order = self::FCreatedAt . ' DESC';
+		}
+		$rows = $database->selectAllRows($table, $columns, $where, $order, $limit, $offset);
+		return array_map(fn(array $row) => new self($database, $row), $rows);
+	}
+
+	/**
+	 * Count filtered results.
+	 */
+	public static function countFiltered(Database $database, string|array $where = []): int {
+		return $database->countRows(self::getTableName(), $where);
+	}
+
+	/**
+	 * Get distinct values for a given column, useful for building filter options.
+	 *
+	 * @return array<string, string> value => label
+	 */
+	public static function getDistinctValues(Database $database, string $column): array {
+		$table = self::getTableName();
+		$rows = $database->selectAllRows($table, "DISTINCT `$column`", [], "`$column` ASC");
+		$result = [];
+		foreach ($rows as $row) {
+			$val = $row[$column] ?? '';
+			$result[$val] = $val;
+		}
+		return $result;
+	}
+
+	/**
+	 * Get distinct strategy names with display names.
+	 *
+	 * @return array<string, string> internalName => displayName
+	 */
+	public static function getDistinctStrategyNames(Database $database): array {
+		$raw = self::getDistinctValues($database, self::FStrategy);
+		$result = [];
+		foreach ($raw as $name => $label) {
+			$class = StrategyFactory::getStrategyClass($name);
+			if ($class !== null && method_exists($class, 'getDisplayName')) {
+				$result[$name] = $class::getDisplayName();
+			} else {
+				$result[$name] = $name;
+			}
+		}
+		return $result;
+	}
+
+	/**
 	 * Load a single backtest result by ID (includes chart blob).
 	 */
 	public static function loadById(Database $database, int $id): ?self {
@@ -505,6 +568,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'marketType' => $this->getMarketType(),
 			'timeframe' => $this->getTimeframe(),
 			'strategy' => $this->getStrategyDisplayName(),
+			'strategyName' => $this->getStrategy(),
 			'strategyParams' => $this->getStrategyParamsLabeled(),
 			'initialBalance' => $this->getInitialBalance(),
 			'finalBalance' => $this->getFinalBalance(),
