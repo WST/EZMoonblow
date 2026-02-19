@@ -9,11 +9,35 @@ use Izzy\Interfaces\IMarket;
 use Izzy\System\Database\Database;
 
 /**
- * Stored position for backtest runs. Uses table backtest_positions.
+ * Stored position for backtest runs.
+ *
+ * Table name is dynamic: `backtest_positions` by default, or
+ * `backtest_positions_{suffix}` when a suffix is set via setTableSuffix().
+ * This allows multiple backtests to run in parallel without conflicting.
  */
 class BacktestStoredPosition extends StoredPosition
 {
+	private static ?string $tableSuffix = null;
+
+	/**
+	 * Set a unique suffix for the backtest positions table.
+	 * Must be called before creating the table and before any DB operations.
+	 */
+	public static function setTableSuffix(string $suffix): void {
+		self::$tableSuffix = $suffix;
+	}
+
+	/**
+	 * Reset the table suffix back to default (no suffix).
+	 */
+	public static function resetTableSuffix(): void {
+		self::$tableSuffix = null;
+	}
+
 	public static function getTableName(): string {
+		if (self::$tableSuffix !== null) {
+			return 'backtest_positions_' . self::$tableSuffix;
+		}
 		return 'backtest_positions';
 	}
 

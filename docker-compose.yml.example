@@ -127,6 +127,31 @@ services:
     extra_hosts:
       - "host.docker.internal:host-gateway"
 
+  # Optimizer component.
+  optimizer:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ezmoonblow-optimizer
+    restart: "no"
+    command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/optimizer.php"]
+    volumes:
+      - ./config:/app/config:ro
+      - ./logs:/app/logs
+      - ./cache:/app/cache
+      - migration_marker:/app/migration_marker
+    depends_on:
+      mysql:
+        condition: service_healthy
+      migrator:
+        condition: service_completed_successfully
+    networks:
+      - ezmoonblow-network
+    environment:
+      - TZ=Asia/Yerevan
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
   # Web interface — PHP-FPM backend.
   # Handles concurrent requests (admin panel + SSE streaming + backtest API).
   web-php:

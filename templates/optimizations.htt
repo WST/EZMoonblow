@@ -1,0 +1,205 @@
+{% extends 'base-page.htt' %}
+
+{% block extracss %}
+<style>
+	.optimizations-page .data-table th,
+	.optimizations-page .data-table td {
+		font-size: 11px;
+		padding: 6px 8px;
+		border: 0 none;
+	}
+	.suggestion-actions {
+		display: flex;
+		gap: 6px;
+		margin-top: 12px;
+	}
+	.suggestion-actions button {
+		padding: 4px 12px;
+		border: none;
+		border-radius: 4px;
+		cursor: pointer;
+		font-size: 12px;
+	}
+	.btn-apply {
+		background: #22c55e;
+		color: #fff;
+	}
+	.btn-dismiss {
+		background: #6b7280;
+		color: #fff;
+	}
+	.xml-block {
+		position: relative;
+	}
+	.xml-block textarea {
+		width: 100%;
+		min-height: 180px;
+		font-family: monospace;
+		font-size: 12px;
+		background: #1e1e2e;
+		color: #cdd6f4;
+		border: 1px solid #45475a;
+		border-radius: 4px;
+		padding: 8px;
+		resize: vertical;
+	}
+	.xml-copy-btn {
+		position: absolute;
+		top: 6px;
+		right: 6px;
+		padding: 2px 10px;
+		font-size: 11px;
+		background: #45475a;
+		color: #cdd6f4;
+		border: none;
+		border-radius: 3px;
+		cursor: pointer;
+	}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="optimizations-page">
+	<h1>Optimization Suggestions</h1>
+
+	{% if total > 0 %}
+		{{ tableHtml | raw }}
+		{{ paginationHtml | raw }}
+	{% else %}
+		<div class="no-results">No optimization suggestions yet. The Optimizer daemon will generate them automatically.</div>
+	{% endif %}
+</div>
+
+<div class="detail-overlay" id="detail-overlay">
+	<div class="detail-modal">
+		<h3 id="detail-title">Suggestion Details</h3>
+		<div id="detail-body"></div>
+		<div class="detail-buttons">
+			<button id="btn-detail-close">Close</button>
+		</div>
+	</div>
+</div>
+
+<script>
+(function() {
+	var results = {{ results|json_encode|raw }};
+
+	function esc(s) {
+		var d = document.createElement('div');
+		d.textContent = String(s);
+		return d.innerHTML;
+	}
+
+	function fmt(n, d) {
+		if (n === null || n === undefined) return '&mdash;';
+		return Number(n).toLocaleString('en-US', {minimumFractionDigits: d, maximumFractionDigits: d});
+	}
+
+	function metricRow(label, value) {
+		return '<tr><th>' + esc(label) + '</th><td>' + value + '</td></tr>';
+	}
+
+	function renderSection(title, rows) {
+		return '<div class="detail-section"><h4>' + esc(title) + '</h4>'
+			+ '<table class="detail-table">' + rows + '</table></div>';
+	}
+
+	function buildDetail(r) {
+		var html = '';
+		var infoRows = metricRow('Pair', esc(r.ticker) + ' ' + esc(r.marketType) + ' ' + esc(r.timeframe) + ' (' + esc(r.exchangeName) + ')')
+			+ metricRow('Strategy', esc(r.strategy))
+			+ metricRow('Mutated parameter', '<b>' + esc(r.mutatedParam) + '</b>')
+			+ metricRow('Original value', esc(r.originalValue))
+			+ metricRow('Suggested value', '<b>' + esc(r.mutatedValue) + '</b>');
+		html += renderSection('Mutation', infoRows);
+
+		var pnlRows = metricRow('Baseline PnL', fmt(r.baselinePnlPercent, 2) + '%')
+			+ metricRow('New PnL', '<b>' + fmt(r.mutatedPnlPercent, 2) + '%</b>')
+			+ metricRow('Improvement', '<span style="color:#22c55e;font-weight:bold;">+' + fmt(r.improvementPercent, 2) + '%</span>')
+			+ metricRow('Baseline backtest', '<a href="/results.jsp">#' + r.baselineBacktestId + '</a>')
+			+ metricRow('Mutated backtest', '<a href="/results.jsp">#' + r.mutatedBacktestId + '</a>');
+		html += renderSection('Performance', pnlRows);
+
+		if (r.suggestedXml) {
+			html += '<div class="detail-section"><h4>Suggested XML configuration</h4>'
+				+ '<div class="xml-block">'
+				+ '<textarea readonly id="detail-xml-output">' + esc(r.suggestedXml) + '</textarea>'
+				+ '<button class="xml-copy-btn" id="detail-xml-copy">Copy</button>'
+				+ '</div></div>';
+		}
+
+		if (r.status === 'New') {
+			html += '<div class="suggestion-actions">'
+				+ '<button class="btn-apply" data-action-status="Applied" data-id="' + r.id + '">Mark as Applied</button>'
+				+ '<button class="btn-dismiss" data-action-status="Dismissed" data-id="' + r.id + '">Dismiss</button>'
+				+ '</div>';
+		}
+
+		return html;
+	}
+
+	var overlay = document.getElementById('detail-overlay');
+	var detailTitle = document.getElementById('detail-title');
+	var detailBody = document.getElementById('detail-body');
+
+	document.querySelectorAll('.data-table tbody tr').forEach(function(tr) {
+		tr.addEventListener('click', function(e) {
+			if (e.target.closest('[data-action]')) return;
+			var idx = parseInt(this.dataset.idx, 10);
+			var r = results[idx];
+			if (!r) return;
+			detailTitle.textContent = r.ticker + ' — ' + r.mutatedParam + ': ' + r.originalValue + ' → ' + r.mutatedValue;
+			detailBody.innerHTML = buildDetail(r);
+			overlay.classList.add('active');
+
+			var copyBtn = document.getElementById('detail-xml-copy');
+			if (copyBtn) {
+				copyBtn.addEventListener('click', function() {
+					var ta = document.getElementById('detail-xml-output');
+					if (!ta) return;
+					ta.select();
+					navigator.clipboard.writeText(ta.value).then(function() {
+						copyBtn.textContent = 'Copied!';
+						setTimeout(function() { copyBtn.textContent = 'Copy'; }, 1500);
+					});
+				});
+			}
+
+			detailBody.querySelectorAll('[data-action-status]').forEach(function(btn) {
+				btn.addEventListener('click', function() {
+					var newStatus = this.dataset.actionStatus;
+					var id = this.dataset.id;
+					fetch('/cgi-bin/api.pl?action=update_suggestion_status', {
+						method: 'POST',
+						headers: {'Content-Type': 'application/json'},
+						body: JSON.stringify({id: parseInt(id, 10), status: newStatus})
+					}).then(function(resp) { return resp.json(); })
+					.then(function(data) {
+						if (data.ok) {
+							r.status = newStatus;
+							location.reload();
+						} else {
+							alert(data.error || 'Update failed');
+						}
+					}).catch(function() { alert('Network error'); });
+				});
+			});
+		});
+	});
+
+	document.getElementById('btn-detail-close').addEventListener('click', function() {
+		overlay.classList.remove('active');
+	});
+
+	overlay.addEventListener('click', function(e) {
+		if (e.target === overlay) overlay.classList.remove('active');
+	});
+
+	document.addEventListener('keydown', function(e) {
+		if (e.key === 'Escape' && overlay.classList.contains('active')) {
+			overlay.classList.remove('active');
+		}
+	});
+})();
+</script>
+{% endblock %}

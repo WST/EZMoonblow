@@ -107,6 +107,63 @@ abstract class AbstractStrategyParameter
 	}
 
 	/**
+	 * Produce a mutated value for the optimizer.
+	 *
+	 * Each type knows how to mutate itself:
+	 *   - BOOL flips to the opposite value.
+	 *   - INT shifts by at least ±1 within the given percentage band.
+	 *   - FLOAT shifts by the given percentage (continuous, no rounding to int).
+	 *   - SELECT picks a random different option.
+	 *
+	 * Subclasses may override for domain-specific constraints.
+	 *
+	 * @param string $currentValue Current parameter value.
+	 * @param float $percent Maximum mutation magnitude (e.g. 10 for ±10%).
+	 * @return string Mutated value, guaranteed to differ from $currentValue.
+	 */
+	public function mutate(string $currentValue, float $percent): string {
+		return match ($this->getType()) {
+			StrategyParameterTypeEnum::BOOL => $this->mutateBool($currentValue),
+			StrategyParameterTypeEnum::INT => $this->mutateInt($currentValue, $percent),
+			StrategyParameterTypeEnum::FLOAT => $this->mutateFloat($currentValue, $percent),
+			StrategyParameterTypeEnum::SELECT => $this->mutateSelect($currentValue),
+			default => $currentValue,
+		};
+	}
+
+	private function mutateBool(string $value): string {
+		return in_array(strtolower($value), ['true', 'yes', '1'], true) ? 'false' : 'true';
+	}
+
+	private function mutateInt(string $value, float $percent): string {
+		$v = (int) $value;
+		$direction = random_int(0, 1) === 0 ? -1 : 1;
+		$magnitude = max(1, (int) round(abs($v) * ($percent / 100.0) * (mt_rand(50, 100) / 100.0)));
+		$mutated = $v + $direction * $magnitude;
+		return (string) max(1, $mutated);
+	}
+
+	private function mutateFloat(string $value, float $percent): string {
+		$v = (float) $value;
+		$direction = random_int(0, 1) === 0 ? -1.0 : 1.0;
+		$shift = abs($v) * ($percent / 100.0) * (mt_rand(50, 100) / 100.0);
+		$mutated = $v + $direction * $shift;
+		if ($mutated === $v) {
+			$mutated = $v + $direction * max(0.0001, abs($v) * 0.01);
+		}
+		return (string) round(max(0.0001, $mutated), 4);
+	}
+
+	private function mutateSelect(string $value): string {
+		$options = array_keys($this->getOptions());
+		if (count($options) <= 1) {
+			return $value;
+		}
+		$others = array_values(array_filter($options, fn(string $o) => $o !== $value));
+		return $others[array_rand($others)];
+	}
+
+	/**
 	 * Normalize a raw config value to a canonical string form.
 	 * Used for smart comparison between configs (e.g. "yes" == "true" for bools).
 	 *

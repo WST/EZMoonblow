@@ -4,6 +4,7 @@ namespace Izzy\Web\Controllers;
 
 use Izzy\AbstractApplications\WebApplication;
 use Izzy\Backtest\BacktestResultRecord;
+use Izzy\Backtest\OptimizationSuggestionRecord;
 use Izzy\Configuration\StrategyConfiguration;
 use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\TaskStatusEnum;
@@ -61,6 +62,7 @@ class BacktestApiController
 			'delete_candle_set' => $this->deleteCandleSet($request, $response),
 			'clear_all_candles' => $this->clearAllCandles($response),
 			'delete_result' => $this->deleteResult($request, $response),
+			'update_suggestion_status' => $this->updateSuggestionStatus($request, $response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
 		};
 	}
@@ -374,6 +376,36 @@ class BacktestApiController
 		}
 
 		$record->remove();
+		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=update_suggestion_status
+	 * Update the status of an optimization suggestion (Applied / Dismissed).
+	 */
+	private function updateSuggestionStatus(Request $request, Response $response): Response {
+		$body = json_decode((string) $request->getBody(), true);
+		$id = (int)($body['id'] ?? 0);
+		$status = $body['status'] ?? '';
+
+		if ($id <= 0) {
+			return $this->jsonResponse($response, ['error' => 'Missing or invalid id'], 400);
+		}
+		$allowed = [
+			OptimizationSuggestionRecord::STATUS_APPLIED,
+			OptimizationSuggestionRecord::STATUS_DISMISSED,
+		];
+		if (!in_array($status, $allowed, true)) {
+			return $this->jsonResponse($response, ['error' => 'Invalid status'], 400);
+		}
+
+		$record = OptimizationSuggestionRecord::loadById($this->app->getDatabase(), $id);
+		if ($record === null) {
+			return $this->jsonResponse($response, ['error' => 'Suggestion not found'], 404);
+		}
+
+		$record->setStatus($status);
+		$record->save();
 		return $this->jsonResponse($response, ['ok' => true]);
 	}
 

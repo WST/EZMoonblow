@@ -17,6 +17,7 @@ class PageViewer
 		['title' => 'Candles', 'url' => '/candles.jsp'],
 		['title' => 'Backtest', 'url' => '/backtest.jsp'],
 		['title' => 'Results', 'url' => '/results.jsp'],
+		['title' => 'Optimizations', 'url' => '/optimizations.jsp'],
 		['title' => 'System Status', 'url' => '/status.jsp'],
 		['title' => 'Log Out', 'url' => '/logout.jsp'],
 	];

@@ -7,6 +7,7 @@ enum TaskRecipientEnum: string
 	case ANALYZER = 'Analyzer';
 	case TRADER = 'Trader';
 	case NOTIFIER = 'Notifier';
+	case OPTIMIZER = 'Optimizer';
 
 	public function isAnalyzer(): bool {
 		return $this === self::ANALYZER;
@@ -18,5 +19,9 @@ enum TaskRecipientEnum: string
 
 	public function isNotifier(): bool {
 		return $this === self::NOTIFIER;
+	}
+
+	public function isOptimizer(): bool {
+		return $this === self::OPTIMIZER;
 	}
 }

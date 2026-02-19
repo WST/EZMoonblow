@@ -11,6 +11,7 @@ use Izzy\Strategies\EZMoonblowDCAWithShorts\EZMoonblowDCAWithShorts;
 use Izzy\Strategies\EZMoonblowSE\EZMoonblowSE;
 use Izzy\Strategies\EZMoonblowSEBoll\EZMoonblowSEBoll;
 use Izzy\Strategies\EZMoonblowSEIchimoku\EZMoonblowSEIchimoku;
+use Izzy\Strategies\EZMoonblowSELogReg\EZMoonblowSELogReg;
 use Izzy\Strategies\EZMoonblowSEMACD\EZMoonblowSEMACD;
 
 /**
@@ -31,6 +32,7 @@ class StrategyFactory
 		'EZMoonblowSEBoll' => EZMoonblowSEBoll::class,
 		'EZMoonblowSEMACD' => EZMoonblowSEMACD::class,
 		'EZMoonblowSEIchimoku' => EZMoonblowSEIchimoku::class,
+		'EZMoonblowSELogReg' => EZMoonblowSELogReg::class,
 	];
 
 	/**

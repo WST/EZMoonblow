@@ -10,6 +10,7 @@ use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBMultiplier;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBOffset;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBPeriod;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopeFilter;
+use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopeFilterAction;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopeMax;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\BBSlopePeriod;
 use Izzy\Strategies\EZMoonblowSEBoll\Parameters\CooldownCandles;
@@ -84,6 +85,9 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 	/** Maximum allowed absolute % change of the band over the lookback. */
 	private float $bbSlopeMax;
 
+	/** Action when slope filter fires: 'block' or 'inverse'. */
+	private string $bbSlopeFilterAction;
+
 	/** Minimum candles to wait between entries (prevents whipsaw). */
 	private int $cooldownCandles;
 
@@ -102,6 +106,7 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		$this->bbSlopeFilter = in_array(strtolower($params['bbSlopeFilter'] ?? 'false'), ['yes', 'true', '1'], true);
 		$this->bbSlopePeriod = max(2, (int)($params['bbSlopePeriod'] ?? 5));
 		$this->bbSlopeMax = (float)($params['bbSlopeMax'] ?? 1.0);
+		$this->bbSlopeFilterAction = ($params['bbSlopeFilterAction'] ?? BBSlopeFilterAction::BLOCK);
 		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 6);
 	}
 
@@ -135,21 +140,29 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
-
 		if ($this->rsiNeutralFilter && !$this->rsiInNeutralZone()) {
 			return false;
 		}
 
-		if (!$this->priceCrossesBelowLowerBand()) {
-			return false;
+		// Normal mean-reversion long: price crosses below lower band.
+		if ($this->priceCrossesBelowLowerBand()) {
+			if ($this->bbSlopeFilter && !$this->bandSlopeWithinLimit('lower')) {
+				return false; // Slope too steep — blocked (both block & inverse skip normal entry).
+			}
+			$this->markEntry();
+			return true;
 		}
 
-		if ($this->bbSlopeFilter && !$this->bandSlopeWithinLimit('lower')) {
-			return false;
+		// Inverse entry: a short signal was blocked by a steep upper band slope
+		// → enter long (trend-following) instead.
+		if ($this->bbSlopeFilter && $this->bbSlopeFilterAction === BBSlopeFilterAction::INVERSE) {
+			if ($this->priceCrossesAboveUpperBand() && !$this->bandSlopeWithinLimit('upper')) {
+				$this->markEntry();
+				return true;
+			}
 		}
 
-		$this->markEntry();
-		return true;
+		return false;
 	}
 
 	/**
@@ -159,21 +172,29 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 		if (!$this->cooldownElapsed()) {
 			return false;
 		}
-
 		if ($this->rsiNeutralFilter && !$this->rsiInNeutralZone()) {
 			return false;
 		}
 
-		if (!$this->priceCrossesAboveUpperBand()) {
-			return false;
+		// Normal mean-reversion short: price crosses above upper band.
+		if ($this->priceCrossesAboveUpperBand()) {
+			if ($this->bbSlopeFilter && !$this->bandSlopeWithinLimit('upper')) {
+				return false; // Slope too steep — blocked (both block & inverse skip normal entry).
+			}
+			$this->markEntry();
+			return true;
 		}
 
-		if ($this->bbSlopeFilter && !$this->bandSlopeWithinLimit('upper')) {
-			return false;
+		// Inverse entry: a long signal was blocked by a steep lower band slope
+		// → enter short (trend-following) instead.
+		if ($this->bbSlopeFilter && $this->bbSlopeFilterAction === BBSlopeFilterAction::INVERSE) {
+			if ($this->priceCrossesBelowLowerBand() && !$this->bandSlopeWithinLimit('lower')) {
+				$this->markEntry();
+				return true;
+			}
 		}
 
-		$this->markEntry();
-		return true;
+		return false;
 	}
 
 	/**
@@ -420,6 +441,7 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 			new BBMultiplier(),
 			new BBOffset(),
 			new BBSlopeFilter(),
+			new BBSlopeFilterAction(),
 			new BBSlopePeriod(),
 			new BBSlopeMax(),
 			new RSINeutralFilter(),

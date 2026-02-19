@@ -15,7 +15,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 class StatusViewer extends PageViewer
 {
 	/** @var array Expected system components. */
-	private const EXPECTED_COMPONENTS = ['Trader', 'Analyzer', 'Notifier'];
+	private const EXPECTED_COMPONENTS = ['Trader', 'Analyzer', 'Notifier', 'Optimizer'];
 
 	public function __construct(WebApplication $webApp) {
 		parent::__construct($webApp);

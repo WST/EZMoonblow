@@ -148,10 +148,16 @@ class BacktestEventWriter
 	}
 
 	/**
-	 * Balance update after a trade event.
+	 * Balance/equity update.
+	 *
+	 * @param float $equity Balance + unrealized PnL of open positions.
+	 * @param float|null $realized Realized balance (without unrealized PnL). Null = same as equity.
 	 */
-	public function writeBalance(float $value): void {
-		$this->write('balance', ['value' => $value]);
+	public function writeBalance(float $equity, ?float $realized = null): void {
+		$this->write('balance', [
+			'value' => $equity,
+			'realized' => $realized ?? $equity,
+		]);
 	}
 
 	/**

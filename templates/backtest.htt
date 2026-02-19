@@ -540,7 +540,7 @@
 				<span class="info-value" id="info-position">--</span>
 			</div>
 			<div class="info-item">
-				<span class="info-label">PnL</span>
+				<span class="info-label">Realized PnL</span>
 				<span class="info-value" id="info-pnl">--</span>
 			</div>
 			<div class="info-item">
@@ -618,6 +618,7 @@
 	let sseSource = null;
 	let initialBalance = 0;
 	let currentBalance = 0;
+	let realizedBalance = 0;
 	let currentPosition = null;
 	let dcaFilledLevel = 0; // Highest filled DCA level (0 = entry only).
 
@@ -1224,6 +1225,7 @@
 		currentPosition = null;
 		dcaFilledLevel = 0;
 		currentBalance = 0;
+		realizedBalance = 0;
 		initialBalance = body.initialBalance;
 
 		// Fully recreate chart to reset price scale for the new asset.
@@ -1345,6 +1347,7 @@
 		currentPosition = null;
 		dcaFilledLevel = 0;
 		currentBalance = 0;
+		realizedBalance = 0;
 		sessionId = null;
 
 		// Fully recreate chart to reset price scale.
@@ -1376,6 +1379,7 @@
 				totalCandles = evt.totalCandles;
 				initialBalance = evt.initialBalance;
 				currentBalance = evt.initialBalance;
+				realizedBalance = evt.initialBalance;
 				elInfoBalance.textContent = formatMoney(currentBalance);
 				elProgressText.textContent = '0 / ' + totalCandles;
 				break;
@@ -1427,6 +1431,7 @@
 
 			case 'balance':
 				currentBalance = evt.value;
+				realizedBalance = evt.realized ?? evt.value;
 				elInfoBalance.textContent = formatMoney(currentBalance);
 				updatePnl();
 				break;
@@ -1496,7 +1501,7 @@
 	}
 
 	function updatePnl() {
-		const pnl = currentBalance - initialBalance;
+		const pnl = realizedBalance - initialBalance;
 		const pct = initialBalance > 0 ? (pnl / initialBalance * 100) : 0;
 		const sign = pnl >= 0 ? '+' : '';
 		elInfoPnl.textContent = sign + formatMoney(pnl) + ' (' + sign + pct.toFixed(1) + '%)';

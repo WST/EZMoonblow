@@ -262,6 +262,65 @@ class Configuration
 		return $this->xpath->evaluate('string(//web/password)');
 	}
 
+	// ------------------------------------------------------------------
+	// Optimizer settings
+	// ------------------------------------------------------------------
+
+	/**
+	 * Get optimizer run interval in hours.
+	 */
+	public function getOptimizerIntervalHours(): int {
+		$val = $this->xpath->evaluate('string(//optimizer/interval_hours)');
+		return $val !== '' ? (int) $val : 4;
+	}
+
+	/**
+	 * Get optimizer mutation percentage (+/- range).
+	 */
+	public function getOptimizerMutationPercent(): float {
+		$val = $this->xpath->evaluate('string(//optimizer/mutation_percent)');
+		return $val !== '' ? (float) $val : 10.0;
+	}
+
+	/**
+	 * Get minimum backtest duration in days for baseline reuse.
+	 */
+	public function getOptimizerMinBacktestDays(): int {
+		$val = $this->xpath->evaluate('string(//optimizer/min_backtest_days)');
+		return $val !== '' ? (int) $val : 100;
+	}
+
+	/**
+	 * Get ticks-per-candle resolution for optimizer backtests.
+	 */
+	public function getOptimizerTicksPerCandle(): int {
+		$val = $this->xpath->evaluate('string(//optimizer/ticks_per_candle)');
+		return $val !== '' ? max(4, (int) $val) : 10;
+	}
+
+	/**
+	 * Get list of strategy parameter names eligible for optimization.
+	 *
+	 * @return string[]
+	 */
+	public function getOptimizableParams(): array {
+		$nodes = $this->xpath->query('//optimizer/optimizable_params/param');
+		$params = [];
+		foreach ($nodes as $node) {
+			if ($node instanceof DOMElement) {
+				$name = $node->getAttribute('name');
+				if ($name !== '') {
+					$params[] = $name;
+				}
+			}
+		}
+		return $params;
+	}
+
+	// ------------------------------------------------------------------
+	// Database
+	// ------------------------------------------------------------------
+
 	/**
 	 * Create and return a database connection.
 	 *

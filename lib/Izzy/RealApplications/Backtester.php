@@ -152,9 +152,15 @@ class Backtester extends ConsoleApplication
 			$this->logger->info('No pairs with backtest_days found in config.');
 			return;
 		}
-		$this->database->dropTableIfExists('backtest_positions');
-		if (!$this->database->createTableLike('backtest_positions', 'positions')) {
-			$this->logger->error('Failed to create backtest_positions table.');
+
+		$suffix = 'cli_' . uniqid();
+		BacktestStoredPosition::setTableSuffix($suffix);
+		$tableName = BacktestStoredPosition::getTableName();
+
+		$this->database->dropTableIfExists($tableName);
+		if (!$this->database->createTableLike($tableName, 'positions')) {
+			$this->logger->error("Failed to create {$tableName} table.");
+			BacktestStoredPosition::resetTableSuffix();
 			return;
 		}
 		try {
@@ -162,7 +168,8 @@ class Backtester extends ConsoleApplication
 			$this->runBacktestLoop($pairsForBacktest);
 		} finally {
 			Logger::getLogger()->setBacktestMode(false);
-			$this->database->dropTableIfExists('backtest_positions');
+			$this->database->dropTableIfExists($tableName);
+			BacktestStoredPosition::resetTableSuffix();
 		}
 	}
 
@@ -186,6 +193,10 @@ class Backtester extends ConsoleApplication
 		$eventsFile = $this->getEventFilePath($sessionId);
 		$writer = new BacktestEventWriter($eventsFile);
 
+		$suffix = 'web_' . $sessionId;
+		BacktestStoredPosition::setTableSuffix($suffix);
+		$tableName = BacktestStoredPosition::getTableName();
+
 		try {
 			$exchanges = $this->configuration->connectExchanges($this);
 
@@ -202,10 +213,11 @@ class Backtester extends ConsoleApplication
 			// Find the real exchange driver for instrument info.
 			$realExchange = $exchanges[$config['exchangeName']] ?? null;
 
-			$this->database->dropTableIfExists('backtest_positions');
-			if (!$this->database->createTableLike('backtest_positions', 'positions')) {
-				$writer->writeError('Failed to create backtest_positions table.');
+			$this->database->dropTableIfExists($tableName);
+			if (!$this->database->createTableLike($tableName, 'positions')) {
+				$writer->writeError("Failed to create {$tableName} table.");
 				$writer->writeDone();
+				BacktestStoredPosition::resetTableSuffix();
 				return;
 			}
 
@@ -218,7 +230,8 @@ class Backtester extends ConsoleApplication
 			$writer->writeError($e->getMessage());
 		} finally {
 			Logger::getLogger()->setBacktestMode(false);
-			$this->database->dropTableIfExists('backtest_positions');
+			$this->database->dropTableIfExists($tableName);
+			BacktestStoredPosition::resetTableSuffix();
 			$writer->writeDone();
 		}
 	}
@@ -409,6 +422,7 @@ class Backtester extends ConsoleApplication
 				$totalTicks = count($ticks);
 				$runningHigh = $openPrice;
 				$runningLow = $openPrice;
+				$unrealizedPnl = 0.0;
 				$tickIdx = 0;
 				foreach ($ticks as [$tickTime, $tickPrice]) {
 					$runningHigh = max($runningHigh, $tickPrice);
@@ -661,10 +675,11 @@ class Backtester extends ConsoleApplication
 					}
 				}
 
-				// Record balance snapshot at the end of each candle for the chart.
-				$balanceSnapshots[] = [$candleTime, $backtestExchange->getVirtualBalance()->getAmount()];
+				// Record equity (balance + unrealized PnL) at the end of each candle.
+				$equity = $backtestExchange->getVirtualBalance()->getAmount() + $unrealizedPnl;
+				$balanceSnapshots[] = [$candleTime, $equity];
 
-				// After all 4 ticks of a candle: emit candle + progress events.
+				// After all ticks of a candle: emit candle + progress + equity events.
 				if ($writer !== null) {
 					$indicators = $market->getIndicatorValues();
 					$writer->writeCandle(
@@ -676,6 +691,7 @@ class Backtester extends ConsoleApplication
 						$candleVolume,
 						$indicators,
 					);
+					$writer->writeBalance($equity, $backtestExchange->getVirtualBalance()->getAmount());
 					// Emit progress every ~50 candles.
 					if ($i % 50 === 0 || $i === $n - 1) {
 						$writer->writeProgress($i + 1, $n);

@@ -11,6 +11,7 @@ use Izzy\Web\Viewers\BacktestViewer;
 use Izzy\Web\Viewers\CandlesViewer;
 use Izzy\Web\Viewers\DashboardViewer;
 use Izzy\Web\Viewers\PositionsViewer;
+use Izzy\Web\Viewers\OptimizationsViewer;
 use Izzy\Web\Viewers\ResultsViewer;
 use Izzy\Web\Viewers\StatusViewer;
 use Izzy\Web\Viewers\PairsViewer;
@@ -32,6 +33,7 @@ final class IzzyWeb extends WebApplication
 		$this->slimApp->get('/candles.jsp', [$this, 'candlesPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/backtest.jsp', [$this, 'backtestPage'])->add(AuthMiddleware::class);
 		$this->slimApp->get('/results.jsp', [$this, 'resultsPage'])->add(AuthMiddleware::class);
+		$this->slimApp->get('/optimizations.jsp', [$this, 'optimizationsPage'])->add(AuthMiddleware::class);
 
 		// CGI-bin style API for the visual backtester.
 		$backtestApi = new BacktestApiController($this);
@@ -86,6 +88,11 @@ final class IzzyWeb extends WebApplication
 
 	public function resultsPage(Request $request, Response $response): Response {
 		$pageViewer = new ResultsViewer($this);
+		return $pageViewer->render($response, $request);
+	}
+
+	public function optimizationsPage(Request $request, Response $response): Response {
+		$pageViewer = new OptimizationsViewer($this);
 		return $pageViewer->render($response, $request);
 	}
 

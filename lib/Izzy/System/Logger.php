@@ -14,8 +14,13 @@ final class Logger
 	/** @var string Path to the log file for web applications. */
 	private string $logFile = '';
 
-	/** @var bool When true, debug and info are suppressed (used during backtest to reduce noise). */
-	private bool $backtestMode = false;
+	/**
+	 * Reference counter for backtest mode. When > 0, debug/info are suppressed.
+	 * Using a counter instead of a boolean allows nested backtest runs
+	 * (e.g. Optimizer launching a backtest) without one run's cleanup
+	 * accidentally disabling backtest mode for the other.
+	 */
+	private int $backtestModeDepth = 0;
 
 	/** @var int When > 0, backtestProgress uses this instead of real wallclock time. */
 	private int $backtestSimulationTime = 0;
@@ -23,13 +28,20 @@ final class Logger
 	/**
 	 * Enable or disable backtest mode. In backtest mode, debug() and info() are no-ops;
 	 * only warning, error and fatal are logged. Use when running backtests to avoid live-trading noise.
-	 * @param bool $on Whether to enable backtest mode.
-	 * @return void
+	 *
+	 * Uses reference counting: each setBacktestMode(true) increments the depth,
+	 * each setBacktestMode(false) decrements it. Backtest mode is active while depth > 0.
+	 *
+	 * @param bool $on Whether to enable (increment) or disable (decrement) backtest mode.
 	 */
 	public function setBacktestMode(bool $on): void {
-		$this->backtestMode = $on;
-		if (!$on) {
-			$this->backtestSimulationTime = 0;
+		if ($on) {
+			$this->backtestModeDepth++;
+		} else {
+			$this->backtestModeDepth = max(0, $this->backtestModeDepth - 1);
+			if ($this->backtestModeDepth === 0) {
+				$this->backtestSimulationTime = 0;
+			}
 		}
 	}
 
@@ -39,7 +51,7 @@ final class Logger
 	 * @return bool True if backtest mode is enabled.
 	 */
 	public function isBacktestMode(): bool {
-		return $this->backtestMode;
+		return $this->backtestModeDepth > 0;
 	}
 
 	/**
@@ -57,7 +69,7 @@ final class Logger
 	 * @return void
 	 */
 	public function backtestProgress(string $message): void {
-		if (!$this->backtestMode) {
+		if ($this->backtestModeDepth === 0) {
 			return;
 		}
 		$timestamp = $this->backtestSimulationTime > 0
@@ -95,7 +107,7 @@ final class Logger
 	 * @return void
 	 */
 	public function info(string $message): void {
-		if ($this->backtestMode) {
+		if ($this->backtestModeDepth > 0) {
 			return;
 		}
 		$timestamp = date('Y-m-d H:i:s');
@@ -165,7 +177,7 @@ final class Logger
 	 * @return void
 	 */
 	public function debug(string $message): void {
-		if ($this->backtestMode) {
+		if ($this->backtestModeDepth > 0) {
 			return;
 		}
 		$timestamp = date('Y-m-d H:i:s');

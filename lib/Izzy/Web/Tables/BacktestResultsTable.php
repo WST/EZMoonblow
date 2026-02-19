@@ -29,6 +29,9 @@ class BacktestResultsTable
 		$table->insertBadgeColumn('liquidated', 'Status', fn($v) =>
 			$v ? ['label' => 'Liquidated', 'variant' => 'danger'] : ['label' => 'OK', 'variant' => 'success']
 		);
+		$table->insertBadgeColumn('mode', 'Mode', fn($v) =>
+			$v === 'Auto' ? ['label' => 'Auto', 'variant' => 'info'] : ['label' => 'Manual', 'variant' => 'secondary']
+		);
 
 		return $table;
 	}

@@ -2,6 +2,7 @@
 
 namespace Izzy\Backtest;
 
+use Izzy\Enums\BacktestModeEnum;
 use Izzy\Financial\Pair;
 use Izzy\Financial\StrategyFactory;
 use Izzy\System\Database\Database;
@@ -62,6 +63,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	const string FOpenPositions = 'br_open_positions';
 	const string FPairXml = 'br_pair_xml';
 	const string FBalanceChart = 'br_balance_chart';
+	const string FMode = 'br_mode';
 
 	public function __construct(Database $database, array $row) {
 		parent::__construct($database, $row, self::FId);
@@ -109,7 +111,12 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	/**
 	 * Persist a BacktestResult DTO into the database.
 	 */
-	public static function saveFromResult(Database $database, BacktestResult $result, ?string $chartPng = null): void {
+	public static function saveFromResult(
+		Database $database,
+		BacktestResult $result,
+		?string $chartPng = null,
+		BacktestModeEnum $mode = BacktestModeEnum::MANUAL,
+	): void {
 		$pair = $result->pair;
 		$fin = $result->financial;
 		$trades = $result->trades;
@@ -180,6 +187,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			self::FOpenPositions => $openPositionsJson,
 			self::FPairXml => $pairXml,
 			self::FBalanceChart => $chartPng,
+			self::FMode => $mode->value,
 		];
 
 		$record = new self($database, $row);
@@ -531,6 +539,10 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		return json_decode($json, true) ?: [];
 	}
 
+	public function getMode(): string {
+		return $this->row[self::FMode] ?? BacktestModeEnum::MANUAL->value;
+	}
+
 	public function getPairXml(): ?string {
 		return $this->row[self::FPairXml] ?? null;
 	}
@@ -614,6 +626,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'openPositions' => $this->getOpenPositions(),
 			'pairXml' => $this->getPairXml(),
 			'hasBalanceChart' => $this->hasBalanceChart(),
+			'mode' => $this->getMode(),
 		];
 	}
 }
