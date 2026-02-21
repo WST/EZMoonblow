@@ -6,13 +6,19 @@ use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Parameters\AlwaysMarketEntry;
 use Izzy\Financial\Parameters\ExpectedProfit;
+use Izzy\Financial\Parameters\ExpectedProfitShort;
 use Izzy\Financial\Parameters\InitialEntryVolume;
+use Izzy\Financial\Parameters\InitialEntryVolumeShort;
 use Izzy\Financial\Parameters\NumberOfLevels;
+use Izzy\Financial\Parameters\NumberOfLevelsShort;
 use Izzy\Financial\Parameters\OffsetMode;
 use Izzy\Financial\Parameters\PriceDeviation;
 use Izzy\Financial\Parameters\PriceDeviationMultiplier;
+use Izzy\Financial\Parameters\PriceDeviationMultiplierShort;
+use Izzy\Financial\Parameters\PriceDeviationShort;
 use Izzy\Financial\Parameters\UseLimitOrders;
 use Izzy\Financial\Parameters\VolumeMultiplier;
+use Izzy\Financial\Parameters\VolumeMultiplierShort;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 
@@ -40,31 +46,28 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	 * Initialize DCA settings from strategy parameters.
 	 */
 	private function initializeDCASettings(): void {
-		/** Use limit orders */
-		$useLimitOrders = filter_var($this->params['UseLimitOrders'] ?? false, FILTER_VALIDATE_BOOLEAN);
+		$useLimitOrders = filter_var($this->params[UseLimitOrders::getName()] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 		/** Long parameters */
-		$numberOfLevels = $this->params['numberOfLevels'] ?? 5;
-		$entryVolumeRaw = $this->params['entryVolume'] ?? 40;
-		$volumeMultiplier = $this->params['volumeMultiplier'] ?? 2;
-		$priceDeviation = $this->params['priceDeviation'] ?? 5;
-		$priceDeviationMultiplier = $this->params['priceDeviationMultiplier'] ?? 2;
-		$expectedProfit = $this->params['expectedProfit'] ?? 2;
+		$numberOfLevels = $this->params[NumberOfLevels::getName()] ?? 5;
+		$entryVolumeRaw = $this->params[InitialEntryVolume::getName()] ?? 40;
+		$volumeMultiplier = $this->params[VolumeMultiplier::getName()] ?? 2;
+		$priceDeviation = $this->params[PriceDeviation::getName()] ?? 5;
+		$priceDeviationMultiplier = $this->params[PriceDeviationMultiplier::getName()] ?? 2;
+		$expectedProfit = $this->params[ExpectedProfit::getName()] ?? 2;
 
 		/** Short parameters */
-		$numberOfLevelsShort = $this->params['numberOfLevelsShort'] ?? 0;
-		$entryVolumeShortRaw = $this->params['entryVolumeShort'] ?? 0;
-		$volumeMultiplierShort = $this->params['volumeMultiplierShort'] ?? 2;
-		$priceDeviationShort = $this->params['priceDeviationShort'] ?? 5;
-		$priceDeviationMultiplierShort = $this->params['priceDeviationMultiplierShort'] ?? 2;
-		$expectedProfitShort = $this->params['expectedProfitShort'] ?? 2;
+		$numberOfLevelsShort = $this->params[NumberOfLevelsShort::getName()] ?? 0;
+		$entryVolumeShortRaw = $this->params[InitialEntryVolumeShort::getName()] ?? 0;
+		$volumeMultiplierShort = $this->params[VolumeMultiplierShort::getName()] ?? 2;
+		$priceDeviationShort = $this->params[PriceDeviationShort::getName()] ?? 5;
+		$priceDeviationMultiplierShort = $this->params[PriceDeviationMultiplierShort::getName()] ?? 2;
+		$expectedProfitShort = $this->params[ExpectedProfitShort::getName()] ?? 2;
 
-		/** Offset calculation mode */
-		$offsetModeParam = $this->params['offsetMode'] ?? DCAOffsetModeEnum::FROM_ENTRY->value;
+		$offsetModeParam = $this->params[OffsetMode::getName()] ?? DCAOffsetModeEnum::FROM_ENTRY->value;
 		$offsetMode = DCAOffsetModeEnum::tryFrom($offsetModeParam) ?? DCAOffsetModeEnum::FROM_ENTRY;
 
-		/** Always execute entry order as market instead of limit */
-		$alwaysMarketEntry = filter_var($this->params['alwaysMarketEntry'] ?? false, FILTER_VALIDATE_BOOLEAN);
+		$alwaysMarketEntry = filter_var($this->params[AlwaysMarketEntry::getName()] ?? false, FILTER_VALIDATE_BOOLEAN);
 
 		// Parse entry volume for Long (supports: "140", "5%", "5%M", "0.002 BTC")
 		$parsedVolume = EntryVolumeParser::parse($entryVolumeRaw);
@@ -347,27 +350,31 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	 * Short-specific parameter names.
 	 * These are excluded from display when doesShort() returns false.
 	 */
-	private const array SHORT_PARAMS = [
-		'numberOfLevelsShort',
-		'entryVolumeShort',
-		'volumeMultiplierShort',
-		'priceDeviationShort',
-		'priceDeviationMultiplierShort',
-		'expectedProfitShort',
-	];
+	private static function getShortParams(): array {
+		return [
+			NumberOfLevelsShort::getName(),
+			InitialEntryVolumeShort::getName(),
+			VolumeMultiplierShort::getName(),
+			PriceDeviationShort::getName(),
+			PriceDeviationMultiplierShort::getName(),
+			ExpectedProfitShort::getName(),
+		];
+	}
 
 	/**
 	 * Long-specific parameter names.
 	 * These are excluded from display when doesLong() returns false.
 	 */
-	private const array LONG_PARAMS = [
-		'numberOfLevels',
-		'entryVolume',
-		'volumeMultiplier',
-		'priceDeviation',
-		'priceDeviationMultiplier',
-		'expectedProfit',
-	];
+	private static function getLongParams(): array {
+		return [
+			NumberOfLevels::getName(),
+			InitialEntryVolume::getName(),
+			VolumeMultiplier::getName(),
+			PriceDeviation::getName(),
+			PriceDeviationMultiplier::getName(),
+			ExpectedProfit::getName(),
+		];
+	}
 
 	/**
 	 * Get strategy parameters filtered by the directions this strategy supports.
@@ -382,10 +389,10 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	public function getDisplayParameters(): array {
 		$excluded = [];
 		if (!$this->doesShort()) {
-			$excluded = array_merge($excluded, self::SHORT_PARAMS);
+			$excluded = array_merge($excluded, self::getShortParams());
 		}
 		if (!$this->doesLong()) {
-			$excluded = array_merge($excluded, self::LONG_PARAMS);
+			$excluded = array_merge($excluded, self::getLongParams());
 		}
 
 		return array_diff_key($this->params, array_flip($excluded));

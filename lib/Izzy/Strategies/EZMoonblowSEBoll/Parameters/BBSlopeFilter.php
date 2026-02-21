@@ -7,31 +7,31 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBSlopeFilter extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'bbSlopeFilter';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'BB slope filter';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEBoll';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Reject entries when the relevant Bollinger Band is sloping steeply, indicating a strong trend where mean-reversion is unlikely to succeed.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'false';
 	}
 }

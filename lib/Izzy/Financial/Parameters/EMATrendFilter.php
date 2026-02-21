@@ -8,39 +8,39 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class EMATrendFilter extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'emaTrendFilter';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'EMA trend filter';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractStrategy::getStrategySettingGroupTitle();
 	}
 
-	public function hasExclamationMark(): bool {
+	public static function hasExclamationMark(): bool {
 		return true;
 	}
 
-	public function getExclamationMarkTooltip(): string {
+	public static function getExclamationMarkTooltip(): string {
 		return 'Requires candles of the selected filter timeframe to be loaded for this pair.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'false';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Blocks entries that go against the higher-timeframe trend.';
 	}
 }

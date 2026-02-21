@@ -8,29 +8,29 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PartialCloseTriggerPercent extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'partialCloseTriggerPercent';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Partial Close trigger (% of way to TP)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractSingleEntryStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '70';
 	}
 
-	public function getEnabledCondition(): ?array {
+	public static function getEnabledCondition(): ?array {
 		return [
-			'paramKey' => 'partialCloseEnabled',
+			'paramKey' => PartialCloseEnabled::getName(),
 			'value' => 'true',
 		];
 	}

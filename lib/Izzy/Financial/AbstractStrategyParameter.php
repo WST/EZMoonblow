@@ -20,33 +20,33 @@ abstract class AbstractStrategyParameter
 	/**
 	 * Config key as used in XML/params array (e.g. "stopLossPercent").
 	 */
-	abstract public function getName(): string;
+	abstract public static function getName(): string;
 
 	/**
 	 * Human-readable label for the UI (e.g. "Stop-loss distance (%)").
 	 */
-	abstract public function getLabel(): string;
+	abstract public static function getLabel(): string;
 
 	/**
 	 * Data type of the parameter value.
 	 */
-	abstract public function getType(): StrategyParameterTypeEnum;
+	abstract public static function getType(): StrategyParameterTypeEnum;
 
 	/**
 	 * Default value defined by the parameter class.
 	 */
-	abstract protected function getClassDefault(): string;
+	abstract protected static function getClassDefault(): string;
 
 	/**
 	 * Human-readable group name for fieldset grouping in the UI.
 	 */
-	abstract public function getGroup(): string;
+	abstract public static function getGroup(): string;
 
 	/**
 	 * Effective default value (respects constructor override).
 	 */
 	public function getDefault(): string {
-		return $this->defaultOverride ?? $this->getClassDefault();
+		return $this->defaultOverride ?? static::getClassDefault();
 	}
 
 	/**
@@ -55,35 +55,35 @@ abstract class AbstractStrategyParameter
 	 *
 	 * @return array<string, string> value => label.
 	 */
-	public function getOptions(): array {
+	public static function getOptions(): array {
 		return [];
 	}
 
 	/**
 	 * Whether to show a question mark icon with a tooltip next to the label.
 	 */
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return false;
 	}
 
 	/**
 	 * Tooltip text for the question mark icon.
 	 */
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return '';
 	}
 
 	/**
 	 * Whether to show a red exclamation mark icon with a tooltip next to the label.
 	 */
-	public function hasExclamationMark(): bool {
+	public static function hasExclamationMark(): bool {
 		return false;
 	}
 
 	/**
 	 * Tooltip text for the exclamation mark icon.
 	 */
-	public function getExclamationMarkTooltip(): string {
+	public static function getExclamationMarkTooltip(): string {
 		return '';
 	}
 
@@ -92,7 +92,7 @@ abstract class AbstractStrategyParameter
 	 * Parameters that only matter for live trading (e.g. margin mode,
 	 * order type) should return false so the backtest UI can hide them.
 	 */
-	public function isBacktestRelevant(): bool {
+	public static function isBacktestRelevant(): bool {
 		return true;
 	}
 
@@ -102,7 +102,7 @@ abstract class AbstractStrategyParameter
 	 *
 	 * @return array{paramKey: string, value: string}|null Null = always enabled.
 	 */
-	public function getEnabledCondition(): ?array {
+	public static function getEnabledCondition(): ?array {
 		return null;
 	}
 
@@ -121,20 +121,20 @@ abstract class AbstractStrategyParameter
 	 * @return string Mutated value (may equal $currentValue if mutation is impossible).
 	 */
 	public function mutate(string $currentValue): string {
-		return match ($this->getType()) {
-			StrategyParameterTypeEnum::BOOL => $this->mutateBool($currentValue),
-			StrategyParameterTypeEnum::INT => $this->mutateInt($currentValue),
-			StrategyParameterTypeEnum::FLOAT => $this->mutateFloat($currentValue),
-			StrategyParameterTypeEnum::SELECT => $this->mutateSelect($currentValue),
+		return match (static::getType()) {
+			StrategyParameterTypeEnum::BOOL => self::mutateBool($currentValue),
+			StrategyParameterTypeEnum::INT => self::mutateInt($currentValue),
+			StrategyParameterTypeEnum::FLOAT => self::mutateFloat($currentValue),
+			StrategyParameterTypeEnum::SELECT => static::mutateSelect($currentValue),
 			default => $currentValue,
 		};
 	}
 
-	private function mutateBool(string $value): string {
+	private static function mutateBool(string $value): string {
 		return in_array(strtolower($value), ['true', 'yes', '1'], true) ? 'false' : 'true';
 	}
 
-	private function mutateInt(string $value): string {
+	private static function mutateInt(string $value): string {
 		$v = (int) $value;
 		if ($v <= 0) {
 			return '1';
@@ -143,7 +143,7 @@ abstract class AbstractStrategyParameter
 		return (string) max(0, $v + $direction);
 	}
 
-	private function mutateFloat(string $value): string {
+	private static function mutateFloat(string $value): string {
 		$v = (float) $value;
 		$direction = random_int(0, 1) === 0 ? -1.0 : 1.0;
 		$shift = abs($v) * 0.1 * (mt_rand(50, 100) / 100.0);
@@ -154,8 +154,8 @@ abstract class AbstractStrategyParameter
 		return (string) round(max(0.0, $mutated), 4);
 	}
 
-	private function mutateSelect(string $value): string {
-		$options = array_keys($this->getOptions());
+	private static function mutateSelect(string $value): string {
+		$options = array_keys(static::getOptions());
 		if (count($options) <= 1) {
 			return $value;
 		}
@@ -172,7 +172,7 @@ abstract class AbstractStrategyParameter
 	 */
 	public function normalizeValue(mixed $value): string {
 		$str = (string)$value;
-		return match ($this->getType()) {
+		return match (static::getType()) {
 			StrategyParameterTypeEnum::BOOL => self::normalizeBool($str),
 			StrategyParameterTypeEnum::INT => (string)(int)$str,
 			StrategyParameterTypeEnum::FLOAT => rtrim(rtrim(number_format((float)$str, 10, '.', ''), '0'), '.'),
@@ -191,25 +191,25 @@ abstract class AbstractStrategyParameter
 	 */
 	public function toArray(): array {
 		$data = [
-			'key' => $this->getName(),
-			'label' => $this->getLabel(),
-			'type' => $this->getType()->value,
+			'key' => static::getName(),
+			'label' => static::getLabel(),
+			'type' => static::getType()->value,
 			'default' => $this->getDefault(),
-			'group' => $this->getGroup(),
+			'group' => static::getGroup(),
 		];
-		if ($this->getType()->isSelect()) {
-			$data['options'] = $this->getOptions();
+		if (static::getType()->isSelect()) {
+			$data['options'] = static::getOptions();
 		}
-		if ($this->hasQuestionMark()) {
-			$data['questionMark'] = $this->getQuestionMarkTooltip();
+		if (static::hasQuestionMark()) {
+			$data['questionMark'] = static::getQuestionMarkTooltip();
 		}
-		if ($this->hasExclamationMark()) {
-			$data['exclamationMark'] = $this->getExclamationMarkTooltip();
+		if (static::hasExclamationMark()) {
+			$data['exclamationMark'] = static::getExclamationMarkTooltip();
 		}
-		if (!$this->isBacktestRelevant()) {
+		if (!static::isBacktestRelevant()) {
 			$data['backtestRelevant'] = false;
 		}
-		if ($condition = $this->getEnabledCondition()) {
+		if ($condition = static::getEnabledCondition()) {
 			$data['enabledWhen'] = $condition;
 		}
 		return $data;

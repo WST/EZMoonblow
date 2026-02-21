@@ -7,31 +7,31 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class TrainingIterations extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'trainingIterations';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Training iterations';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSELogReg';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Number of gradient descent iterations per bar. Higher values improve accuracy but increase computation time.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '1000';
 	}
 }

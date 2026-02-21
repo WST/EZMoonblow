@@ -7,23 +7,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class CooldownCandles extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'cooldownCandles';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Cooldown between entries (candles)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEBoll';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '0';
 	}
 }

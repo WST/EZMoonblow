@@ -7,27 +7,27 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class SignalType extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'signalType';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Entry signal type';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::SELECT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEIchimoku';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'tk_cross';
 	}
 
-	public function getOptions(): array {
+	public static function getOptions(): array {
 		return [
 			'tk_cross' => 'TK Cross (Tenkan/Kijun crossover)',
 			'kumo_breakout' => 'Kumo Breakout (price breaks cloud)',

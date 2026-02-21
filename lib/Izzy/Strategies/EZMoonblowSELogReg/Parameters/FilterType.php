@@ -12,23 +12,23 @@ class FilterType extends AbstractStrategyParameter
 	public const string VOLUME = 'volume';
 	public const string BOTH = 'both';
 
-	public function getName(): string {
+	public static function getName(): string {
 		return 'filterType';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Filter type';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::SELECT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSELogReg';
 	}
 
-	public function getOptions(): array {
+	public static function getOptions(): array {
 		return [
 			self::NONE => 'None',
 			self::VOLATILITY => 'Volatility',
@@ -37,17 +37,17 @@ class FilterType extends AbstractStrategyParameter
 		];
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Volatility — ATR(1) > ATR(10), requires current volatility above average. '
 			. 'Volume — RSI of volume > 49, requires active volume. '
 			. 'Both — requires both conditions simultaneously.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return self::NONE;
 	}
 }

@@ -7,23 +7,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class RSILongThreshold extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'rsiLongThreshold';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'RSI oversold threshold for longs (1H)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSE';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '30';
 	}
 }

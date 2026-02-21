@@ -7,35 +7,35 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBSlopeMax extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'bbSlopeMax';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'BB max slope (%)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEBoll';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Maximum allowed absolute % change of the Bollinger Band over the lookback period. Entries are rejected when the band slopes more steeply than this, filtering out trend-following touches.';
 	}
 
-	public function getEnabledCondition(): ?array {
-		return ['paramKey' => 'bbSlopeFilter', 'value' => 'true'];
+	public static function getEnabledCondition(): ?array {
+		return ['paramKey' => BBSlopeFilter::getName(), 'value' => 'true'];
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '1.0';
 	}
 }

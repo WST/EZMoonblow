@@ -8,27 +8,27 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class UseLimitOrders extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'UseLimitOrders';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Use limit orders instead of market orders';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'true';
 	}
 
-	public function isBacktestRelevant(): bool {
+	public static function isBacktestRelevant(): bool {
 		return false;
 	}
 }

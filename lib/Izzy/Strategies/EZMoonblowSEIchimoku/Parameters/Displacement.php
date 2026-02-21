@@ -7,23 +7,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class Displacement extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'displacement';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Cloud displacement (Chikou shift)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEIchimoku';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '26';
 	}
 }

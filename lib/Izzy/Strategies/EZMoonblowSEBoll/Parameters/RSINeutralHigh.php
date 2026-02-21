@@ -7,27 +7,27 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class RSINeutralHigh extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'rsiNeutralHigh';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'RSI neutral zone high';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEBoll';
 	}
 
-	public function getEnabledCondition(): ?array {
-		return ['paramKey' => 'rsiNeutralFilter', 'value' => 'true'];
+	public static function getEnabledCondition(): ?array {
+		return ['paramKey' => RSINeutralFilter::getName(), 'value' => 'true'];
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '70';
 	}
 }

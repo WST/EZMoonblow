@@ -8,23 +8,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class StopLossPercent extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'stopLossPercent';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Stop-loss distance (%)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractSingleEntryStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '5';
 	}
 }

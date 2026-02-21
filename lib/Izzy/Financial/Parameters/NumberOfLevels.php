@@ -8,23 +8,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class NumberOfLevels extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'numberOfLevels';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Number of DCA orders including the entry order';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '5';
 	}
 }

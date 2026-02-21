@@ -7,31 +7,31 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class RSINeutralFilter extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'rsiNeutralFilter';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'RSI neutral zone filter';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEBoll';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Only enter when RSI is inside the neutral zone (not overbought/oversold), confirming a sideways market.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'false';
 	}
 }

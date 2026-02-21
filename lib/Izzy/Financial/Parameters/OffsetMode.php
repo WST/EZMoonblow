@@ -9,27 +9,27 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class OffsetMode extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'offsetMode';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Price offset calculation mode';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::SELECT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return DCAOffsetModeEnum::FROM_PREVIOUS->value;
 	}
 
-	public function getOptions(): array {
+	public static function getOptions(): array {
 		$options = [];
 		foreach (DCAOffsetModeEnum::cases() as $case) {
 			$options[$case->value] = $case->getDescription();

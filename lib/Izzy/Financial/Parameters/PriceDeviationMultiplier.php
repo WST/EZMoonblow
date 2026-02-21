@@ -8,23 +8,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PriceDeviationMultiplier extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'priceDeviationMultiplier';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Price deviation multiplier for subsequent orders';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '1.6';
 	}
 }

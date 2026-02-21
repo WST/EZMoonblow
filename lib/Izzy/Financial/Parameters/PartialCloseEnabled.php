@@ -8,23 +8,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PartialCloseEnabled extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'partialCloseEnabled';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Partial Close enabled';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return AbstractSingleEntryStrategy::getStrategySettingGroupTitle();
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'false';
 	}
 }

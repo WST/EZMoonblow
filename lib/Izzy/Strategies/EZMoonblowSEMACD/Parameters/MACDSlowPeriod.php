@@ -7,23 +7,23 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class MACDSlowPeriod extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'macdSlowPeriod';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'MACD slow EMA period';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::INT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEMACD';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '26';
 	}
 }

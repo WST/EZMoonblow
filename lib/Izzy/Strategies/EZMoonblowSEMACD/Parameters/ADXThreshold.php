@@ -7,27 +7,27 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ADXThreshold extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'adxThreshold';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'ADX threshold';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEMACD';
 	}
 
-	public function getEnabledCondition(): ?array {
-		return ['paramKey' => 'adxFilter', 'value' => 'true'];
+	public static function getEnabledCondition(): ?array {
+		return ['paramKey' => ADXFilter::getName(), 'value' => 'true'];
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '20';
 	}
 }

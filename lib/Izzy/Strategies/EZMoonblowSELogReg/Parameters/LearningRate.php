@@ -7,31 +7,31 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class LearningRate extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'learningRate';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Learning rate';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSELogReg';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Gradient descent learning rate. Smaller values are more stable but converge slower.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '0.0009';
 	}
 }

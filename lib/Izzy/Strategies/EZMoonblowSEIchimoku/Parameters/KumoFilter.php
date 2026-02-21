@@ -7,35 +7,35 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class KumoFilter extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'kumoFilter';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'Kumo (cloud) position filter';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::BOOL;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEIchimoku';
 	}
 
-	public function getEnabledCondition(): ?array {
-		return ['paramKey' => 'signalType', 'value' => 'tk_cross'];
+	public static function getEnabledCondition(): ?array {
+		return ['paramKey' => SignalType::getName(), 'value' => 'tk_cross'];
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'When enabled, TK Cross longs require price above the cloud, shorts require price below. Reduces false signals in ranging markets.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return 'false';
 	}
 }

@@ -7,31 +7,31 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBOffset extends AbstractStrategyParameter
 {
-	public function getName(): string {
+	public static function getName(): string {
 		return 'bbOffset';
 	}
 
-	public function getLabel(): string {
+	public static function getLabel(): string {
 		return 'BB penetration offset (%)';
 	}
 
-	public function getType(): StrategyParameterTypeEnum {
+	public static function getType(): StrategyParameterTypeEnum {
 		return StrategyParameterTypeEnum::FLOAT;
 	}
 
-	public function getGroup(): string {
+	public static function getGroup(): string {
 		return 'EZMoonblowSEBoll';
 	}
 
-	public function hasQuestionMark(): bool {
+	public static function hasQuestionMark(): bool {
 		return true;
 	}
 
-	public function getQuestionMarkTooltip(): string {
+	public static function getQuestionMarkTooltip(): string {
 		return 'Price must move this % beyond the Bollinger Band before entry triggers. 0 = enter on band touch.';
 	}
 
-	protected function getClassDefault(): string {
+	protected static function getClassDefault(): string {
 		return '0';
 	}
 }
