@@ -9,4 +9,4 @@ echo "Starting development web server (Nginx + PHP-FPM)..."
 echo "Web UI: http://127.0.0.1:9090"
 echo ""
 
-docker compose -f docker-compose.dev.yml up --build "$@"
+docker compose -f docker/docker-compose.dev.yml up --build "$@"

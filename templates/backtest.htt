@@ -1061,7 +1061,7 @@
 	}
 
 	/** Render DCA grid tables in the right sidebar. */
-	function renderDCAGrids() {
+	function renderDCAGrids(overrideBalance) {
 		const strat = strategies.find(s => s.name === elStrategy.value);
 		if (!strat) {
 			elDCAGridsPanel.style.display = 'none';
@@ -1075,7 +1075,7 @@
 
 		elDCAGridsPanel.style.display = '';
 		const params = collectParams();
-		const balance = parseFloat(elBalance.value) || 0;
+		const balance = (typeof overrideBalance === 'number') ? overrideBalance : (parseFloat(elBalance.value) || 0);
 		const offsetMode = params.OffsetMode || 'FROM_ENTRY';
 
 		let html = '';
@@ -1399,24 +1399,38 @@
 	// =========================================================================
 	// SSE Consumer
 	// =========================================================================
+	let sseReceivedDone = false;
+
 	function startSSE(sid) {
+		sseReceivedDone = false;
 		sseSource = new EventSource('/backtest-stream.php?id=' + sid);
 		sseSource.onmessage = (e) => {
 			try {
 				const evt = JSON.parse(e.data);
+				if (evt.type === 'done') {
+					sseReceivedDone = true;
+				}
 				eventBuffer.push(evt);
 			} catch (err) {
 				// Ignore parse errors (e.g. keep-alive comments).
 			}
 		};
 		sseSource.onerror = () => {
-			sseSource.close();
-			sseSource = null;
-			elAbortBtn.disabled = true;
-			if (elInfoStatus.textContent === 'Running...') {
-				elInfoStatus.textContent = 'Disconnected';
-				elStatusText.textContent = 'Connection to server lost.';
-				elRunBtn.disabled = false;
+			if (sseReceivedDone || sseSource.readyState === EventSource.CLOSED) {
+				// Stream completed normally or was closed by us — clean up.
+				sseSource.close();
+				sseSource = null;
+				elAbortBtn.disabled = true;
+				return;
+			}
+			// Connection dropped but stream not finished — browser will
+			// auto-reconnect using Last-Event-ID to resume from where
+			// it left off. Show a transient status.
+			elInfoStatus.textContent = 'Reconnecting...';
+		};
+		sseSource.onopen = () => {
+			if (elInfoStatus.textContent === 'Reconnecting...') {
+				elInfoStatus.textContent = 'Running...';
 			}
 		};
 	}
@@ -1498,6 +1512,7 @@
 	function clearChart() {
 		// Stop any active SSE connection.
 		if (sseSource) {
+			sseReceivedDone = true;
 			sseSource.close();
 			sseSource = null;
 		}
@@ -1559,6 +1574,7 @@
 				currentPositions[evt.dir] = { dir: evt.dir, price: evt.price, volume: evt.volume };
 				dcaFilledLevels[evt.dir] = 0;
 				updatePositionPanel();
+				renderDCAGrids(realizedBalance);
 				addMarker(evt.time, evt.dir === 'LONG' ? 'arrowUp' : 'arrowDown',
 					evt.dir === 'LONG' ? '#26a69a' : '#ef5350',
 					evt.dir === 'LONG' ? 'L' : 'S');
@@ -1629,6 +1645,11 @@
 				elStatusText.textContent = 'Backtest completed.';
 				elRunBtn.disabled = false;
 				elAbortBtn.disabled = true;
+				if (sseSource) {
+					sseReceivedDone = true;
+					sseSource.close();
+					sseSource = null;
+				}
 				stopPlaybackTimer();
 				// Drain any remaining events instantly.
 				while (eventBuffer.length > 0) {

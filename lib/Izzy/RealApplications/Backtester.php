@@ -742,12 +742,14 @@ class Backtester extends ConsoleApplication
 			]);
 			$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $whereOpen, '');
 			$openPositionDtos = [];
+			$totalUnrealizedPnl = 0.0;
 			foreach ($openPositions as $pos) {
 				$vol = $pos->getVolume()->getAmount();
 				$entry = $pos->getAverageEntryPrice()->getAmount();
 				$unrealizedPnl = $pos->getDirection()->isLong()
 					? $vol * ($lastClose - $entry)
 					: $vol * ($entry - $lastClose);
+				$totalUnrealizedPnl += $unrealizedPnl;
 				$openPositionDtos[] = new BacktestOpenPosition(
 					direction: $pos->getDirection()->value,
 					entry: $entry,
@@ -756,6 +758,9 @@ class Backtester extends ConsoleApplication
 					unrealizedPnl: $unrealizedPnl,
 					timeHangingSec: $simEndTime - $pos->getCreatedAt(),
 				);
+			}
+			if (!$liquidated) {
+				$finalBalance += $totalUnrealizedPnl;
 			}
 
 			// Collect finished trade data: durations, intervals, per-trade PnL.

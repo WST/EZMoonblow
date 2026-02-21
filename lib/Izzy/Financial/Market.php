@@ -874,14 +874,14 @@ class Market implements IMarket
 	 * Long + Short on the same pair counts as one slot.
 	 */
 	private function countOpenPositionSlots(): int {
-		$table = StoredPosition::getTableName();
-		$exch = $this->database->escape($this->getExchangeName());
-		$open = PositionStatusEnum::OPEN->value;
-		$pending = PositionStatusEnum::PENDING->value;
-		$sql = "SELECT COUNT(DISTINCT position_ticker) AS cnt FROM `$table`"
-			. " WHERE position_exchange_name = '$exch'"
-			. " AND position_status IN ('$open', '$pending')";
-		$row = $this->database->exec($sql)->fetch_assoc();
+		$row = $this->database->selectOneRow(
+			StoredPosition::getTableName(),
+			'COUNT(DISTINCT position_ticker) AS cnt',
+			[
+				StoredPosition::FExchangeName => $this->getExchangeName(),
+				StoredPosition::FStatus => [PositionStatusEnum::OPEN->value, PositionStatusEnum::PENDING->value],
+			]
+		);
 		return (int)($row['cnt'] ?? 0);
 	}
 

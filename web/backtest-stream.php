@@ -65,6 +65,18 @@ if (!$fh) {
 	exit;
 }
 
+// Support SSE reconnection: if the browser sends Last-Event-ID, seek to
+// the byte position where it left off so the client doesn't miss events.
+$lastEventId = $_SERVER['HTTP_LAST_EVENT_ID'] ?? ($_GET['lastEventId'] ?? '');
+if ($lastEventId !== '' && ctype_digit($lastEventId)) {
+	$resumePos = (int)$lastEventId;
+	fseek($fh, $resumePos);
+}
+
+// Tell the browser to reconnect after 2 seconds if the connection drops.
+echo "retry: 2000\n\n";
+flush();
+
 $lastActivity = time();
 $done = false;
 
@@ -73,7 +85,8 @@ while (!$done) {
 	if ($line !== false) {
 		$line = trim($line);
 		if ($line !== '') {
-			echo "data: $line\n\n";
+			$pos = ftell($fh);
+			echo "id: $pos\ndata: $line\n\n";
 			flush();
 			$lastActivity = time();
 

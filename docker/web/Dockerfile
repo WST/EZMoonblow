@@ -37,7 +37,7 @@ RUN pecl install pecl_http && docker-php-ext-enable http
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 # PHP-FPM pool tuning: more workers for concurrent SSE + normal requests.
-RUN printf '[www]\npm = dynamic\npm.max_children = 20\npm.start_servers = 4\npm.min_spare_servers = 2\npm.max_spare_servers = 8\npm.max_requests = 500\nrequest_terminate_timeout = 600\n' \
+RUN printf '[www]\npm = dynamic\npm.max_children = 20\npm.start_servers = 4\npm.min_spare_servers = 2\npm.max_spare_servers = 8\npm.max_requests = 500\nrequest_terminate_timeout = 0\n' \
     > /usr/local/etc/php-fpm.d/zz-pool.conf
 
 # Longer execution time for SSE and backtest endpoints.
