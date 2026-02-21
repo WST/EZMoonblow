@@ -165,9 +165,11 @@
 			var ddPct = (r.maxDrawdown / r.initialBalance) * 100;
 			drawdownStr += ' (' + fmt(ddPct, 2) + '%)';
 		}
+		var feesStr = fmt(r.totalFees || 0, 2) + ' USDT';
 		var finRows = metricRow('Initial balance', fmt(r.initialBalance, 2) + ' USDT')
 			+ metricRow('Final balance', fmt(r.finalBalance, 2) + ' USDT')
 			+ metricRow('PnL', pnlStr)
+			+ metricRow('Total fees', feesStr)
 			+ metricRow('Max drawdown', drawdownStr);
 		if (r.coinPriceStart > 0 && r.coinPriceEnd > 0) {
 			var priceChg = ((r.coinPriceEnd - r.coinPriceStart) / r.coinPriceStart) * 100;

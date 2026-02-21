@@ -8,6 +8,7 @@ use ByBit\SDK\Exceptions\HttpException;
 use Exception;
 use InvalidArgumentException;
 use Izzy\Enums\MarginModeEnum;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\OrderStatusEnum;
 use Izzy\Enums\OrderTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
@@ -973,6 +974,20 @@ class Bybit extends AbstractExchangeDriver
 		return match ($direction) {
 			PositionDirectionEnum::LONG => 1,
 			PositionDirectionEnum::SHORT => 2,
+		};
+	}
+
+	public function getTakerFee(MarketTypeEnum $marketType): float {
+		return match ($marketType) {
+			MarketTypeEnum::FUTURES => 0.00055, // 0.055%
+			MarketTypeEnum::SPOT => 0.001,      // 0.1%
+		};
+	}
+
+	public function getMakerFee(MarketTypeEnum $marketType): float {
+		return match ($marketType) {
+			MarketTypeEnum::FUTURES => 0.0002, // 0.02%
+			MarketTypeEnum::SPOT => 0.001,     // 0.1%
 		};
 	}
 }

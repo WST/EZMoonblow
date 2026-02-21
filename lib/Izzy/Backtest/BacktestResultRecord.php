@@ -63,6 +63,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	const string FOpenPositions = 'br_open_positions';
 	const string FPairXml = 'br_pair_xml';
 	const string FBalanceChart = 'br_balance_chart';
+	const string FTotalFees = 'br_total_fees';
 	const string FMode = 'br_mode';
 
 	public function __construct(Database $database, array $row) {
@@ -153,6 +154,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			self::FLiquidated => $fin->liquidated ? 1 : 0,
 			self::FCoinPriceStart => $fin->coinPriceStart,
 			self::FCoinPriceEnd => $fin->coinPriceEnd,
+			self::FTotalFees => $fin->totalFees,
 			self::FTradesFinished => $trades->finished,
 			self::FTradesOpen => $trades->open,
 			self::FTradesPending => $trades->pending,
@@ -539,6 +541,10 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		return json_decode($json, true) ?: [];
 	}
 
+	public function getTotalFees(): float {
+		return (float) ($this->row[self::FTotalFees] ?? 0.0);
+	}
+
 	public function getMode(): string {
 		return $this->row[self::FMode] ?? BacktestModeEnum::MANUAL->value;
 	}
@@ -626,6 +632,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'openPositions' => $this->getOpenPositions(),
 			'pairXml' => $this->getPairXml(),
 			'hasBalanceChart' => $this->hasBalanceChart(),
+			'totalFees' => $this->getTotalFees(),
 			'mode' => $this->getMode(),
 		];
 	}

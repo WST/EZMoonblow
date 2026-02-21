@@ -275,14 +275,6 @@ class Configuration
 	}
 
 	/**
-	 * Get optimizer mutation percentage (+/- range).
-	 */
-	public function getOptimizerMutationPercent(): float {
-		$val = $this->xpath->evaluate('string(//optimizer/mutation_percent)');
-		return $val !== '' ? (float) $val : 10.0;
-	}
-
-	/**
 	 * Get minimum backtest duration in days for baseline reuse.
 	 */
 	public function getOptimizerMinBacktestDays(): int {

@@ -4,6 +4,7 @@ namespace Izzy\Exchanges;
 
 use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Configuration\ExchangeConfiguration;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Market;
 use Izzy\Financial\Money;
@@ -309,5 +310,23 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		PositionDirectionEnum $direction,
 	): string|false {
 		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default: zero fee. Override in exchange-specific drivers.
+	 */
+	public function getTakerFee(MarketTypeEnum $marketType): float {
+		return 0.0;
+	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default: zero fee. Override in exchange-specific drivers.
+	 */
+	public function getMakerFee(MarketTypeEnum $marketType): float {
+		return 0.0;
 	}
 }

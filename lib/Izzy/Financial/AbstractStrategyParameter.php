@@ -111,21 +111,20 @@ abstract class AbstractStrategyParameter
 	 *
 	 * Each type knows how to mutate itself:
 	 *   - BOOL flips to the opposite value.
-	 *   - INT shifts by at least ±1 within the given percentage band.
-	 *   - FLOAT shifts by the given percentage (continuous, no rounding to int).
+	 *   - INT shifts by ±1, minimum 0 (0 can only become 1).
+	 *   - FLOAT shifts by ±10% of the current value, minimum 0.
 	 *   - SELECT picks a random different option.
 	 *
 	 * Subclasses may override for domain-specific constraints.
 	 *
 	 * @param string $currentValue Current parameter value.
-	 * @param float $percent Maximum mutation magnitude (e.g. 10 for ±10%).
-	 * @return string Mutated value, guaranteed to differ from $currentValue.
+	 * @return string Mutated value (may equal $currentValue if mutation is impossible).
 	 */
-	public function mutate(string $currentValue, float $percent): string {
+	public function mutate(string $currentValue): string {
 		return match ($this->getType()) {
 			StrategyParameterTypeEnum::BOOL => $this->mutateBool($currentValue),
-			StrategyParameterTypeEnum::INT => $this->mutateInt($currentValue, $percent),
-			StrategyParameterTypeEnum::FLOAT => $this->mutateFloat($currentValue, $percent),
+			StrategyParameterTypeEnum::INT => $this->mutateInt($currentValue),
+			StrategyParameterTypeEnum::FLOAT => $this->mutateFloat($currentValue),
 			StrategyParameterTypeEnum::SELECT => $this->mutateSelect($currentValue),
 			default => $currentValue,
 		};
@@ -135,23 +134,24 @@ abstract class AbstractStrategyParameter
 		return in_array(strtolower($value), ['true', 'yes', '1'], true) ? 'false' : 'true';
 	}
 
-	private function mutateInt(string $value, float $percent): string {
+	private function mutateInt(string $value): string {
 		$v = (int) $value;
+		if ($v <= 0) {
+			return '1';
+		}
 		$direction = random_int(0, 1) === 0 ? -1 : 1;
-		$magnitude = max(1, (int) round(abs($v) * ($percent / 100.0) * (mt_rand(50, 100) / 100.0)));
-		$mutated = $v + $direction * $magnitude;
-		return (string) max(1, $mutated);
+		return (string) max(0, $v + $direction);
 	}
 
-	private function mutateFloat(string $value, float $percent): string {
+	private function mutateFloat(string $value): string {
 		$v = (float) $value;
 		$direction = random_int(0, 1) === 0 ? -1.0 : 1.0;
-		$shift = abs($v) * ($percent / 100.0) * (mt_rand(50, 100) / 100.0);
+		$shift = abs($v) * 0.1 * (mt_rand(50, 100) / 100.0);
 		$mutated = $v + $direction * $shift;
 		if ($mutated === $v) {
 			$mutated = $v + $direction * max(0.0001, abs($v) * 0.01);
 		}
-		return (string) round(max(0.0001, $mutated), 4);
+		return (string) round(max(0.0, $mutated), 4);
 	}
 
 	private function mutateSelect(string $value): string {

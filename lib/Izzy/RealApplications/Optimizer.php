@@ -51,7 +51,6 @@ class Optimizer extends ConsoleApplication
 		$this->startHeartbeat();
 
 		$intervalHours = $this->configuration->getOptimizerIntervalHours();
-		$mutationPercent = $this->configuration->getOptimizerMutationPercent();
 		$minBacktestDays = $this->configuration->getOptimizerMinBacktestDays();
 		$optimizableParams = $this->configuration->getOptimizableParams();
 
@@ -88,7 +87,7 @@ class Optimizer extends ConsoleApplication
 			$this->logger->info("Optimizer iteration for $ticker ($strategyName)");
 
 			try {
-				$this->optimizePair($pair, $realExchange, $optimizableParams, $mutationPercent, $minBacktestDays);
+				$this->optimizePair($pair, $realExchange, $optimizableParams, $minBacktestDays);
 			} catch (\Throwable $e) {
 				$this->logger->error("Optimizer error for $ticker: " . $e->getMessage());
 			}
@@ -105,7 +104,6 @@ class Optimizer extends ConsoleApplication
 		Pair $pair,
 		mixed $realExchange,
 		array $optimizableParams,
-		float $mutationPercent,
 		int $minBacktestDays,
 	): void {
 		$ticker = $pair->getTicker();
@@ -150,7 +148,12 @@ class Optimizer extends ConsoleApplication
 		// 2. Pick a random param and let the parameter object mutate itself.
 		$paramName = $eligibleParams[array_rand($eligibleParams)];
 		$originalValue = $strategyParams[$paramName];
-		$mutatedValue = $paramObjects[$paramName]->mutate($originalValue, $mutationPercent);
+		$mutatedValue = $paramObjects[$paramName]->mutate($originalValue);
+
+		if ($mutatedValue === $originalValue) {
+			$this->logger->info("Mutation of $paramName produced no change ($originalValue), skipping.");
+			return;
+		}
 
 		$this->logger->info("Mutating $paramName: $originalValue -> $mutatedValue");
 
@@ -342,6 +345,7 @@ class Optimizer extends ConsoleApplication
 			} catch (\Throwable $e) {
 				$this->logger->warning("Could not fetch instrument info: " . $e->getMessage());
 			}
+			$backtestExchange->setFeeRate($realExchange->getTakerFee($pair->getMarketType()));
 
 			$market->initializeConfiguredIndicators();
 			$market->initializeStrategy();

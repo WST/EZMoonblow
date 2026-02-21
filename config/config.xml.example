@@ -16,6 +16,29 @@
 		<password>******</password>
 	</web>
 	
+	<optimizer>
+		<interval_hours>4</interval_hours>
+		<min_backtest_days>100</min_backtest_days>
+		<ticks_per_candle>10</ticks_per_candle>
+		<optimizable_params>
+			<param name="stopLossPercent"/>
+			<param name="takeProfitPercent"/>
+			<param name="emaSlowPeriod"/>
+			<param name="macdFastPeriod"/>
+			<param name="macdSlowPeriod"/>
+			<param name="macdSignalPeriod"/>
+			<param name="adxPeriod"/>
+			<param name="adxThreshold"/>
+			<param name="cooldownCandles"/>
+			<param name="bbPeriod"/>
+			<param name="bbMultiplier"/>
+			<param name="bbSlopePeriod"/>
+			<param name="bbSlopeMax"/>
+			<param name="breakevenLockTriggerPercent"/>
+			<param name="breakevenLockClosePercent"/>
+		</optimizable_params>
+	</optimizer>
+
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes" max-positions="3">
 			<spot>

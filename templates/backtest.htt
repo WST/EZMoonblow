@@ -1517,6 +1517,7 @@
 			['Initial Balance', formatMoney(evt.initialBalance), ''],
 			['Final Balance', formatMoney(evt.finalBalance), ''],
 			['PnL', formatMoney(evt.pnl) + ' (' + pnlSign + evt.pnlPercent + '%)', pnlClass],
+			['Total Fees', formatMoney(evt.totalFees ?? 0), ''],
 			['Max Drawdown', formatMoney(evt.maxDrawdown), 'negative'],
 			['Total Trades', evt.trades, ''],
 			['Win Rate', evt.winRate + '%', ''],

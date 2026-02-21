@@ -318,6 +318,7 @@ class Backtester extends ConsoleApplication
 			} catch (\Throwable $e) {
 				$this->logger->warning("Could not fetch instrument info from {$exchangeName}: " . $e->getMessage());
 			}
+			$backtestExchange->setFeeRate($realExchange->getTakerFee($pair->getMarketType()));
 
 			$market->initializeConfiguredIndicators();
 			$market->initializeStrategy();
@@ -341,7 +342,8 @@ class Backtester extends ConsoleApplication
 			}
 			$liquidated = false;
 			$lastCandle = null;
-			$maxDrawdown = 0.0; // Track the deepest unrealized PnL dip during the simulation.
+			$peakEquity = $initialBalance;
+			$maxDrawdown = 0.0; // Peak-to-trough equity drawdown (negative value).
 			/*
 			 * ============================================================
 			 *  INTRA-CANDLE TIME SIMULATION
@@ -593,6 +595,7 @@ class Backtester extends ConsoleApplication
 						$position->setFinishReason(PositionFinishReasonEnum::TAKE_PROFIT_MARKET);
 						$position->save();
 						$backtestExchange->creditBalance($profit);
+						$backtestExchange->deductTradeFee($position->getVolume()->getAmount() * $tp);
 						$backtestExchange->clearPendingLimitOrders($market);
 						$closedPositionIds[] = spl_object_id($position);
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
@@ -628,6 +631,7 @@ class Backtester extends ConsoleApplication
 						$position->setFinishReason(PositionFinishReasonEnum::STOP_LOSS_MARKET);
 						$position->save();
 						$backtestExchange->creditBalance($pnl);
+						$backtestExchange->deductTradeFee($position->getVolume()->getAmount() * $sl);
 						$backtestExchange->clearPendingLimitOrders($market);
 						$closedPositionIds[] = spl_object_id($position);
 						$dir = $position->getDirection()->value;
@@ -659,8 +663,13 @@ class Backtester extends ConsoleApplication
 							$unrealizedPnl += $vol * ($entry - $tickPrice);
 						}
 					}
-					if ($unrealizedPnl < $maxDrawdown) {
-						$maxDrawdown = $unrealizedPnl;
+					$equity = $balance + $unrealizedPnl;
+					if ($equity > $peakEquity) {
+						$peakEquity = $equity;
+					}
+					$drawdown = $equity - $peakEquity;
+					if ($drawdown < $maxDrawdown) {
+						$maxDrawdown = $drawdown;
 					}
 					if ($balance + $unrealizedPnl <= 0) {
 						$liquidated = true;
@@ -862,6 +871,7 @@ class Backtester extends ConsoleApplication
 					liquidated: $liquidated,
 					coinPriceStart: $firstOpen,
 					coinPriceEnd: $lastClose,
+					totalFees: $backtestExchange->getTotalFeesPaid(),
 				),
 				trades: BacktestTradeStats::fromRawData(
 					durations: $tradeDurations,
@@ -922,6 +932,7 @@ class Backtester extends ConsoleApplication
 					'sortino' => $result->risk?->sortino,
 					'coinPriceStart' => $result->financial->coinPriceStart,
 					'coinPriceEnd' => $result->financial->coinPriceEnd,
+					'totalFees' => round($result->financial->totalFees, 2),
 				]);
 			}
 

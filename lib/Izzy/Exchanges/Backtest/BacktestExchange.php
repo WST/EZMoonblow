@@ -4,6 +4,7 @@ namespace Izzy\Exchanges\Backtest;
 
 use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Enums\MarginModeEnum;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionModeEnum;
 use Izzy\Enums\PositionStatusEnum;
@@ -48,6 +49,11 @@ class BacktestExchange implements IExchangeDriver
 	private array $tickSizes = [];
 	/** @var array<string, string> Qty step overrides per market key. */
 	private array $qtySteps = [];
+
+	/** Taker fee rate (e.g. 0.00055 for Bybit futures). */
+	private float $feeRate = 0.0;
+	/** Cumulative fees deducted during this backtest session. */
+	private float $totalFeesPaid = 0.0;
 
 	public function __construct(
 		Database $database,
@@ -142,6 +148,7 @@ class BacktestExchange implements IExchangeDriver
 			$position->setTakeProfitPrice($currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
 		}
 		$position->save();
+		$this->deductTradeFee($volumeBase->getAmount() * $currentPrice->getAmount());
 		$this->logger->backtestProgress("  OPEN {$market->getTicker()} {$direction->value} @ " . number_format($currentPrice->getAmount(), 4) . " vol=" . number_format($volumeBase->getAmount(), 2));
 		return true;
 	}
@@ -280,6 +287,7 @@ class BacktestExchange implements IExchangeDriver
 			$position->setTakeProfitPrice($avgEntryMoney->modifyByPercentWithDirection($percent, $position->getDirection()));
 		}
 		$position->save();
+		$this->deductTradeFee($volumeBase * $fillPrice);
 		$this->logger->backtestProgress(" DCA averaging: {$market->getTicker()} +" . number_format($volumeBase, 4) . " @ " . number_format($fillPrice, 4) . " -> vol " . number_format($newVol, 4) . " avg " . number_format($newAvgEntry, 4));
 		return true;
 	}
@@ -335,6 +343,7 @@ class BacktestExchange implements IExchangeDriver
 				? $closeVolume * ($currentPrice->getAmount() - $entryPrice->getAmount())
 				: $closeVolume * ($entryPrice->getAmount() - $currentPrice->getAmount());
 			$this->creditBalance($pnl);
+			$this->deductTradeFee($closeVolume * $currentPrice->getAmount());
 			$label = $isBreakevenLock ? 'BREAKEVEN LOCK' : 'PARTIAL CLOSE';
 			$this->logger->backtestProgress("  $label {$market->getTicker()} -{$closeVolume} PnL " . number_format($pnl, 2) . " USDT -> balance " . number_format($this->virtualBalance, 2) . " USDT");
 		}
@@ -476,5 +485,34 @@ class BacktestExchange implements IExchangeDriver
 	 */
 	public function creditBalance(float $amount): void {
 		$this->virtualBalance += $amount;
+	}
+
+	public function setFeeRate(float $rate): void {
+		$this->feeRate = $rate;
+	}
+
+	/**
+	 * Deduct trading fee from virtual balance and accumulate total.
+	 *
+	 * @param float $notionalValue Trade notional value (volume_base * price).
+	 * @return float The fee amount deducted.
+	 */
+	public function deductTradeFee(float $notionalValue): float {
+		$fee = $notionalValue * $this->feeRate;
+		$this->virtualBalance -= $fee;
+		$this->totalFeesPaid += $fee;
+		return $fee;
+	}
+
+	public function getTotalFeesPaid(): float {
+		return $this->totalFeesPaid;
+	}
+
+	public function getTakerFee(MarketTypeEnum $marketType): float {
+		return $this->feeRate;
+	}
+
+	public function getMakerFee(MarketTypeEnum $marketType): float {
+		return $this->feeRate;
 	}
 }

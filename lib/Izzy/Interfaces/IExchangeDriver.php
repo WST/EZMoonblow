@@ -3,6 +3,7 @@
 namespace Izzy\Interfaces;
 
 use Izzy\Enums\MarginModeEnum;
+use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionModeEnum;
 use Izzy\Financial\Money;
@@ -307,4 +308,20 @@ interface IExchangeDriver
 	 * @return string Tick size (e.g., "0.01" for USDT pairs).
 	 */
 	public function getTickSize(IMarket $market): string;
+
+	/**
+	 * Get the taker fee rate for a given market type.
+	 *
+	 * @param MarketTypeEnum $marketType Market type (SPOT or FUTURES).
+	 * @return float Fee rate as a decimal (e.g. 0.00055 for 0.055%).
+	 */
+	public function getTakerFee(MarketTypeEnum $marketType): float;
+
+	/**
+	 * Get the maker fee rate for a given market type.
+	 *
+	 * @param MarketTypeEnum $marketType Market type (SPOT or FUTURES).
+	 * @return float Fee rate as a decimal (e.g. 0.0002 for 0.02%).
+	 */
+	public function getMakerFee(MarketTypeEnum $marketType): float;
 }

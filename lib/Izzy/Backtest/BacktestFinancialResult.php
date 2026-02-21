@@ -15,7 +15,7 @@ readonly class BacktestFinancialResult implements Stringable
 	/**
 	 * @param float $initialBalance Starting USDT balance.
 	 * @param float $finalBalance Ending USDT balance.
-	 * @param float $maxDrawdown Deepest negative unrealized PnL.
+	 * @param float $maxDrawdown Peak-to-trough equity drawdown (negative value).
 	 * @param bool $liquidated Whether the simulation ended in liquidation.
 	 * @param float $coinPriceStart Asset price at simulation start.
 	 * @param float $coinPriceEnd Asset price at simulation end.
@@ -27,6 +27,7 @@ readonly class BacktestFinancialResult implements Stringable
 		public bool $liquidated,
 		public float $coinPriceStart = 0.0,
 		public float $coinPriceEnd = 0.0,
+		public float $totalFees = 0.0,
 	) {
 	}
 
@@ -55,6 +56,7 @@ readonly class BacktestFinancialResult implements Stringable
 			['Initial balance', number_format($this->initialBalance, 2) . ' USDT'],
 			['Final balance', number_format($this->finalBalance, 2) . ' USDT'],
 			['PnL', number_format($pnl, 2) . ' USDT (' . number_format($pnlPercent, 2) . '%)'],
+			['Total fees', number_format($this->totalFees, 2) . ' USDT'],
 			['Max drawdown', $drawdownStr],
 		];
 
