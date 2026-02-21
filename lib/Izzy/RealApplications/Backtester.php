@@ -225,6 +225,7 @@ class Backtester extends ConsoleApplication
 			$this->runBacktestLoop(
 				[['pair' => $pair, 'exchange' => $realExchange]],
 				$writer,
+				$sessionId,
 			);
 		} catch (\Throwable $e) {
 			$writer->writeError($e->getMessage());
@@ -256,11 +257,16 @@ class Backtester extends ConsoleApplication
 		return sys_get_temp_dir() . "/backtest-{$sessionId}-config.json";
 	}
 
+	public static function getStopFilePath(string $sessionId): string {
+		return sys_get_temp_dir() . "/backtest-{$sessionId}-stop";
+	}
+
 	/**
 	 * @param array $pairsForBacktest Array of ['pair' => Pair, 'exchange' => IExchangeDriver|null].
 	 * @param BacktestEventWriter|null $writer Optional event writer for web UI streaming.
+	 * @param string|null $sessionId Web backtest session ID (for abort support).
 	 */
-	private function runBacktestLoop(array $pairsForBacktest, ?BacktestEventWriter $writer = null): void {
+	private function runBacktestLoop(array $pairsForBacktest, ?BacktestEventWriter $writer = null, ?string $sessionId = null): void {
 		$repository = new CandleRepository($this->database);
 
 		$this->database->beginTransaction();
@@ -704,6 +710,12 @@ class Backtester extends ConsoleApplication
 					// Emit progress every ~50 candles.
 					if ($i % 50 === 0 || $i === $n - 1) {
 						$writer->writeProgress($i + 1, $n);
+					}
+					if ($sessionId !== null && $i % 50 === 0 && file_exists(self::getStopFilePath($sessionId))) {
+						@unlink(self::getStopFilePath($sessionId));
+						$this->logger->info("Backtest aborted by user at candle " . ($i + 1) . "/$n.");
+						$writer->writeError('Aborted by user.');
+						break 2;
 					}
 				}
 			}

@@ -305,19 +305,18 @@
 		display: flex;
 		flex-direction: column;
 		gap: 12px;
+		align-self: start;
 	}
 	.chart-container {
 		background: #fff;
 		border-radius: 6px;
 		box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-		flex: 1;
-		min-height: 400px;
 		position: relative;
+		height: 640px;
 	}
 	#chart {
 		width: 100%;
 		height: 100%;
-		min-height: 400px;
 	}
 	.playback-controls {
 		background: #fff;
@@ -340,6 +339,18 @@
 	}
 	.playback-controls button:hover {
 		background: #e9e9e9;
+	}
+	#btn-abort {
+		background: #fff0f0;
+		border-color: #e88;
+		color: #c44;
+	}
+	#btn-abort:hover:not(:disabled) {
+		background: #ffe0e0;
+	}
+	#btn-abort:disabled {
+		opacity: 0.4;
+		cursor: default;
 	}
 	.speed-control {
 		display: flex;
@@ -515,6 +526,7 @@
 
 		<div class="playback-controls">
 			<button id="btn-clear">Clear</button>
+			<button id="btn-abort" disabled>Abort</button>
 			<div class="speed-control">
 				<span>Speed:</span>
 				<input type="range" id="speed-slider" min="0" max="6" value="3" step="1">
@@ -650,6 +662,7 @@
 	const elXmlClose = document.getElementById('btn-xml-close');
 	const elStatusText = document.getElementById('status-text');
 	const elClearBtn = document.getElementById('btn-clear');
+	const elAbortBtn = document.getElementById('btn-abort');
 	const elSpeedSlider = document.getElementById('speed-slider');
 	const elSpeedLabel = document.getElementById('speed-label');
 	const elProgressBar = document.getElementById('progress-bar');
@@ -1190,6 +1203,8 @@
 
 	elClearBtn.addEventListener('click', clearChart);
 
+	elAbortBtn.addEventListener('click', abortBacktest);
+
 	elRunBtn.addEventListener('click', runBacktest);
 
 	// =========================================================================
@@ -1250,6 +1265,7 @@
 			elInfoStatus.textContent = 'Running...';
 			startSSE(sessionId);
 			startPlaybackTimer();
+			elAbortBtn.disabled = false;
 		} catch (e) {
 			elStatusText.textContent = 'Error: ' + e.message;
 			elRunBtn.disabled = false;
@@ -1272,6 +1288,12 @@
 		sseSource.onerror = () => {
 			sseSource.close();
 			sseSource = null;
+			elAbortBtn.disabled = true;
+			if (elInfoStatus.textContent === 'Running...') {
+				elInfoStatus.textContent = 'Disconnected';
+				elStatusText.textContent = 'Connection to server lost.';
+				elRunBtn.disabled = false;
+			}
 		};
 	}
 
@@ -1329,6 +1351,24 @@
 	}
 
 	// =========================================================================
+	// Abort Backtest
+	// =========================================================================
+	async function abortBacktest() {
+		if (!sessionId) return;
+		elAbortBtn.disabled = true;
+		elStatusText.textContent = 'Aborting...';
+		try {
+			await fetch('/cgi-bin/api.pl?action=abort_backtest', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ sessionId }),
+			});
+		} catch (e) {
+			// Best effort — the stop file may not be created, but SSE will close naturally.
+		}
+	}
+
+	// =========================================================================
 	// Clear Chart
 	// =========================================================================
 	function clearChart() {
@@ -1366,8 +1406,9 @@
 		// Hide results.
 		elResultsPanel.style.display = 'none';
 
-		// Re-enable run button.
+		// Re-enable run button, disable abort.
 		elRunBtn.disabled = false;
+		elAbortBtn.disabled = true;
 	}
 
 	// =========================================================================
@@ -1448,12 +1489,14 @@
 			case 'error':
 				elStatusText.textContent = 'Error: ' + evt.message;
 				elInfoStatus.textContent = 'Error';
+				elAbortBtn.disabled = true;
 				break;
 
 			case 'done':
 				elInfoStatus.textContent = 'Completed';
 				elStatusText.textContent = 'Backtest completed.';
 				elRunBtn.disabled = false;
+				elAbortBtn.disabled = true;
 				stopPlaybackTimer();
 				// Drain any remaining events instantly.
 				while (eventBuffer.length > 0) {

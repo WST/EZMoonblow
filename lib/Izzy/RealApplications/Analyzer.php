@@ -167,6 +167,7 @@ class Analyzer extends ConsoleApplication
 	 */
 	public function run(): void {
 		$iteration = 0;
+		$lastDailyCleanup = 0;
 
 		$this->logger->info("Starting Analyzer application...");
 		$this->logger->info("Balance RRD file: $this->balanceRrdFile");
@@ -192,9 +193,61 @@ class Analyzer extends ConsoleApplication
 				$this->generateBalanceCharts();
 			}
 
+			// Heavy cleanup once a day.
+			if (time() - $lastDailyCleanup >= 86400) {
+				$this->dailyCleanup();
+				$lastDailyCleanup = time();
+			}
+
 			$iteration++;
 			$this->interruptibleSleep(10);
 		}
+	}
+
+	/**
+	 * Daily maintenance: drop orphaned backtest tables, purge old tasks.
+	 */
+	private function dailyCleanup(): void {
+		$this->logger->info("Running daily cleanup...");
+		$dropped = $this->dropOrphanedBacktestTables();
+		$deleted = $this->purgeOldTasks();
+		$this->logger->info("Daily cleanup done: dropped $dropped orphaned table(s), deleted $deleted old task(s).");
+	}
+
+	/**
+	 * Drop backtest_positions_* tables left behind by crashed/aborted web backtests.
+	 * Only tables older than 2 hours are dropped to avoid killing active backtests.
+	 */
+	private function dropOrphanedBacktestTables(): int {
+		$rows = $this->database->queryAllRows("SHOW TABLE STATUS LIKE 'backtest\\_positions\\_%'");
+		$dropped = 0;
+		$cutoff = time() - 7200;
+		foreach ($rows as $row) {
+			$tableName = $row['Name'];
+			if ($tableName === 'backtest_positions') {
+				continue;
+			}
+			$createTime = strtotime($row['Create_time'] ?? '');
+			if ($createTime === false || $createTime > $cutoff) {
+				continue;
+			}
+			$this->database->dropTableIfExists($tableName);
+			$this->logger->info("Dropped orphaned table: $tableName");
+			$dropped++;
+		}
+		return $dropped;
+	}
+
+	/**
+	 * Delete tasks older than 24 hours from the task queue.
+	 */
+	private function purgeOldTasks(): int {
+		$cutoff = time() - 86400;
+		$table = QueueTask::getTableName();
+		$result = $this->database->exec(
+			"DELETE FROM `$table` WHERE `" . QueueTask::FCreatedAt . "` < $cutoff"
+		);
+		return max(0, (int) $result);
 	}
 
 	/**

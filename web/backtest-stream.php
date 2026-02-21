@@ -32,6 +32,8 @@ if (!preg_match('/^[a-zA-Z0-9\-]+$/', $sessionId)) {
 	exit;
 }
 
+set_time_limit(0);
+
 // SSE headers.
 header('Content-Type: text/event-stream');
 header('Cache-Control: no-cache');

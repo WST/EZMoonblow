@@ -24,6 +24,6 @@ class NumberOfLevels extends AbstractStrategyParameter
 	}
 
 	protected function getClassDefault(): string {
-		return '4';
+		return '5';
 	}
 }

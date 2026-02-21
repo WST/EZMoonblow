@@ -63,6 +63,7 @@ class BacktestApiController
 			'clear_all_candles' => $this->clearAllCandles($response),
 			'delete_result' => $this->deleteResult($request, $response),
 			'update_suggestion_status' => $this->updateSuggestionStatus($request, $response),
+			'abort_backtest' => $this->abortBacktest($request, $response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
 		};
 	}
@@ -406,6 +407,23 @@ class BacktestApiController
 
 		$record->setStatus($status);
 		$record->save();
+		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=abort_backtest
+	 * Signals a running web backtest to stop by creating a stop file.
+	 *
+	 * Expected JSON body: { "sessionId": "abc123..." }
+	 */
+	private function abortBacktest(Request $request, Response $response): Response {
+		$body = json_decode((string) $request->getBody(), true);
+		$sessionId = $body['sessionId'] ?? '';
+		if (!preg_match('/^[a-zA-Z0-9\-]+$/', $sessionId)) {
+			return $this->jsonResponse($response, ['error' => 'Invalid session ID'], 400);
+		}
+		$stopFile = Backtester::getStopFilePath($sessionId);
+		file_put_contents($stopFile, '1');
 		return $this->jsonResponse($response, ['ok' => true]);
 	}
 
