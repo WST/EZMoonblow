@@ -3,6 +3,10 @@
 namespace Izzy\Strategies\EZMoonblowDCA;
 
 use Izzy\Financial\AbstractDCAStrategy;
+use Izzy\Financial\AbstractStrategyParameter;
+use Izzy\Financial\Parameters\RSIOverbought;
+use Izzy\Financial\Parameters\RSIOversold;
+use Izzy\Financial\Parameters\RSIPeriod;
 use Izzy\Indicators\RSI;
 
 class EZMoonblowDCA extends AbstractDCAStrategy
@@ -12,18 +16,20 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 	}
 
 	public function useIndicators(): array {
-		return [RSI::class];
+		return [
+			[
+				'class' => RSI::class,
+				'parameters' => [
+					'period' => (int) $this->getParam('rsiPeriod'),
+					'overbought' => (int) $this->getParam('rsiOverbought'),
+					'oversold' => (int) $this->getParam('rsiOversold'),
+				],
+			],
+		];
 	}
 
-	/**
-	 * In this custom strategy, we will buy when the price is low.
-	 * @return bool
-	 */
 	public function shouldLong(): bool {
-		// Get RSI signal.
 		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
-
-		// Buy when RSI shows oversold condition.
 		return $rsiSignal === 'oversold';
 	}
 
@@ -33,5 +39,17 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 
 	public function doesShort(): bool {
 		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 * @return AbstractStrategyParameter[]
+	 */
+	public static function getParameters(): array {
+		return array_merge(parent::getParameters(), [
+			new RSIPeriod(),
+			new RSIOverbought(),
+			new RSIOversold(),
+		]);
 	}
 }

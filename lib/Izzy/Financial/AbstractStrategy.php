@@ -122,4 +122,8 @@ abstract class AbstractStrategy implements IStrategy
 	public static function getParameters(): array {
 		return [];
 	}
+
+	public static function getStrategySettingGroupTitle(): string {
+		return 'Common Strategy Settings';
+	}
 }

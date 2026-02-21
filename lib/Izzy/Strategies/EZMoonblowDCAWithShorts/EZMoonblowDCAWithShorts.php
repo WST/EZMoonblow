@@ -3,13 +3,12 @@
 namespace Izzy\Strategies\EZMoonblowDCAWithShorts;
 
 use Izzy\Financial\AbstractStrategyParameter;
-use Izzy\Financial\Parameters\EntryVolumeShort;
+use Izzy\Financial\Parameters\InitialEntryVolumeShort;
 use Izzy\Financial\Parameters\ExpectedProfitShort;
 use Izzy\Financial\Parameters\NumberOfLevelsShort;
 use Izzy\Financial\Parameters\PriceDeviationMultiplierShort;
 use Izzy\Financial\Parameters\PriceDeviationShort;
 use Izzy\Financial\Parameters\VolumeMultiplierShort;
-use Izzy\Indicators\RSI;
 use Izzy\Strategies\EZMoonblowDCA\EZMoonblowDCA;
 
 /**
@@ -22,7 +21,7 @@ class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 	}
 
 	public function shouldShort(): bool {
-		$rsiSignal = $this->market->getLatestIndicatorSignal(RSI::getName());
+		$rsiSignal = $this->market->getLatestIndicatorSignal('RSI');
 		return $rsiSignal === 'overbought';
 	}
 
@@ -41,7 +40,7 @@ class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 	public static function getParameters(): array {
 		return array_merge(parent::getParameters(), [
 			new NumberOfLevelsShort(),
-			new EntryVolumeShort('1%'),
+			new InitialEntryVolumeShort('1%'),
 			new VolumeMultiplierShort(),
 			new PriceDeviationShort(),
 			new PriceDeviationMultiplierShort(),

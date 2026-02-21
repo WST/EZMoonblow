@@ -3,6 +3,7 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 class EMATrendFilterTimeframe extends AbstractStrategyParameter
@@ -20,7 +21,7 @@ class EMATrendFilterTimeframe extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'Single Entry';
+		return AbstractStrategy::getStrategySettingGroupTitle();
 	}
 
 	public function getEnabledCondition(): ?array {

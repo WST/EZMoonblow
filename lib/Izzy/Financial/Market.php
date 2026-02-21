@@ -350,11 +350,6 @@ class Market implements IMarket
 			return;
 		}
 
-		// Get indicator classes from strategy.
-		// Skip indicators that were already created by initializeConfiguredIndicators()
-		// with user-specified parameters — otherwise the config values would be
-		// silently overwritten by the strategy's default (parameterless) instance.
-		//
 		// Each entry may be either a class-name string (backward-compatible)
 		// or an associative array: ['class' => Indicator::class, 'parameters' => [...]].
 		$entries = $this->strategy->useIndicators();
@@ -432,10 +427,6 @@ class Market implements IMarket
 	 * @return void
 	 */
 	public function initializeIndicators(): void {
-		// Initialize indicators from configuration first, so they handle their settings.
-		$this->initializeConfiguredIndicators();
-
-		// Initialize the indicators required by the strategy using the default settings.
 		$this->initializeStrategyIndicators();
 	}
 
@@ -849,34 +840,6 @@ class Market implements IMarket
 	 */
 	public function calculateQuantity(Money $amount, Money $price): Money {
 		return Money::from($amount->getAmount() / $price->getAmount());
-	}
-
-	/**
-	 * Setup indicators for a specific market based on configuration.
-	 * @return void
-	 */
-	public function initializeConfiguredIndicators(): void {
-		// Skip if indicators are already set up.
-		if (!empty($this->getIndicators())) {
-			return;
-		}
-
-		// Get indicators configuration for this pair.
-		$indicatorsConfig = $this->getExchange()->getExchangeConfiguration()->getIndicatorsConfig($this);
-		if (empty($indicatorsConfig)) {
-			return;
-		}
-
-		// Create and add indicators.
-		foreach ($indicatorsConfig as $indicatorType => $parameters) {
-			try {
-				$indicator = IndicatorFactory::create($this, $indicatorType, $parameters);
-				$this->addIndicator($indicator);
-				$this->getExchange()->getLogger()->info("Added indicator $indicatorType to market $this");
-			} catch (Exception $e) {
-				$this->getExchange()->getLogger()->error("Failed to add indicator $indicatorType to market $this: " . $e->getMessage());
-			}
-		}
 	}
 
 	/**

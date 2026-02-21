@@ -3,28 +3,28 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
-use Izzy\Financial\AbstractSingleEntryStrategy;
+use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
-class StopLossPercent extends AbstractStrategyParameter
+class InitialEntryVolumeShort extends AbstractStrategyParameter
 {
 	public function getName(): string {
-		return 'stopLossPercent';
+		return 'initialEntryVolumeShort';
 	}
 
 	public function getLabel(): string {
-		return 'Stop-loss distance (%)';
+		return 'Initial Entry volume (Short)';
 	}
 
 	public function getType(): StrategyParameterTypeEnum {
-		return StrategyParameterTypeEnum::FLOAT;
+		return StrategyParameterTypeEnum::STRING;
 	}
 
 	public function getGroup(): string {
-		return AbstractSingleEntryStrategy::getStrategySettingGroupTitle();
+		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {
-		return '5';
+		return '10';
 	}
 }

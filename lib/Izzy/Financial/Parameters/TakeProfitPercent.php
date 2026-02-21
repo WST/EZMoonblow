@@ -3,6 +3,7 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 class TakeProfitPercent extends AbstractStrategyParameter
@@ -20,7 +21,7 @@ class TakeProfitPercent extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'Single Entry';
+		return AbstractSingleEntryStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {

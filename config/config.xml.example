@@ -43,29 +43,30 @@
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes" max-positions="3">
 			<spot>
 				<pair ticker="SOL/USDT" timeframe="4h" trade="no" notify="yes">
-					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365" backtest_initial_balance="10000">
+					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365" backtest_initial_balance="10000" backtest_ticks_per_candle="16">
 						<!-- Long -->
 						<param name="numberOfLevels" value="6"/>
-						<param name="entryVolume" value="140"/>
+						<param name="initialEntryVolume" value="140"/>
 						<param name="priceDeviation" value="10%"/>
 						<param name="volumeMultiplier" value="1.45"/>
 						<param name="priceDeviationMultiplier" value="1.7"/>
 						<param name="expectedProfit" value="5%"/>
 						<!-- Short -->
 						<param name="numberOfLevelsShort" value="6" />
-						<param name="entryVolumeShort" value="40" />
+						<param name="initialEntryVolumeShort" value="40" />
 						<param name="priceDeviationShort" value="10%" />
 						<param name="volumeMultiplierShort" value="2" />
 						<param name="priceDeviationMultiplierShort" value="2" />
 						<param name="expectedProfitShort" value="2%" />
-						<!-- Common -->
+						<!-- Common DCA settings -->
 						<param name="UseLimitOrders" value="yes"/>
 						<param name="offsetMode" value="FROM_PREVIOUS"/>
 						<param name="alwaysMarketEntry" value="yes"/>
+						<!-- RSI -->
+						<param name="rsiPeriod" value="14"/>
+						<param name="rsiOverbought" value="70"/>
+						<param name="rsiOversold" value="30"/>
 					</strategy>
-					<indicators>
-						<indicator type="RSI" period="14" overbought="70" oversold="30" />
-					</indicators>
 				</pair>
 			</spot>
 			<futures>
@@ -92,7 +93,7 @@
 				<pair ticker="BTC/USDT" timeframe="15m" trade="no" />
 			</spot>
 			<futures>
-				<!-- TODO -->
+				<!-- Your Gate.io futures pairs here -->
 			</futures>
 		</exchange>
 		<exchange name="KuCoin" key="..." secret="..." password="..." enabled="yes" demo="no">
@@ -100,7 +101,7 @@
 				<pair ticker="ETH/USDT" timeframe="4h" trade="no" />
 			</spot>
 			<futures>
-				<!-- TODO -->
+				<!-- Your KuCoin futures pairs here -->
 			</futures>
 		</exchange>
 	</exchanges>

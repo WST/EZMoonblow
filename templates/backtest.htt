@@ -715,9 +715,17 @@
 			sessionStorage.removeItem('retest_xml');
 			var retestExchange = sessionStorage.getItem('retest_exchange') || '';
 			var retestMarketType = sessionStorage.getItem('retest_market_type') || '';
+			var retestTicks = sessionStorage.getItem('retest_ticks_per_candle') || '';
 			sessionStorage.removeItem('retest_exchange');
 			sessionStorage.removeItem('retest_market_type');
+			sessionStorage.removeItem('retest_ticks_per_candle');
 			parseAndApplyXml(retestXml, retestExchange, retestMarketType);
+			if (retestTicks) {
+				var elTicks = document.getElementById('sel-ticks');
+				if (Array.from(elTicks.options).some(o => o.value === retestTicks)) {
+					elTicks.value = retestTicks;
+				}
+			}
 		}
 	}
 
@@ -1685,9 +1693,17 @@
 			if (strat) applyParamDependencies(strat.params);
 		}
 
-		// Fill days and balance if present.
+		// Fill days, balance, and ticks per candle if present.
 		if (cfg.backtestDays) elDays.value = cfg.backtestDays;
 		if (cfg.backtestInitialBalance) elBalance.value = cfg.backtestInitialBalance;
+		if (cfg.backtestTicksPerCandle) {
+			const elTicks = document.getElementById('sel-ticks');
+			const ticksVal = cfg.backtestTicksPerCandle;
+			const tickOpt = Array.from(elTicks.options).find(o => o.value === ticksVal);
+			if (tickOpt) {
+				elTicks.value = ticksVal;
+			}
+		}
 	}
 
 	function selectPairDropdown(cfg) {
@@ -1799,6 +1815,7 @@
 			params: params,
 			backtestDays: stratEl.getAttribute('backtest_days') || null,
 			backtestInitialBalance: stratEl.getAttribute('backtest_initial_balance') || null,
+			backtestTicksPerCandle: stratEl.getAttribute('backtest_ticks_per_candle') || null,
 		};
 
 		applyParamsToForm(cfg);

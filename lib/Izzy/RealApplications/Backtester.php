@@ -209,6 +209,7 @@ class Backtester extends ConsoleApplication
 			$pair->setBacktestInitialBalance($config['initialBalance']);
 
 			$this->ticksPerCandle = max(4, (int)($config['ticksPerCandle'] ?? self::DEFAULT_TICKS_PER_CANDLE));
+			$pair->setBacktestTicksPerCandle($this->ticksPerCandle);
 
 			// Find the real exchange driver for instrument info.
 			$realExchange = $exchanges[$config['exchangeName']] ?? null;
@@ -278,6 +279,10 @@ class Backtester extends ConsoleApplication
 				continue;
 			}
 			$initialBalance = $pair->getBacktestInitialBalance() ?? self::DEFAULT_INITIAL_BALANCE;
+			if ($pair->getBacktestTicksPerCandle() !== null) {
+				$this->ticksPerCandle = $pair->getBacktestTicksPerCandle();
+			}
+			$pair->setBacktestTicksPerCandle($this->ticksPerCandle);
 			$exchangeName = $pair->getExchangeName();
 			$exchangeConfig = $this->configuration->getExchangeConfiguration($exchangeName);
 			if (!$exchangeConfig) {
@@ -326,7 +331,6 @@ class Backtester extends ConsoleApplication
 			}
 			$backtestExchange->setFeeRate($realExchange->getTakerFee($pair->getMarketType()));
 
-			$market->initializeConfiguredIndicators();
 			$market->initializeStrategy();
 			$market->initializeIndicators();
 			$n = count($candles);

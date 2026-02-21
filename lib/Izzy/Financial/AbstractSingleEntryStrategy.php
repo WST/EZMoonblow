@@ -955,4 +955,8 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	 * Whether this strategy opens short positions.
 	 */
 	abstract public function doesShort(): bool;
+
+	public static function getStrategySettingGroupTitle(): string {
+		return 'Single Entry strategy settings';
+	}
 }

@@ -3,6 +3,7 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 class EMATrendFilter extends AbstractStrategyParameter
@@ -20,7 +21,7 @@ class EMATrendFilter extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'Single Entry';
+		return AbstractStrategy::getStrategySettingGroupTitle();
 	}
 
 	public function hasExclamationMark(): bool {
@@ -33,5 +34,13 @@ class EMATrendFilter extends AbstractStrategyParameter
 
 	protected function getClassDefault(): string {
 		return 'false';
+	}
+
+	public function hasQuestionMark(): bool {
+		return true;
+	}
+
+	public function getQuestionMarkTooltip(): string {
+		return 'Blocks entries that go against the higher-timeframe trend.';
 	}
 }

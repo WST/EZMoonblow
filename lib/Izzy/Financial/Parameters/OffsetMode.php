@@ -4,6 +4,7 @@ namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\DCAOffsetModeEnum;
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 class OffsetMode extends AbstractStrategyParameter
@@ -21,7 +22,7 @@ class OffsetMode extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'DCA';
+		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {

@@ -347,7 +347,6 @@ class Optimizer extends ConsoleApplication
 			}
 			$backtestExchange->setFeeRate($realExchange->getTakerFee($pair->getMarketType()));
 
-			$market->initializeConfiguredIndicators();
 			$market->initializeStrategy();
 			$market->initializeIndicators();
 

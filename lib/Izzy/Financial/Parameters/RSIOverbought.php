@@ -3,28 +3,28 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
-use Izzy\Financial\AbstractSingleEntryStrategy;
+use Izzy\Financial\AbstractStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
-class StopLossPercent extends AbstractStrategyParameter
+class RSIOverbought extends AbstractStrategyParameter
 {
 	public function getName(): string {
-		return 'stopLossPercent';
+		return 'rsiOverbought';
 	}
 
 	public function getLabel(): string {
-		return 'Stop-loss distance (%)';
+		return 'RSI overbought threshold';
 	}
 
 	public function getType(): StrategyParameterTypeEnum {
-		return StrategyParameterTypeEnum::FLOAT;
+		return StrategyParameterTypeEnum::INT;
 	}
 
 	public function getGroup(): string {
-		return AbstractSingleEntryStrategy::getStrategySettingGroupTitle();
+		return AbstractStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {
-		return '5';
+		return '70';
 	}
 }

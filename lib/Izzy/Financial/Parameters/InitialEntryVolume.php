@@ -3,6 +3,7 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 /**
@@ -13,7 +14,7 @@ use Izzy\Financial\AbstractStrategyParameter;
 class InitialEntryVolume extends AbstractStrategyParameter
 {
 	public function getName(): string {
-		return 'entryVolume';
+		return 'initialEntryVolume';
 	}
 
 	public function getLabel(): string {
@@ -25,10 +26,10 @@ class InitialEntryVolume extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'DCA';
+		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {
-		return '7%';
+		return '3%';
 	}
 }

@@ -79,6 +79,11 @@ class Pair implements IPair
 	private ?float $backtestInitialBalance = null;
 
 	/**
+	 * Ticks per candle for backtest resolution; null to use default.
+	 */
+	private ?int $backtestTicksPerCandle = null;
+
+	/**
 	 * Leverage multiplier from config (e.g. 10.0 for 10x); null if not specified.
 	 * @var float|null
 	 */
@@ -361,6 +366,14 @@ class Pair implements IPair
 	 */
 	public function setBacktestInitialBalance(?float $balance): void {
 		$this->backtestInitialBalance = $balance;
+	}
+
+	public function getBacktestTicksPerCandle(): ?int {
+		return $this->backtestTicksPerCandle;
+	}
+
+	public function setBacktestTicksPerCandle(?int $ticks): void {
+		$this->backtestTicksPerCandle = $ticks;
 	}
 
 	/**

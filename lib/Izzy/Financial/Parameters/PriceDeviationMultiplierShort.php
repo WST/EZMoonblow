@@ -3,6 +3,7 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 class PriceDeviationMultiplierShort extends AbstractStrategyParameter
@@ -20,7 +21,7 @@ class PriceDeviationMultiplierShort extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'DCA (Short)';
+		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {

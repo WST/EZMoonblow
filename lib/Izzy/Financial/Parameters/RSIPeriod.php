@@ -3,27 +3,28 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
-class EntryVolumeShort extends AbstractStrategyParameter
+class RSIPeriod extends AbstractStrategyParameter
 {
 	public function getName(): string {
-		return 'entryVolumeShort';
+		return 'rsiPeriod';
 	}
 
 	public function getLabel(): string {
-		return 'Entry volume (Short)';
+		return 'RSI period';
 	}
 
 	public function getType(): StrategyParameterTypeEnum {
-		return StrategyParameterTypeEnum::STRING;
+		return StrategyParameterTypeEnum::INT;
 	}
 
 	public function getGroup(): string {
-		return 'DCA (Short)';
+		return AbstractStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {
-		return '10';
+		return '14';
 	}
 }

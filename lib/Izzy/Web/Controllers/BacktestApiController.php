@@ -183,6 +183,7 @@ class BacktestApiController
 					'params' => $sc->toFullParams(),
 					'backtestDays' => $pc['backtestDays'],
 					'backtestInitialBalance' => $pc['backtestInitialBalance'],
+					'backtestTicksPerCandle' => $pc['backtestTicksPerCandle'],
 				];
 			}
 		}

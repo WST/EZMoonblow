@@ -9,8 +9,6 @@ use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
-use Izzy\Interfaces\IMarket;
-
 class ExchangeConfiguration
 {
 	private DOMElement $exchangeElement;
@@ -99,6 +97,7 @@ class ExchangeConfiguration
 				$pair->setStrategyParams($strategyConfig['params']);
 				$pair->setBacktestDays($strategyConfig['backtest_days'] ?? null);
 				$pair->setBacktestInitialBalance($strategyConfig['backtest_initial_balance'] ?? null);
+				$pair->setBacktestTicksPerCandle($strategyConfig['backtest_ticks_per_candle'] ?? null);
 			}
 
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
@@ -141,6 +140,7 @@ class ExchangeConfiguration
 				$pair->setStrategyParams($strategyConfig['params']);
 				$pair->setBacktestDays($strategyConfig['backtest_days'] ?? null);
 				$pair->setBacktestInitialBalance($strategyConfig['backtest_initial_balance'] ?? null);
+				$pair->setBacktestTicksPerCandle($strategyConfig['backtest_ticks_per_candle'] ?? null);
 			}
 
 			$pairs[$pair->getExchangeTicker($exchangeDriver)] = $pair;
@@ -199,67 +199,16 @@ class ExchangeConfiguration
 		$backtestInitialBalance = ($backtestBalanceAttr !== '' && is_numeric($backtestBalanceAttr) && (float)$backtestBalanceAttr > 0)
 			? (float)$backtestBalanceAttr : null;
 
+		$backtestTicksAttr = $strategyElement->getAttribute('backtest_ticks_per_candle');
+		$backtestTicksPerCandle = $backtestTicksAttr !== '' && ctype_digit($backtestTicksAttr) ? (int)$backtestTicksAttr : null;
+
 		return [
 			'name' => $strategyName,
 			'params' => $params,
 			'backtest_days' => $backtestDays,
 			'backtest_initial_balance' => $backtestInitialBalance,
+			'backtest_ticks_per_candle' => $backtestTicksPerCandle,
 		];
-	}
-
-	/**
-	 * Get indicators configuration for a specific trading pair.
-	 * @param IMarket $market
-	 * @return array Indicators configuration.
-	 */
-	public function getIndicatorsConfig(IMarket $market): array {
-		$marketElement = $this->getChildElementByTagName($this->exchangeElement, $market->getMarketType()->toString());
-		if (!$marketElement) {
-			return [];
-		}
-
-		// Find the pair element with matching ticker and timeframe
-		$pairElement = null;
-		foreach ($marketElement->getElementsByTagName('pair') as $element) {
-			if ($element instanceof DOMElement &&
-				$element->getAttribute('ticker') === $market->getTicker() &&
-				$element->getAttribute('timeframe') === $market->getTimeframe()->value) {
-				$pairElement = $element;
-				break;
-			}
-		}
-
-		if (!$pairElement) {
-			return [];
-		}
-
-		// Get indicators element
-		$indicatorsElement = $this->getChildElementByTagName($pairElement, 'indicators');
-		if (!$indicatorsElement) {
-			return [];
-		}
-
-		$indicators = [];
-		foreach ($indicatorsElement->getElementsByTagName('indicator') as $indicatorElement) {
-			if (!$indicatorElement instanceof DOMElement)
-				continue;
-
-			$type = $indicatorElement->getAttribute('type');
-			if (empty($type))
-				continue;
-
-			$parameters = [];
-			// Get all attributes except 'type'
-			foreach ($indicatorElement->attributes as $attribute) {
-				if ($attribute->name !== 'type') {
-					$parameters[$attribute->name] = $this->parseParameterValue($attribute->value);
-				}
-			}
-
-			$indicators[$type] = $parameters;
-		}
-
-		return $indicators;
 	}
 
 	/**
@@ -386,6 +335,7 @@ class ExchangeConfiguration
 					'params' => $sc['params'],
 					'backtestDays' => $sc['backtest_days'],
 					'backtestInitialBalance' => $sc['backtest_initial_balance'],
+					'backtestTicksPerCandle' => $sc['backtest_ticks_per_candle'],
 				];
 			}
 		}

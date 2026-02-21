@@ -3,7 +3,6 @@
 namespace Izzy\Strategies\EZMoonblowDCAAlwaysLong;
 
 use Izzy\Financial\AbstractDCAStrategy;
-use Izzy\Indicators\RSI;
 
 class EZMoonblowDCAAlwaysLong extends AbstractDCAStrategy
 {
@@ -11,14 +10,6 @@ class EZMoonblowDCAAlwaysLong extends AbstractDCAStrategy
 		return 'Always-Long DCA';
 	}
 
-	public function useIndicators(): array {
-		return [RSI::class];
-	}
-
-	/**
-	 * In this custom strategy, we always long. Always!
-	 * @return bool
-	 */
 	public function shouldLong(): bool {
 		return true;
 	}

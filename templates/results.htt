@@ -304,6 +304,9 @@
 		sessionStorage.setItem('retest_xml', currentDetailResult.pairXml);
 		sessionStorage.setItem('retest_exchange', currentDetailResult.exchangeName);
 		sessionStorage.setItem('retest_market_type', currentDetailResult.marketType);
+		if (currentDetailResult.ticksPerCandle) {
+			sessionStorage.setItem('retest_ticks_per_candle', currentDetailResult.ticksPerCandle);
+		}
 		window.location.href = '/backtest.jsp';
 	});
 

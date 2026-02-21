@@ -390,4 +390,8 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 
 		return array_diff_key($this->params, array_flip($excluded));
 	}
+
+	public static function getStrategySettingGroupTitle(): string {
+		return 'DCA Settings';
+	}
 }

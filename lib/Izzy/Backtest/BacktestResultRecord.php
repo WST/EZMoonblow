@@ -65,6 +65,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	const string FBalanceChart = 'br_balance_chart';
 	const string FTotalFees = 'br_total_fees';
 	const string FMode = 'br_mode';
+	const string FTicksPerCandle = 'br_ticks_per_candle';
 
 	public function __construct(Database $database, array $row) {
 		parent::__construct($database, $row, self::FId);
@@ -85,6 +86,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		$strategyName = $pair->getStrategyName();
 		$days = $pair->getBacktestDays();
 		$balance = $pair->getBacktestInitialBalance();
+		$ticks = $pair->getBacktestTicksPerCandle();
 		$params = $pair->getStrategyParams();
 
 		$xml = '<pair ticker="' . $e($ticker) . '" timeframe="' . $e($timeframe) . '" trade="yes">' . "\n";
@@ -94,6 +96,9 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		}
 		if ($balance !== null) {
 			$xml .= ' backtest_initial_balance="' . $e((string) $balance) . '"';
+		}
+		if ($ticks !== null) {
+			$xml .= ' backtest_ticks_per_candle="' . $e((string) $ticks) . '"';
 		}
 		$xml .= '>' . "\n";
 
@@ -190,6 +195,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			self::FPairXml => $pairXml,
 			self::FBalanceChart => $chartPng,
 			self::FMode => $mode->value,
+			self::FTicksPerCandle => $pair->getBacktestTicksPerCandle() ?? 4,
 		];
 
 		$record = new self($database, $row);
@@ -549,6 +555,10 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		return $this->row[self::FMode] ?? BacktestModeEnum::MANUAL->value;
 	}
 
+	public function getTicksPerCandle(): int {
+		return (int) ($this->row[self::FTicksPerCandle] ?? 4);
+	}
+
 	public function getPairXml(): ?string {
 		return $this->row[self::FPairXml] ?? null;
 	}
@@ -634,6 +644,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'hasBalanceChart' => $this->hasBalanceChart(),
 			'totalFees' => $this->getTotalFees(),
 			'mode' => $this->getMode(),
+			'ticksPerCandle' => $this->getTicksPerCandle(),
 		];
 	}
 }

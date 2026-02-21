@@ -3,6 +3,7 @@
 namespace Izzy\Financial\Parameters;
 
 use Izzy\Enums\StrategyParameterTypeEnum;
+use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\AbstractStrategyParameter;
 
 class AlwaysMarketEntry extends AbstractStrategyParameter
@@ -20,7 +21,7 @@ class AlwaysMarketEntry extends AbstractStrategyParameter
 	}
 
 	public function getGroup(): string {
-		return 'DCA';
+		return AbstractDCAStrategy::getStrategySettingGroupTitle();
 	}
 
 	protected function getClassDefault(): string {
