@@ -176,13 +176,55 @@ class DatabaseMigrationManager
 	}
 
 	/**
-	 * Execute some SQL code and output a comment.
-	 * @param $sql
-	 * @param $comment
-	 * @return void
+	 * Rename a table.
+	 *
+	 * @param string $oldName Current table name.
+	 * @param string $newName New table name.
 	 */
-	public function exec($sql, $comment): void {
+	public function renameTable(string $oldName, string $newName): void {
+		$sql = "RENAME TABLE `{$oldName}` TO `{$newName}`";
+		$success = !($this->db->exec($sql) === false);
+		$this->migrationHasPerformedActions = true;
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Renaming table \"{$oldName}\" to \"{$newName}\"...", $success);
+	}
 
+	/**
+	 * Get column names of a table.
+	 *
+	 * @param string $table Table name.
+	 * @return string[] Column names.
+	 */
+	public function getTableColumns(string $table): array {
+		return $this->db->getFieldList($table);
+	}
+
+	/**
+	 * Drop an index from a table.
+	 *
+	 * @param string $table Table name.
+	 * @param string $indexName Index name.
+	 */
+	public function dropIndex(string $table, string $indexName): void {
+		$sql = "ALTER TABLE `{$table}` DROP INDEX `{$indexName}`";
+		$success = !($this->db->exec($sql) === false);
+		$this->migrationHasPerformedActions = true;
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Dropping index \"{$indexName}\" from table \"{$table}\"...", $success);
+	}
+
+	/**
+	 * Add an index to a table.
+	 *
+	 * @param string $table Table name.
+	 * @param string $indexDefinition Full index definition, e.g. "UNIQUE KEY idx_name (col1, col2)".
+	 */
+	public function addIndex(string $table, string $indexDefinition): void {
+		$sql = "ALTER TABLE `{$table}` ADD {$indexDefinition}";
+		$success = !($this->db->exec($sql) === false);
+		$this->migrationHasPerformedActions = true;
+		$this->updateCurrentStatus($success);
+		$this->logDatabaseOperationWithStatus("Adding index on table \"{$table}\": {$indexDefinition}...", $success);
 	}
 
 	private function requireIfValid(string $filename): void {

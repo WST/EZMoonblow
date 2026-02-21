@@ -37,6 +37,9 @@ class Bybit extends AbstractExchangeDriver
 	/** @var ByBitApi API instance for communication with the exchange. */
 	protected ByBitApi $api;
 
+	/** @var array<string, ?PositionModeEnum> Cached position mode per symbol. */
+	private array $positionModeCache = [];
+
 	/**
 	 * List of the markets being traded on / monitored.
 	 * @var IMarket[]
@@ -946,26 +949,34 @@ class Bybit extends AbstractExchangeDriver
 	 */
 	public function getPositionMode(IMarket $market): ?PositionModeEnum {
 		$pair = $market->getPair();
+		$symbol = $pair->getExchangeTicker($this);
+
+		if (array_key_exists($symbol, $this->positionModeCache)) {
+			return $this->positionModeCache[$symbol];
+		}
+
 		try {
 			$params = [
 				BybitParam::Category => $this->getBybitCategory($pair),
-				BybitParam::Symbol => $pair->getExchangeTicker($this),
+				BybitParam::Symbol => $symbol,
 			];
 			$response = $this->api->positionApi()->getPositionInfo($params);
 			$positionList = $response[BybitParam::List] ?? [];
 			if (empty($positionList)) {
-				// Empty position list — cannot determine position mode.
 				$this->logger->warning("getPositionMode: empty position list for {$market->getTicker()}, cannot determine position mode");
+				$this->positionModeCache[$symbol] = null;
 				return null;
 			}
 			// Bybit returns 2 entries (positionIdx 1 and 2) in hedge mode,
 			// 1 entry (positionIdx 0) in one-way mode.
-			if (count($positionList) >= 2) {
-				return PositionModeEnum::HEDGE;
-			}
-			return PositionModeEnum::ONE_WAY;
+			$mode = (count($positionList) >= 2)
+				? PositionModeEnum::HEDGE
+				: PositionModeEnum::ONE_WAY;
+			$this->positionModeCache[$symbol] = $mode;
+			return $mode;
 		} catch (Throwable $e) {
 			$this->logger->error("Failed to get position mode for {$market->getTicker()}: " . $e->getMessage());
+			$this->positionModeCache[$symbol] = null;
 			return null;
 		}
 	}

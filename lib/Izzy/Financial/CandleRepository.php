@@ -17,13 +17,13 @@ class CandleRepository extends AbstractCandleRepository
 	 * @inheritDoc
 	 */
 	protected function getTable(): string {
-		return 'candles';
+		return 'backtest_candles';
 	}
 
 	/**
 	 * @inheritDoc
 	 */
 	protected function getColumnPrefix(): string {
-		return 'candle_';
+		return 'backtest_candle_';
 	}
 }

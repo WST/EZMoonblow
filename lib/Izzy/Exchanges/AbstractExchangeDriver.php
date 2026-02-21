@@ -7,6 +7,7 @@ use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Financial\Market;
+use Izzy\Financial\MarketCandleRepository;
 use Izzy\Financial\Money;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\Interfaces\IMarket;
@@ -88,6 +89,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		$market->setCandles($candlesData);
 		$market->initializeStrategy();
 		$market->initializeIndicators();
+
+		$candleRepo = new MarketCandleRepository($this->database);
+		$candleRepo->saveCandles(
+			$this->getName(),
+			$pair->getTicker(),
+			$pair->getMarketType()->value,
+			$pair->getTimeframe()->value,
+			$candlesData
+		);
+
 		return $market;
 	}
 
@@ -237,32 +248,35 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Fetches fresh candle data and calculates indicators.
 	 */
 	protected function updateMarkets(): void {
+		$candleRepo = new MarketCandleRepository($this->database);
+
 		foreach ($this->markets as $ticker => $market) {
-			// First, let's determine the type of market.
 			$marketType = $market->getMarketType();
+			$pair = null;
 
-			// If the market type is spot, we need to fetch spot candles.
-			if ($marketType->isSpot()) {
-				if (isset($this->spotPairs[$ticker])) {
-					$pair = $this->spotPairs[$ticker];
-					$candles = $this->getCandles($pair);
-					$market->setCandles($candles);
+			if ($marketType->isSpot() && isset($this->spotPairs[$ticker])) {
+				$pair = $this->spotPairs[$ticker];
+			} elseif ($marketType->isFutures() && isset($this->futuresPairs[$ticker])) {
+				$pair = $this->futuresPairs[$ticker];
+			}
+
+			if ($pair !== null) {
+				$candles = $this->getCandles($pair);
+				$market->setCandles($candles);
+
+				if (!empty($candles)) {
+					$candleRepo->saveCandles(
+						$this->getName(),
+						$pair->getTicker(),
+						$pair->getMarketType()->value,
+						$pair->getTimeframe()->value,
+						$candles
+					);
 				}
 			}
 
-			// If the market type is futures, we need to fetch futures candles.
-			if ($marketType->isFutures()) {
-				if (isset($this->futuresPairs[$ticker])) {
-					$pair = $this->futuresPairs[$ticker];
-					$candles = $this->getCandles($pair);
-					$market->setCandles($candles);
-				}
-			}
-
-			// Calculate all indicators.
 			$market->calculateIndicators();
 
-			// Process trading signals if trading is enabled.
 			if ($market->getPair()->isTradingEnabled()) {
 				$this->logger->info("Processing trading signals for $market");
 				$market->processTrading();

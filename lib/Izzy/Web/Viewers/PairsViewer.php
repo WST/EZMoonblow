@@ -5,6 +5,9 @@ namespace Izzy\Web\Viewers;
 use Izzy\AbstractApplications\WebApplication;
 use Izzy\Configuration\Configuration;
 use Izzy\Interfaces\IExchangeDriver;
+use Izzy\Financial\Market;
+use Izzy\Financial\MarketCandleRepository;
+use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\AbstractSingleEntryStrategy;
@@ -80,18 +83,16 @@ class PairsViewer extends PageViewer
 		$pairs = [];
 
 		foreach ($exchanges as $exchange) {
-			$exchangeConfig = $this->getExchangeConfig($exchange->getName());
+			$exchangeConfig = $config->getExchangeConfiguration($exchange->getName());
 			if (!$exchangeConfig) {
 				continue;
 			}
 
-			// Spot pairs
 			$spotPairs = $exchangeConfig->getSpotPairs($exchange);
 			foreach ($spotPairs as $pair) {
 				$pairs[] = $this->buildPairData($pair, $exchange);
 			}
 
-			// Futures pairs
 			$futuresPairs = $exchangeConfig->getFuturesPairs($exchange);
 			foreach ($futuresPairs as $pair) {
 				$pairs[] = $this->buildPairData($pair, $exchange);
@@ -99,27 +100,6 @@ class PairsViewer extends PageViewer
 		}
 
 		return $pairs;
-	}
-
-	private function getExchangeConfig(string $exchangeName): ?\Izzy\Configuration\ExchangeConfiguration {
-		$config = Configuration::getInstance();
-		$exchanges = $config->connectExchanges($this->webApp);
-
-		foreach ($exchanges as $exchange) {
-			if ($exchange->getName() === $exchangeName) {
-				// Get exchange configuration from XML
-				$document = new \DOMDocument();
-				$document->load(IZZY_CONFIG_XML);
-				$xpath = new \DOMXPath($document);
-
-				$exchangeElement = $xpath->query("//exchanges/exchange[@name='$exchangeName']")->item(0);
-				if ($exchangeElement) {
-					return new \Izzy\Configuration\ExchangeConfiguration($exchangeElement);
-				}
-			}
-		}
-
-		return null;
 	}
 
 	private function buildPairData(Pair $pair, IExchangeDriver $exchange): array {
@@ -134,52 +114,55 @@ class PairsViewer extends PageViewer
 			'chartKey' => $pair->getChartKey(),
 		];
 
-		// If strategy is configured, try to get strategy info for display.
 		if ($pair->getStrategyName()) {
-			$market = $exchange->createMarket($pair);
-			if ($market) {
-				$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
+			$market = new Market($exchange, $pair);
 
-				// Run exchange settings validation directly on the strategy.
-				// PairsViewer creates its own strategy instance (not stored in Market),
-				// so we call validateExchangeSettings() on the strategy itself.
-				// No caching needed — this runs once per web request.
-				$validation = $strategy->validateExchangeSettings($market);
-				if (!$validation->isValid()) {
-					$data['validationErrors'] = $validation->getErrors();
-				}
-				if (!empty($validation->getWarnings())) {
-					$data['validationWarnings'] = $validation->getWarnings();
-				}
+			$candleRepo = new MarketCandleRepository($this->webApp->getDatabase());
+			$now = time();
+			$lookback = $pair->getTimeframe()->toSeconds() * 200;
+			$candles = $candleRepo->getCandles($pair, $now - $lookback, $now);
+			if (!empty($candles)) {
+				$market->setCandles($candles);
+				$lastCandle = end($candles);
+				$market->setCurrentPrice(Money::from($lastCandle->getClosePrice()));
+			}
 
-				if ($strategy instanceof AbstractDCAStrategy) {
-					// Use filtered parameters that respect doesLong/doesShort.
-					$data['strategyParams'] = $strategy->getDisplayParameters();
-					$data['doesLong'] = $strategy->doesLong();
-					$data['doesShort'] = $strategy->doesShort();
+			$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
 
-					$dcaSettings = $strategy->getDCASettings();
-					$context = $strategy->getMarket()->getTradingContext();
+			$validation = $strategy->validateExchangeSettings($market);
+			if (!$validation->isValid()) {
+				$data['validationErrors'] = $validation->getErrors();
+			}
+			if (!empty($validation->getWarnings())) {
+				$data['validationWarnings'] = $validation->getWarnings();
+			}
 
-					$data['dcaInfo'] = [
-						'context' => $context,
-						'longGrid' => $dcaSettings->getLongGrid(),
-						'shortGrid' => $dcaSettings->getShortGrid(),
-						'maxLongVolume' => [
-							'amount' => number_format($dcaSettings->getMaxLongPositionVolume($context)->getAmount(), 2)
-						],
-						'maxShortVolume' => [
-							'amount' => number_format($dcaSettings->getMaxShortPositionVolume($context)->getAmount(), 2)
-						],
-						'expectedProfitLong' => $dcaSettings->getLongGrid()->getExpectedProfit(),
-						'expectedProfitShort' => $dcaSettings->getShortGrid()->getExpectedProfit(),
-						'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
-					];
-				} elseif ($strategy instanceof AbstractSingleEntryStrategy) {
-					$data['strategyParams'] = $strategy->getDisplayParameters();
-					$data['doesLong'] = $strategy->doesLong();
-					$data['doesShort'] = $strategy->doesShort();
-				}
+			if ($strategy instanceof AbstractDCAStrategy) {
+				$data['strategyParams'] = $strategy->getDisplayParameters();
+				$data['doesLong'] = $strategy->doesLong();
+				$data['doesShort'] = $strategy->doesShort();
+
+				$dcaSettings = $strategy->getDCASettings();
+				$context = $strategy->getMarket()->getTradingContext();
+
+				$data['dcaInfo'] = [
+					'context' => $context,
+					'longGrid' => $dcaSettings->getLongGrid(),
+					'shortGrid' => $dcaSettings->getShortGrid(),
+					'maxLongVolume' => [
+						'amount' => number_format($dcaSettings->getMaxLongPositionVolume($context)->getAmount(), 2)
+					],
+					'maxShortVolume' => [
+						'amount' => number_format($dcaSettings->getMaxShortPositionVolume($context)->getAmount(), 2)
+					],
+					'expectedProfitLong' => $dcaSettings->getLongGrid()->getExpectedProfit(),
+					'expectedProfitShort' => $dcaSettings->getShortGrid()->getExpectedProfit(),
+					'useLimitOrders' => $dcaSettings->isUseLimitOrders(),
+				];
+			} elseif ($strategy instanceof AbstractSingleEntryStrategy) {
+				$data['strategyParams'] = $strategy->getDisplayParameters();
+				$data['doesLong'] = $strategy->doesLong();
+				$data['doesShort'] = $strategy->doesShort();
 			}
 		}
 
@@ -190,7 +173,7 @@ class PairsViewer extends PageViewer
 		$viewer = new DetailViewer(['showHeader' => false]);
 
 		// Build a key => label map from typed parameter objects.
-		$strategyClass = $this->getStrategyClass($strategyName);
+		$strategyClass = StrategyFactory::getStrategyClass($strategyName);
 		$labelMap = [];
 		if ($strategyClass !== null && method_exists($strategyClass, 'getParameters')) {
 			foreach ($strategyClass::getParameters() as $param) {
@@ -219,10 +202,6 @@ class PairsViewer extends PageViewer
 		return $viewer->setCaption('Strategy: ' . $strategyName)
 			->setDataFromArray($strategyParams)
 			->render();
-	}
-
-	private function getStrategyClass(string $strategyName): ?string {
-		return StrategyFactory::getStrategyClass($strategyName);
 	}
 
 	/**
