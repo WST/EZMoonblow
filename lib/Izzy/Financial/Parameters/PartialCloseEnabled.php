@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PartialCloseEnabled extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'partialCloseEnabled';
-	}
-
 	public static function getLabel(): string {
 		return 'Partial Close enabled';
 	}

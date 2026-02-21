@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PartialCloseUseLimitOrder extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'partialCloseUseLimitOrder';
-	}
-
 	public static function getLabel(): string {
 		return 'Partial Close via limit order';
 	}

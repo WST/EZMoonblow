@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class LearningRate extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'learningRate';
-	}
-
 	public static function getLabel(): string {
 		return 'Learning rate';
 	}

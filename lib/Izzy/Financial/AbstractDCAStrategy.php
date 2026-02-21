@@ -43,47 +43,39 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	}
 
 	/**
-	 * Initialize DCA settings from strategy parameters.
+	 * Initialize DCA settings from typed strategy parameter objects.
 	 */
 	private function initializeDCASettings(): void {
-		$useLimitOrders = filter_var($this->params[UseLimitOrders::getName()] ?? false, FILTER_VALIDATE_BOOLEAN);
+		$useLimitOrders = $this->params[UseLimitOrders::getName()]->getValue();
 
 		/** Long parameters */
-		$numberOfLevels = $this->params[NumberOfLevels::getName()] ?? 5;
-		$entryVolumeRaw = $this->params[InitialEntryVolume::getName()] ?? 40;
-		$volumeMultiplier = $this->params[VolumeMultiplier::getName()] ?? 2;
-		$priceDeviation = $this->params[PriceDeviation::getName()] ?? 5;
-		$priceDeviationMultiplier = $this->params[PriceDeviationMultiplier::getName()] ?? 2;
-		$expectedProfit = $this->params[ExpectedProfit::getName()] ?? 2;
+		$numberOfLevels = $this->params[NumberOfLevels::getName()]->getValue();
+		$entryVolumeRaw = $this->params[InitialEntryVolume::getName()]->getRawValue();
+		$volumeMultiplier = $this->params[VolumeMultiplier::getName()]->getValue();
+		$priceDeviation = $this->params[PriceDeviation::getName()]->getValue();
+		$priceDeviationMultiplier = $this->params[PriceDeviationMultiplier::getName()]->getValue();
+		$expectedProfit = $this->params[ExpectedProfit::getName()]->getValue();
 
-		/** Short parameters */
-		$numberOfLevelsShort = $this->params[NumberOfLevelsShort::getName()] ?? 0;
-		$entryVolumeShortRaw = $this->params[InitialEntryVolumeShort::getName()] ?? 0;
-		$volumeMultiplierShort = $this->params[VolumeMultiplierShort::getName()] ?? 2;
-		$priceDeviationShort = $this->params[PriceDeviationShort::getName()] ?? 5;
-		$priceDeviationMultiplierShort = $this->params[PriceDeviationMultiplierShort::getName()] ?? 2;
-		$expectedProfitShort = $this->params[ExpectedProfitShort::getName()] ?? 2;
+		/** Short parameters (only present in strategies that support shorts) */
+		$numberOfLevelsShort = ($this->params[NumberOfLevelsShort::getName()] ?? null)?->getValue() ?? 0;
+		$entryVolumeShortRaw = ($this->params[InitialEntryVolumeShort::getName()] ?? null)?->getRawValue() ?? '0';
+		$volumeMultiplierShort = ($this->params[VolumeMultiplierShort::getName()] ?? null)?->getValue() ?? 0.0;
+		$priceDeviationShort = ($this->params[PriceDeviationShort::getName()] ?? null)?->getValue() ?? 0.0;
+		$priceDeviationMultiplierShort = ($this->params[PriceDeviationMultiplierShort::getName()] ?? null)?->getValue() ?? 0.0;
+		$expectedProfitShort = ($this->params[ExpectedProfitShort::getName()] ?? null)?->getValue() ?? 0.0;
 
-		$offsetModeParam = $this->params[OffsetMode::getName()] ?? DCAOffsetModeEnum::FROM_ENTRY->value;
+		$offsetModeParam = $this->params[OffsetMode::getName()]->getValue();
 		$offsetMode = DCAOffsetModeEnum::tryFrom($offsetModeParam) ?? DCAOffsetModeEnum::FROM_ENTRY;
 
-		$alwaysMarketEntry = filter_var($this->params[AlwaysMarketEntry::getName()] ?? false, FILTER_VALIDATE_BOOLEAN);
+		$alwaysMarketEntry = $this->params[AlwaysMarketEntry::getName()]->getValue();
 
-		// Parse entry volume for Long (supports: "140", "5%", "5%M", "0.002 BTC")
 		$parsedVolume = EntryVolumeParser::parse($entryVolumeRaw);
 		$entryVolume = $parsedVolume->getValue();
 		$volumeMode = $parsedVolume->getMode();
 
-		// Parse entry volume for Short
 		$parsedVolumeShort = EntryVolumeParser::parse($entryVolumeShortRaw);
 		$entryVolumeShort = $parsedVolumeShort->getValue();
 		$volumeModeShort = $parsedVolumeShort->getMode();
-
-		// Remove % sign if present and convert to float for price deviations
-		$priceDeviation = (float)str_replace('%', '', $priceDeviation);
-		$expectedProfit = (float)str_replace('%', '', $expectedProfit);
-		$priceDeviationShort = (float)str_replace('%', '', $priceDeviationShort);
-		$expectedProfitShort = (float)str_replace('%', '', $expectedProfitShort);
 
 		$this->dcaSettings = new DCASettings(
 			useLimitOrders: $useLimitOrders,
@@ -395,7 +387,12 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 			$excluded = array_merge($excluded, self::getLongParams());
 		}
 
-		return array_diff_key($this->params, array_flip($excluded));
+		$filtered = array_diff_key($this->params, array_flip($excluded));
+		$raw = [];
+		foreach ($filtered as $name => $param) {
+			$raw[$name] = $param->getRawValue();
+		}
+		return $raw;
 	}
 
 	public static function getStrategySettingGroupTitle(): string {

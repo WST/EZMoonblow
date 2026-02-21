@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class UseIsolatedMargin extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'useIsolatedMargin';
-	}
-
 	public static function getLabel(): string {
 		return 'Use isolated margin';
 	}

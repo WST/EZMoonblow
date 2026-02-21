@@ -85,15 +85,15 @@ class EZMoonblowSEIchimoku extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->signalType = ($params['signalType'] ?? self::SIGNAL_TK_CROSS);
-		$this->tenkanPeriod = (int)($params['tenkanPeriod'] ?? 9);
-		$this->kijunPeriod = (int)($params['kijunPeriod'] ?? 26);
-		$this->senkouBPeriod = (int)($params['senkouBPeriod'] ?? 52);
-		$this->displacement = (int)($params['displacement'] ?? 26);
-		$this->kumoFilter = in_array(strtolower($params['kumoFilter'] ?? 'false'), ['yes', 'true', '1'], true);
-		$this->chikouFilter = in_array(strtolower($params['chikouFilter'] ?? 'false'), ['yes', 'true', '1'], true);
-		$this->reverseSignals = in_array(strtolower($params['reverseSignals'] ?? 'false'), ['yes', 'true', '1'], true);
-		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 0);
+		$this->signalType = $this->params[SignalType::getName()]->getValue();
+		$this->tenkanPeriod = $this->params[TenkanPeriod::getName()]->getValue();
+		$this->kijunPeriod = $this->params[KijunPeriod::getName()]->getValue();
+		$this->senkouBPeriod = $this->params[SenkouBPeriod::getName()]->getValue();
+		$this->displacement = $this->params[Displacement::getName()]->getValue();
+		$this->kumoFilter = $this->params[KumoFilter::getName()]->getValue();
+		$this->chikouFilter = $this->params[ChikouFilter::getName()]->getValue();
+		$this->reverseSignals = $this->params[ReverseSignals::getName()]->getValue();
+		$this->cooldownCandles = $this->params[CooldownCandles::getName()]->getValue();
 	}
 
 	/**

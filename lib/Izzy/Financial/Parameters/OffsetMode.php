@@ -9,10 +9,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class OffsetMode extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'offsetMode';
-	}
-
 	public static function getLabel(): string {
 		return 'Price offset calculation mode';
 	}

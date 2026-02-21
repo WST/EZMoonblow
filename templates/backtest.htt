@@ -1009,39 +1009,39 @@
 		elDCAGridsPanel.style.display = '';
 		const params = collectParams();
 		const balance = parseFloat(elBalance.value) || 0;
-		const offsetMode = params.offsetMode || 'FROM_ENTRY';
+		const offsetMode = params.OffsetMode || 'FROM_ENTRY';
 
 		let html = '';
 
 		// Long grid.
-		const longLevels = parseInt(params.numberOfLevels) || 0;
+		const longLevels = parseInt(params.NumberOfLevels) || 0;
 		if (longLevels > 0) {
-			const ev = parseEntryVolume(params.entryVolume || '100');
+			const ev = parseEntryVolume(params.InitialEntryVolume || '100');
 			const grid = buildDCAGrid(
 				longLevels,
 				ev.value,
-				parseFloat(params.volumeMultiplier) || 1,
-				parseFloat(String(params.priceDeviation || '0').replace('%', '')),
-				parseFloat(params.priceDeviationMultiplier) || 1,
+				parseFloat(params.VolumeMultiplier) || 1,
+				parseFloat(String(params.PriceDeviation || '0').replace('%', '')),
+				parseFloat(params.PriceDeviationMultiplier) || 1,
 				'LONG', offsetMode
 			);
-			const ep = parseFloat(String(params.expectedProfit || '0').replace('%', ''));
+			const ep = parseFloat(String(params.ExpectedProfit || '0').replace('%', ''));
 			html += renderGridTable(grid, 'Long', ev.mode, balance, ep);
 		}
 
 		// Short grid.
-		const shortLevels = parseInt(params.numberOfLevelsShort) || 0;
+		const shortLevels = parseInt(params.NumberOfLevelsShort) || 0;
 		if (shortLevels > 0) {
-			const ev = parseEntryVolume(params.entryVolumeShort || '100');
+			const ev = parseEntryVolume(params.InitialEntryVolumeShort || '100');
 			const grid = buildDCAGrid(
 				shortLevels,
 				ev.value,
-				parseFloat(params.volumeMultiplierShort) || 1,
-				parseFloat(String(params.priceDeviationShort || '0').replace('%', '')),
-				parseFloat(params.priceDeviationMultiplierShort) || 1,
+				parseFloat(params.VolumeMultiplierShort) || 1,
+				parseFloat(String(params.PriceDeviationShort || '0').replace('%', '')),
+				parseFloat(params.PriceDeviationMultiplierShort) || 1,
 				'SHORT', offsetMode
 			);
-			const ep = parseFloat(String(params.expectedProfitShort || '0').replace('%', ''));
+			const ep = parseFloat(String(params.ExpectedProfitShort || '0').replace('%', ''));
 			html += renderGridTable(grid, 'Short', ev.mode, balance, ep);
 		}
 

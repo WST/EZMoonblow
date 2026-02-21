@@ -21,21 +21,21 @@
 		<min_backtest_days>100</min_backtest_days>
 		<ticks_per_candle>10</ticks_per_candle>
 		<optimizable_params>
-			<param name="stopLossPercent"/>
-			<param name="takeProfitPercent"/>
-			<param name="emaSlowPeriod"/>
-			<param name="macdFastPeriod"/>
-			<param name="macdSlowPeriod"/>
-			<param name="macdSignalPeriod"/>
-			<param name="adxPeriod"/>
-			<param name="adxThreshold"/>
-			<param name="cooldownCandles"/>
-			<param name="bbPeriod"/>
-			<param name="bbMultiplier"/>
-			<param name="bbSlopePeriod"/>
-			<param name="bbSlopeMax"/>
-			<param name="breakevenLockTriggerPercent"/>
-			<param name="breakevenLockClosePercent"/>
+			<param name="StopLossPercent"/>
+			<param name="TakeProfitPercent"/>
+			<param name="EMAFilterPeriod"/>
+			<param name="MACDFastPeriod"/>
+			<param name="MACDSlowPeriod"/>
+			<param name="MACDSignalPeriod"/>
+			<param name="ADXPeriod"/>
+			<param name="ADXThreshold"/>
+			<param name="CooldownCandles"/>
+			<param name="BBPeriod"/>
+			<param name="BBMultiplier"/>
+			<param name="BBSlopePeriod"/>
+			<param name="BBSlopeMax"/>
+			<param name="BreakevenLockTriggerPercent"/>
+			<param name="BreakevenLockClosePercent"/>
 		</optimizable_params>
 	</optimizer>
 
@@ -45,27 +45,27 @@
 				<pair ticker="SOL/USDT" timeframe="4h" trade="no" notify="yes">
 					<strategy name="EZMoonblowDCAWithShorts" backtest_days="365" backtest_initial_balance="10000" backtest_ticks_per_candle="16">
 						<!-- Long -->
-						<param name="numberOfLevels" value="6"/>
-						<param name="initialEntryVolume" value="140"/>
-						<param name="priceDeviation" value="10%"/>
-						<param name="volumeMultiplier" value="1.45"/>
-						<param name="priceDeviationMultiplier" value="1.7"/>
-						<param name="expectedProfit" value="5%"/>
+						<param name="NumberOfLevels" value="6"/>
+						<param name="InitialEntryVolume" value="140"/>
+						<param name="PriceDeviation" value="10%"/>
+						<param name="VolumeMultiplier" value="1.45"/>
+						<param name="PriceDeviationMultiplier" value="1.7"/>
+						<param name="ExpectedProfit" value="5%"/>
 						<!-- Short -->
-						<param name="numberOfLevelsShort" value="6" />
-						<param name="initialEntryVolumeShort" value="40" />
-						<param name="priceDeviationShort" value="10%" />
-						<param name="volumeMultiplierShort" value="2" />
-						<param name="priceDeviationMultiplierShort" value="2" />
-						<param name="expectedProfitShort" value="2%" />
+						<param name="NumberOfLevelsShort" value="6" />
+						<param name="InitialEntryVolumeShort" value="40" />
+						<param name="PriceDeviationShort" value="10%" />
+						<param name="VolumeMultiplierShort" value="2" />
+						<param name="PriceDeviationMultiplierShort" value="2" />
+						<param name="ExpectedProfitShort" value="2%" />
 						<!-- Common DCA settings -->
 						<param name="UseLimitOrders" value="yes"/>
-						<param name="offsetMode" value="FROM_PREVIOUS"/>
-						<param name="alwaysMarketEntry" value="yes"/>
+						<param name="OffsetMode" value="FROM_PREVIOUS"/>
+						<param name="AlwaysMarketEntry" value="yes"/>
 						<!-- RSI -->
-						<param name="rsiPeriod" value="14"/>
-						<param name="rsiOverbought" value="70"/>
-						<param name="rsiOversold" value="30"/>
+						<param name="RSIPeriod" value="14"/>
+						<param name="RSIOverbought" value="70"/>
+						<param name="RSIOversold" value="30"/>
 					</strategy>
 				</pair>
 			</spot>
@@ -73,17 +73,17 @@
 				<pair ticker="SOL/USDT" timeframe="15m" trade="no" leverage="5" />
 				<pair ticker="XRP/USDT" timeframe="1h" trade="no" leverage="10">
 					<strategy name="EZMoonblowSE" backtest_days="365" backtest_initial_balance="10000">
-						<param name="entryVolume" value="5%"/>
-						<param name="stopLossPercent" value="2%"/>
-						<param name="takeProfitPercent" value="3%"/>
-						<param name="useIsolatedMargin" value="yes"/>
-						<param name="breakevenLockEnabled" value="yes"/>
-						<param name="breakevenLockTriggerPercent" value="50"/>
-						<param name="breakevenLockClosePercent" value="50"/>
-						<param name="emaFastPeriod" value="50"/>
-						<param name="emaSlowPeriod" value="200"/>
-						<param name="rsiOversold" value="30"/>
-						<param name="rsiOverbought" value="70"/>
+						<param name="EntryVolume" value="5%"/>
+						<param name="StopLossPercent" value="2%"/>
+						<param name="TakeProfitPercent" value="3%"/>
+						<param name="UseIsolatedMargin" value="yes"/>
+						<param name="BreakevenLockEnabled" value="yes"/>
+						<param name="BreakevenLockTriggerPercent" value="50"/>
+						<param name="BreakevenLockClosePercent" value="50"/>
+						<param name="EMAFastPeriod" value="50"/>
+						<param name="EMASlowPeriod" value="200"/>
+						<param name="RSIOversold" value="30"/>
+						<param name="RSIOverbought" value="70"/>
 					</strategy>
 				</pair>
 			</futures>

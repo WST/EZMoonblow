@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class EntryVolume extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'entryVolume';
-	}
-
 	public static function getLabel(): string {
 		return 'Entry volume (USDT, %, %M, or base currency)';
 	}

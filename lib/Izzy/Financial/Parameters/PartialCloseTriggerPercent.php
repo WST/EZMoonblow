@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PartialCloseTriggerPercent extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'partialCloseTriggerPercent';
-	}
-
 	public static function getLabel(): string {
 		return 'Partial Close trigger (% of way to TP)';
 	}

@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class SignalType extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'signalType';
-	}
-
 	public static function getLabel(): string {
 		return 'Entry signal type';
 	}

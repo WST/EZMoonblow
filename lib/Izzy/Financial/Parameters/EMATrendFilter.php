@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class EMATrendFilter extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'emaTrendFilter';
-	}
-
 	public static function getLabel(): string {
 		return 'EMA trend filter';
 	}

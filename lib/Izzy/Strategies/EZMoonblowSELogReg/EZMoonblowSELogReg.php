@@ -84,14 +84,14 @@ class EZMoonblowSELogReg extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->lookbackWindow = max(2, (int)($params['lookbackWindow'] ?? 5));
-		$this->normalizationLookback = max(2, (int)($params['normalizationLookback'] ?? 50));
-		$this->learningRate = (float)($params['learningRate'] ?? 0.0009);
-		$this->trainingIterations = max(1, (int)($params['trainingIterations'] ?? 1000));
-		$this->signalMode = $params['signalMode'] ?? SignalMode::PRICE;
-		$this->filterType = $params['filterType'] ?? FilterType::NONE;
-		$this->holdingPeriod = max(0, (int)($params['holdingPeriod'] ?? 5));
-		$this->cooldownCandles = max(0, (int)($params['cooldownCandles'] ?? 0));
+		$this->lookbackWindow = max(2, $this->params[LookbackWindow::getName()]->getValue());
+		$this->normalizationLookback = max(2, $this->params[NormalizationLookback::getName()]->getValue());
+		$this->learningRate = $this->params[LearningRate::getName()]->getValue();
+		$this->trainingIterations = max(1, $this->params[TrainingIterations::getName()]->getValue());
+		$this->signalMode = $this->params[SignalMode::getName()]->getValue();
+		$this->filterType = $this->params[FilterType::getName()]->getValue();
+		$this->holdingPeriod = max(0, $this->params[HoldingPeriod::getName()]->getValue());
+		$this->cooldownCandles = max(0, $this->params[CooldownCandles::getName()]->getValue());
 	}
 
 	/**

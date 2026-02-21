@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBSlopeMax extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'bbSlopeMax';
-	}
-
 	public static function getLabel(): string {
 		return 'BB max slope (%)';
 	}

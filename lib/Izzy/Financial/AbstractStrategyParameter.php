@@ -8,9 +8,14 @@ use Izzy\Enums\StrategyParameterTypeEnum;
  * Base class for typed strategy configuration parameters.
  * Each parameter knows its config key, human-readable label, data type,
  * and default value. SELECT parameters also provide available options.
+ *
+ * Instances can hold a runtime value via the static factory from().
  */
 abstract class AbstractStrategyParameter
 {
+	/** Runtime value (string form). Null means "not set, use default". */
+	private ?string $value = null;
+
 	/**
 	 * @param string|null $defaultOverride Override the default value defined by the parameter class.
 	 */
@@ -18,9 +23,65 @@ abstract class AbstractStrategyParameter
 	}
 
 	/**
-	 * Config key as used in XML/params array (e.g. "stopLossPercent").
+	 * Create a value-holding instance from a raw config/XML/API value.
+	 *
+	 * @param mixed $rawValue Raw value (string, int, float, bool, or null for default).
+	 * @return static Instance with the value set.
 	 */
-	abstract public static function getName(): string;
+	public static function from(mixed $rawValue = null): static {
+		$instance = new static();
+		$instance->value = ($rawValue !== null) ? (string)$rawValue : static::getClassDefault();
+		return $instance;
+	}
+
+	/**
+	 * Get the typed runtime value.
+	 *
+	 * @return int|float|bool|string Value cast according to getType().
+	 */
+	public function getValue(): int|float|bool|string {
+		$raw = $this->getRawValue();
+		return match (static::getType()) {
+			StrategyParameterTypeEnum::INT => (int)$raw,
+			StrategyParameterTypeEnum::FLOAT => (float)$raw,
+			StrategyParameterTypeEnum::BOOL => in_array(strtolower($raw), ['true', 'yes', '1'], true),
+			default => $raw,
+		};
+	}
+
+	/**
+	 * Get the raw string value (for serialization to JSON/DB/XML).
+	 */
+	public function getRawValue(): string {
+		return $this->value ?? $this->getDefault();
+	}
+
+	/**
+	 * Whether this instance holds a runtime value (was created via from()).
+	 */
+	public function hasValue(): bool {
+		return $this->value !== null;
+	}
+
+	/**
+	 * Compare two parameter instances by their normalized values.
+	 */
+	public function equals(self $other): bool {
+		return static::getName() === $other::getName()
+			&& $this->normalizeValue($this->getRawValue()) === $other->normalizeValue($other->getRawValue());
+	}
+
+	// ── Metadata (abstract, must be implemented by subclasses) ──────────
+
+	/**
+	 * Config key used in XML/params arrays.
+	 * Derived from the short class name (e.g. StopLossPercent → "StopLossPercent").
+	 */
+	public static function getName(): string {
+		$fqcn = static::class;
+		$pos = strrpos($fqcn, '\\');
+		return $pos !== false ? substr($fqcn, $pos + 1) : $fqcn;
+	}
 
 	/**
 	 * Human-readable label for the UI (e.g. "Stop-loss distance (%)").
@@ -106,6 +167,8 @@ abstract class AbstractStrategyParameter
 		return null;
 	}
 
+	// ── Mutation (Optimizer) ────────────────────────────────────────────
+
 	/**
 	 * Produce a mutated value for the optimizer.
 	 *
@@ -163,9 +226,11 @@ abstract class AbstractStrategyParameter
 		return $others[array_rand($others)];
 	}
 
+	// ── Normalization ───────────────────────────────────────────────────
+
 	/**
 	 * Normalize a raw config value to a canonical string form.
-	 * Used for smart comparison between configs (e.g. "yes" == "true" for bools).
+	 * Used internally by equals() for comparison.
 	 *
 	 * @param mixed $value Raw value from XML or backtest params.
 	 * @return string Canonical string representation.
@@ -183,6 +248,8 @@ abstract class AbstractStrategyParameter
 	private static function normalizeBool(string $value): string {
 		return in_array(strtolower($value), ['true', 'yes', '1'], true) ? 'true' : 'false';
 	}
+
+	// ── Serialization ───────────────────────────────────────────────────
 
 	/**
 	 * Serialize to a plain array suitable for JSON API responses.

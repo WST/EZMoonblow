@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BreakevenLockTriggerPercent extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'breakevenLockTriggerPercent';
-	}
-
 	public static function getLabel(): string {
 		return 'Breakeven Lock trigger (% of way to TP)';
 	}

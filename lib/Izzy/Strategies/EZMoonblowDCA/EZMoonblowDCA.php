@@ -19,11 +19,11 @@ class EZMoonblowDCA extends AbstractDCAStrategy
 		return [
 			[
 				'class' => RSI::class,
-				'parameters' => [
-					'period' => (int) $this->getParam('rsiPeriod'),
-					'overbought' => (int) $this->getParam('rsiOverbought'),
-					'oversold' => (int) $this->getParam('rsiOversold'),
-				],
+			'parameters' => [
+				'period' => $this->getParam(RSIPeriod::getName())->getValue(),
+				'overbought' => $this->getParam(RSIOverbought::getName())->getValue(),
+				'oversold' => $this->getParam(RSIOversold::getName())->getValue(),
+			],
 			],
 		];
 	}

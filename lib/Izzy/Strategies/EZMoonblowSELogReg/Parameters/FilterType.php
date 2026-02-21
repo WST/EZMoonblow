@@ -12,10 +12,6 @@ class FilterType extends AbstractStrategyParameter
 	public const string VOLUME = 'volume';
 	public const string BOTH = 'both';
 
-	public static function getName(): string {
-		return 'filterType';
-	}
-
 	public static function getLabel(): string {
 		return 'Filter type';
 	}

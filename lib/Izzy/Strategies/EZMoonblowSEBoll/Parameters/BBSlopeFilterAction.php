@@ -10,10 +10,6 @@ class BBSlopeFilterAction extends AbstractStrategyParameter
 	public const string BLOCK = 'block';
 	public const string INVERSE = 'inverse';
 
-	public static function getName(): string {
-		return 'bbSlopeFilterAction';
-	}
-
 	public static function getLabel(): string {
 		return 'BB slope filter action';
 	}

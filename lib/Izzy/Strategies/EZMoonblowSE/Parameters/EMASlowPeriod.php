@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class EMASlowPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'emaSlowPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'EMA slow period (1D)';
 	}

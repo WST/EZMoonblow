@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class TrainingIterations extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'trainingIterations';
-	}
-
 	public static function getLabel(): string {
 		return 'Training iterations';
 	}

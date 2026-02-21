@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class RSIPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'rsiPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'RSI period';
 	}

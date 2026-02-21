@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class VolumeMultiplierShort extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'volumeMultiplierShort';
-	}
-
 	public static function getLabel(): string {
 		return 'Volume multiplier for subsequent orders (Short)';
 	}

@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class LookbackWindow extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'lookbackWindow';
-	}
-
 	public static function getLabel(): string {
 		return 'Lookback window';
 	}

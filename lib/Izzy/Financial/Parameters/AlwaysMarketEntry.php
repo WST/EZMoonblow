@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class AlwaysMarketEntry extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'alwaysMarketEntry';
-	}
-
 	public static function getLabel(): string {
 		return 'Always execute entry order as market';
 	}

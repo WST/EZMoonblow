@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class StopLossPercent extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'stopLossPercent';
-	}
-
 	public static function getLabel(): string {
 		return 'Stop-loss distance (%)';
 	}
@@ -26,5 +22,9 @@ class StopLossPercent extends AbstractStrategyParameter
 
 	protected static function getClassDefault(): string {
 		return '5';
+	}
+
+	public function getValue(): int|float|bool|string {
+		return (float)str_replace('%', '', $this->getRawValue());
 	}
 }

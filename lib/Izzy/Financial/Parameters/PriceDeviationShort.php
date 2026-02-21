@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PriceDeviationShort extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'priceDeviationShort';
-	}
-
 	public static function getLabel(): string {
 		return 'Price deviation for first averaging (Short, %)';
 	}
@@ -26,5 +22,9 @@ class PriceDeviationShort extends AbstractStrategyParameter
 
 	protected static function getClassDefault(): string {
 		return '10';
+	}
+
+	public function getValue(): int|float|bool|string {
+		return (float)str_replace('%', '', $this->getRawValue());
 	}
 }

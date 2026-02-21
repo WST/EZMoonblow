@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class MACDSlowPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'macdSlowPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'MACD slow EMA period';
 	}

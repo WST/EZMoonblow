@@ -21,6 +21,7 @@ use Izzy\Financial\Parameters\PartialCloseUseLimitOrder;
 use Izzy\Financial\Parameters\StopLossCooldownMinutes;
 use Izzy\Financial\Parameters\StopLossPercent;
 use Izzy\Financial\Parameters\TakeProfitPercent;
+use Izzy\Financial\Parameters\UseIsolatedMargin;
 use Izzy\Indicators\EMA;
 use Izzy\Interfaces\ICandle;
 use Izzy\Interfaces\IMarket;
@@ -113,29 +114,28 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	}
 
 	/**
-	 * Parse strategy parameters.
+	 * Parse strategy parameters from typed param objects.
 	 */
 	private function initializeSettings(): void {
-		// Parse entry volume (supports: "140", "5%", "5%M", "0.002 BTC").
-		$parsed = EntryVolumeParser::parse($this->params['entryVolume'] ?? '100');
+		$parsed = EntryVolumeParser::parse($this->params[EntryVolume::getName()]->getRawValue());
 		$this->entryVolume = $parsed->getValue();
 		$this->volumeMode = $parsed->getMode();
 
-		$this->stopLossPercent = (float)str_replace('%', '', $this->params['stopLossPercent'] ?? '5');
-		$this->takeProfitPercent = (float)str_replace('%', '', $this->params['takeProfitPercent'] ?? '10');
-		$this->useIsolatedMargin = filter_var($this->params['useIsolatedMargin'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->breakevenLockEnabled = filter_var($this->params['breakevenLockEnabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->breakevenLockClosePercent = (float)($this->params['breakevenLockClosePercent'] ?? 25);
-		$this->breakevenLockTriggerPercent = (float)($this->params['breakevenLockTriggerPercent'] ?? 10);
-		$this->partialCloseEnabled = filter_var($this->params['partialCloseEnabled'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->partialClosePercent = (float)($this->params['partialClosePercent'] ?? 70);
-		$this->partialCloseTriggerPercent = (float)($this->params['partialCloseTriggerPercent'] ?? 70);
-		$this->partialCloseUseLimitOrder = filter_var($this->params['partialCloseUseLimitOrder'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->breakevenLockUseLimitOrder = filter_var($this->params['breakevenLockUseLimitOrder'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->emaTrendFilter = filter_var($this->params['emaTrendFilter'] ?? false, FILTER_VALIDATE_BOOLEAN);
-		$this->emaTrendFilterTimeframe = (string)($this->params['emaTrendFilterTimeframe'] ?? '1d');
-		$this->emaFilterPeriod = (int)($this->params['emaSlowPeriod'] ?? 50);
-		$this->stopLossCooldownMinutes = (int)($this->params['stopLossCooldownMinutes'] ?? 0);
+		$this->stopLossPercent = $this->params[StopLossPercent::getName()]->getValue();
+		$this->takeProfitPercent = $this->params[TakeProfitPercent::getName()]->getValue();
+		$this->useIsolatedMargin = $this->params[UseIsolatedMargin::getName()]->getValue();
+		$this->breakevenLockEnabled = $this->params[BreakevenLockEnabled::getName()]->getValue();
+		$this->breakevenLockClosePercent = $this->params[BreakevenLockClosePercent::getName()]->getValue();
+		$this->breakevenLockTriggerPercent = $this->params[BreakevenLockTriggerPercent::getName()]->getValue();
+		$this->partialCloseEnabled = $this->params[PartialCloseEnabled::getName()]->getValue();
+		$this->partialClosePercent = $this->params[PartialClosePercent::getName()]->getValue();
+		$this->partialCloseTriggerPercent = $this->params[PartialCloseTriggerPercent::getName()]->getValue();
+		$this->partialCloseUseLimitOrder = $this->params[PartialCloseUseLimitOrder::getName()]->getValue();
+		$this->breakevenLockUseLimitOrder = $this->params[BreakevenLockUseLimitOrder::getName()]->getValue();
+		$this->emaTrendFilter = $this->params[EMATrendFilter::getName()]->getValue();
+		$this->emaTrendFilterTimeframe = $this->params[EMATrendFilterTimeframe::getName()]->getValue();
+		$this->emaFilterPeriod = $this->params[EMAFilterPeriod::getName()]->getValue();
+		$this->stopLossCooldownMinutes = $this->params[StopLossCooldownMinutes::getName()]->getValue();
 	}
 
 	/**
@@ -744,6 +744,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 			new EntryVolume(),
 			new StopLossPercent(),
 			new TakeProfitPercent(),
+			new UseIsolatedMargin(),
 			new EMATrendFilter(),
 			new EMATrendFilterTimeframe(),
 			new EMAFilterPeriod(),
@@ -772,16 +773,21 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 	public function getDisplayParameters(): array {
 		$excluded = [];
 		if (!$this->partialCloseEnabled) {
-			$excluded[] = 'partialCloseTriggerPercent';
-			$excluded[] = 'partialClosePercent';
-			$excluded[] = 'partialCloseUseLimitOrder';
+			$excluded[] = PartialCloseTriggerPercent::getName();
+			$excluded[] = PartialClosePercent::getName();
+			$excluded[] = PartialCloseUseLimitOrder::getName();
 		}
 		if (!$this->breakevenLockEnabled) {
-			$excluded[] = 'breakevenLockTriggerPercent';
-			$excluded[] = 'breakevenLockClosePercent';
-			$excluded[] = 'breakevenLockUseLimitOrder';
+			$excluded[] = BreakevenLockTriggerPercent::getName();
+			$excluded[] = BreakevenLockClosePercent::getName();
+			$excluded[] = BreakevenLockUseLimitOrder::getName();
 		}
-		return array_diff_key($this->params, array_flip($excluded));
+		$filtered = array_diff_key($this->params, array_flip($excluded));
+		$raw = [];
+		foreach ($filtered as $name => $param) {
+			$raw[$name] = $param->getRawValue();
+		}
+		return $raw;
 	}
 
 	// ------------------------------------------------------------------

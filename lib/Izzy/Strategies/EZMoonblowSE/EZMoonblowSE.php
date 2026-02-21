@@ -40,9 +40,9 @@ class EZMoonblowSE extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->rsiLongThreshold = (float)($params['rsiLongThreshold'] ?? 30);
-		$this->rsiShortThreshold = (float)($params['rsiShortThreshold'] ?? 70);
-		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 0);
+		$this->rsiLongThreshold = $this->params[RSILongThreshold::getName()]->getValue();
+		$this->rsiShortThreshold = $this->params[RSIShortThreshold::getName()]->getValue();
+		$this->cooldownCandles = $this->params[CooldownCandles::getName()]->getValue();
 	}
 
 	/**

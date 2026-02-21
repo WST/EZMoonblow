@@ -18,8 +18,8 @@ abstract class AbstractStrategy implements IStrategy
 	protected ?IMarket $market;
 
 	/**
-	 * Strategy configuration parameters.
-	 * @var array
+	 * Strategy configuration parameters as typed objects.
+	 * @var array<string, AbstractStrategyParameter>
 	 */
 	protected array $params;
 
@@ -27,11 +27,30 @@ abstract class AbstractStrategy implements IStrategy
 	 * Create a new strategy instance.
 	 *
 	 * @param IMarket $market Market to operate on.
-	 * @param array $params Strategy configuration parameters.
+	 * @param array $params Raw strategy configuration parameters (name => value).
 	 */
 	public function __construct(IMarket $market, array $params = []) {
 		$this->market = $market;
-		$this->params = $params;
+		$this->params = static::resolveParams($params);
+	}
+
+	/**
+	 * Resolve raw parameter values into typed AbstractStrategyParameter instances.
+	 *
+	 * Uses getParameters() to discover known parameter definitions, then
+	 * creates a value-holding instance for each via ParamClass::from().
+	 *
+	 * @param array<string, mixed> $rawParams Raw parameters (name => value).
+	 * @return array<string, AbstractStrategyParameter> Typed parameters (name => instance).
+	 */
+	public static function resolveParams(array $rawParams): array {
+		$resolved = [];
+		foreach (static::getParameters() as $def) {
+			$key = $def::getName();
+			$raw = $rawParams[$key] ?? $def->getDefault();
+			$resolved[$key] = $def::from($raw);
+		}
+		return $resolved;
 	}
 
 	/**
@@ -52,29 +71,32 @@ abstract class AbstractStrategy implements IStrategy
 	}
 
 	/**
-	 * Get all strategy parameters.
-	 * @return array Strategy parameters.
+	 * Get all typed strategy parameters.
+	 * @return array<string, AbstractStrategyParameter>
 	 */
 	public function getParams(): array {
 		return $this->params;
 	}
 
 	/**
-	 * Get a specific strategy parameter by name.
+	 * Get a specific typed strategy parameter by name.
 	 * @param string $name Parameter name.
-	 * @return string|null Parameter value or null if not set.
+	 * @return AbstractStrategyParameter|null Parameter instance or null if not set.
 	 */
-	public function getParam(string $name): ?string {
+	public function getParam(string $name): ?AbstractStrategyParameter {
 		return $this->params[$name] ?? null;
 	}
 
 	/**
-	 * Set strategy parameters.
-	 * @param array $params Strategy parameters.
-	 * @return void
+	 * Get all parameter values as a raw array (for serialization).
+	 * @return array<string, string>
 	 */
-	public function setParams(array $params): void {
-		$this->params = $params;
+	public function getRawParams(): array {
+		$raw = [];
+		foreach ($this->params as $name => $param) {
+			$raw[$name] = $param->getRawValue();
+		}
+		return $raw;
 	}
 
 	/**
@@ -109,7 +131,6 @@ abstract class AbstractStrategy implements IStrategy
 	 * Concrete strategies should override this.
 	 */
 	public static function getDisplayName(): string {
-		// Fallback to class short name.
 		return (new \ReflectionClass(static::class))->getShortName();
 	}
 

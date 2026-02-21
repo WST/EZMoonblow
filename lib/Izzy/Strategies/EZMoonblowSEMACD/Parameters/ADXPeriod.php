@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ADXPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'adxPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'ADX period';
 	}

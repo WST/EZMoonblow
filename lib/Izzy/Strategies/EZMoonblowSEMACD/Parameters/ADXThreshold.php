@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ADXThreshold extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'adxThreshold';
-	}
-
 	public static function getLabel(): string {
 		return 'ADX threshold';
 	}

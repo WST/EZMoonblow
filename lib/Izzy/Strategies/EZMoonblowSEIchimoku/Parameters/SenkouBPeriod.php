@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class SenkouBPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'senkouBPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'Senkou Span B period';
 	}

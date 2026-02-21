@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class RSIShortThreshold extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'rsiShortThreshold';
-	}
-
 	public static function getLabel(): string {
 		return 'RSI overbought threshold for shorts (1H)';
 	}

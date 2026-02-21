@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBMultiplier extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'bbMultiplier';
-	}
-
 	public static function getLabel(): string {
 		return 'Bollinger Bands StdDev multiplier';
 	}

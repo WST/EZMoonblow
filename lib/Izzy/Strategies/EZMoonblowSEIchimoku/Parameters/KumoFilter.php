@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class KumoFilter extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'kumoFilter';
-	}
-
 	public static function getLabel(): string {
 		return 'Kumo (cloud) position filter';
 	}

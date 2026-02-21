@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class Displacement extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'displacement';
-	}
-
 	public static function getLabel(): string {
 		return 'Cloud displacement (Chikou shift)';
 	}

@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'bbPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'Bollinger Bands period';
 	}

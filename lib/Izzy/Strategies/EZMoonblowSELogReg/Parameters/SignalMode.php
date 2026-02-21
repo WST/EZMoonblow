@@ -10,10 +10,6 @@ class SignalMode extends AbstractStrategyParameter
 	public const string PRICE = 'price';
 	public const string CROSSOVER = 'crossover';
 
-	public static function getName(): string {
-		return 'signalMode';
-	}
-
 	public static function getLabel(): string {
 		return 'Signal mode';
 	}

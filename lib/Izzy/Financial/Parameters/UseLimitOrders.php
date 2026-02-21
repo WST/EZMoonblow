@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class UseLimitOrders extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'UseLimitOrders';
-	}
-
 	public static function getLabel(): string {
 		return 'Use limit orders instead of market orders';
 	}

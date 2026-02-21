@@ -96,18 +96,18 @@ class EZMoonblowSEBoll extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->bbPeriod = (int)($params['bbPeriod'] ?? 20);
-		$this->bbMultiplier = (float)($params['bbMultiplier'] ?? 2.0);
-		$this->bbOffset = (float)($params['bbOffset'] ?? 0);
-		$this->rsiNeutralFilter = in_array(strtolower($params['rsiNeutralFilter'] ?? 'false'), ['yes', 'true', '1'], true);
-		$this->rsiPeriod = (int)($params['rsiPeriod'] ?? 14);
-		$this->rsiNeutralLow = (float)($params['rsiNeutralLow'] ?? 30);
-		$this->rsiNeutralHigh = (float)($params['rsiNeutralHigh'] ?? 70);
-		$this->bbSlopeFilter = in_array(strtolower($params['bbSlopeFilter'] ?? 'false'), ['yes', 'true', '1'], true);
-		$this->bbSlopePeriod = max(2, (int)($params['bbSlopePeriod'] ?? 5));
-		$this->bbSlopeMax = (float)($params['bbSlopeMax'] ?? 1.0);
-		$this->bbSlopeFilterAction = ($params['bbSlopeFilterAction'] ?? BBSlopeFilterAction::BLOCK);
-		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 6);
+		$this->bbPeriod = $this->params[BBPeriod::getName()]->getValue();
+		$this->bbMultiplier = $this->params[BBMultiplier::getName()]->getValue();
+		$this->bbOffset = $this->params[BBOffset::getName()]->getValue();
+		$this->rsiNeutralFilter = $this->params[RSINeutralFilter::getName()]->getValue();
+		$this->rsiPeriod = $this->params[RSIPeriod::getName()]->getValue();
+		$this->rsiNeutralLow = $this->params[RSINeutralLow::getName()]->getValue();
+		$this->rsiNeutralHigh = $this->params[RSINeutralHigh::getName()]->getValue();
+		$this->bbSlopeFilter = $this->params[BBSlopeFilter::getName()]->getValue();
+		$this->bbSlopePeriod = max(2, $this->params[BBSlopePeriod::getName()]->getValue());
+		$this->bbSlopeMax = $this->params[BBSlopeMax::getName()]->getValue();
+		$this->bbSlopeFilterAction = $this->params[BBSlopeFilterAction::getName()]->getValue();
+		$this->cooldownCandles = $this->params[CooldownCandles::getName()]->getValue();
 	}
 
 	/**

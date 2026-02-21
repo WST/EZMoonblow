@@ -281,28 +281,15 @@ class ExchangeConfiguration
 	}
 
 	/**
-	 * Parse parameter value to appropriate type.
+	 * Parse parameter value from XML.
+	 * Values are kept as strings — type resolution is handled by the
+	 * parameter classes (AbstractStrategyParameter::from()) at strategy
+	 * construction time.
 	 *
 	 * @param string $value Parameter value as string.
-	 * @return mixed Parsed value (int, float, string, or bool).
+	 * @return string Raw string value.
 	 */
-	private function parseParameterValue(string $value): mixed {
-		// Try to parse as integer
-		if (is_numeric($value) && ctype_digit($value)) {
-			return (int)$value;
-		}
-
-		// Try to parse as float
-		if (is_numeric($value)) {
-			return (float)$value;
-		}
-
-		// Try to parse as boolean
-		if (in_array(strtolower($value), ['true', 'false', 'yes', 'no', '1', '0'])) {
-			return in_array(strtolower($value), ['true', 'yes', '1']);
-		}
-
-		// Return as string
+	private function parseParameterValue(string $value): string {
 		return $value;
 	}
 

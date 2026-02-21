@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class NormalizationLookback extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'normalizationLookback';
-	}
-
 	public static function getLabel(): string {
 		return 'Normalization lookback';
 	}

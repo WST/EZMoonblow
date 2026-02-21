@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BreakevenLockClosePercent extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'breakevenLockClosePercent';
-	}
-
 	public static function getLabel(): string {
 		return 'Breakeven Lock close portion (%)';
 	}

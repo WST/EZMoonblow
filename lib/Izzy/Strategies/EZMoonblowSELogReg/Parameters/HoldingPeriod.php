@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class HoldingPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'holdingPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'Holding period (candles)';
 	}

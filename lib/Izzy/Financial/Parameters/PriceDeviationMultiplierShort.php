@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PriceDeviationMultiplierShort extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'priceDeviationMultiplierShort';
-	}
-
 	public static function getLabel(): string {
 		return 'Price deviation multiplier for subsequent orders (Short)';
 	}

@@ -2,34 +2,66 @@
 
 namespace Izzy\Configuration;
 
+use Izzy\Financial\AbstractStrategy;
+use Izzy\Financial\AbstractStrategyParameter;
 use Izzy\Financial\StrategyFactory;
 
 /**
  * Value-object representing a strategy and its parameters for a specific pair.
- * Supports smart equality comparison with type normalization and default filling.
+ * Internally stores typed parameter objects for accurate comparison.
  */
 class StrategyConfiguration
 {
+	/** @var array<string, AbstractStrategyParameter> Typed parameter instances. */
+	private array $typedParams;
+
 	public function __construct(
 		private string $strategyName,
 		private array $params,
-	) {}
+	) {
+		$this->typedParams = $this->resolveTypedParams();
+	}
 
 	public function getStrategyName(): string {
 		return $this->strategyName;
 	}
 
 	/**
-	 * Compare this configuration with another using normalized values.
-	 * Booleans are compared canonically ("yes"/"true"/"1" are equal).
-	 * Missing parameters are filled from the strategy's class defaults.
+	 * Compare this configuration with another using typed parameter equality.
 	 * Only backtest-relevant parameters are compared.
 	 */
 	public function equals(self $other): bool {
 		if ($this->strategyName !== $other->strategyName) {
 			return false;
 		}
-		return $this->normalizedParams() === $other->normalizedParams();
+
+		$myParams = $this->typedParams;
+		$otherParams = $other->typedParams;
+
+		$strategyClass = StrategyFactory::getStrategyClass($this->strategyName);
+		if ($strategyClass === null) {
+			return $myParams === $otherParams;
+		}
+
+		foreach ($strategyClass::getParameters() as $def) {
+			if (!$def->isBacktestRelevant()) {
+				continue;
+			}
+			$key = $def::getName();
+			$a = $myParams[$key] ?? null;
+			$b = $otherParams[$key] ?? null;
+			if ($a === null || $b === null) {
+				if ($a !== $b) {
+					return false;
+				}
+				continue;
+			}
+			if (!$a->equals($b)) {
+				return false;
+			}
+		}
+
+		return true;
 	}
 
 	/**
@@ -46,39 +78,23 @@ class StrategyConfiguration
 	 * @return array<string, string> key => value for every known strategy parameter.
 	 */
 	public function toFullParams(): array {
-		$strategyClass = StrategyFactory::getStrategyClass($this->strategyName);
-		if ($strategyClass === null) {
-			return $this->params;
+		$result = [];
+		foreach ($this->typedParams as $key => $param) {
+			$result[$key] = $param->normalizeValue($param->getRawValue());
 		}
-		$paramDefs = $strategyClass::getParameters();
-		$full = [];
-		foreach ($paramDefs as $def) {
-			$key = $def->getName();
-			$full[$key] = $def->normalizeValue($this->params[$key] ?? $def->getDefault());
-		}
-		return $full;
+		return $result;
 	}
 
 	/**
-	 * Build a normalized param map using the strategy's parameter definitions.
+	 * Build typed parameter instances from the strategy definition and raw params.
 	 *
-	 * @return array<string, string> Canonical key => value pairs.
+	 * @return array<string, AbstractStrategyParameter>
 	 */
-	private function normalizedParams(): array {
+	private function resolveTypedParams(): array {
 		$strategyClass = StrategyFactory::getStrategyClass($this->strategyName);
 		if ($strategyClass === null) {
 			return [];
 		}
-		$paramDefs = $strategyClass::getParameters();
-		$normalized = [];
-		foreach ($paramDefs as $def) {
-			if (!$def->isBacktestRelevant()) {
-				continue;
-			}
-			$key = $def->getName();
-			$raw = $this->params[$key] ?? $def->getDefault();
-			$normalized[$key] = $def->normalizeValue($raw);
-		}
-		return $normalized;
+		return $strategyClass::resolveParams($this->params);
 	}
 }

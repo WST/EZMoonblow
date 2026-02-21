@@ -96,13 +96,13 @@ class EZMoonblowSEMACD extends AbstractSingleEntryStrategy
 
 	public function __construct(IMarket $market, array $params = []) {
 		parent::__construct($market, $params);
-		$this->macdFastPeriod = (int)($params['macdFastPeriod'] ?? 12);
-		$this->macdSlowPeriod = (int)($params['macdSlowPeriod'] ?? 26);
-		$this->macdSignalPeriod = (int)($params['macdSignalPeriod'] ?? 9);
-		$this->adxFilter = in_array(strtolower($params['adxFilter'] ?? 'false'), ['yes', 'true', '1'], true);
-		$this->adxPeriod = (int)($params['adxPeriod'] ?? 14);
-		$this->adxThreshold = (float)($params['adxThreshold'] ?? 20.0);
-		$this->cooldownCandles = (int)($params['cooldownCandles'] ?? 0);
+		$this->macdFastPeriod = $this->params[MACDFastPeriod::getName()]->getValue();
+		$this->macdSlowPeriod = $this->params[MACDSlowPeriod::getName()]->getValue();
+		$this->macdSignalPeriod = $this->params[MACDSignalPeriod::getName()]->getValue();
+		$this->adxFilter = $this->params[ADXFilter::getName()]->getValue();
+		$this->adxPeriod = $this->params[ADXPeriod::getName()]->getValue();
+		$this->adxThreshold = $this->params[ADXThreshold::getName()]->getValue();
+		$this->cooldownCandles = $this->params[CooldownCandles::getName()]->getValue();
 	}
 
 	/**

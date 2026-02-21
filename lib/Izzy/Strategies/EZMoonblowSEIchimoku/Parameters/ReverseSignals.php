@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ReverseSignals extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'reverseSignals';
-	}
-
 	public static function getLabel(): string {
 		return 'Reverse signals (mean-reversion mode)';
 	}

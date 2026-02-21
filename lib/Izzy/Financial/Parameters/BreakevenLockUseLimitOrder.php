@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BreakevenLockUseLimitOrder extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'breakevenLockUseLimitOrder';
-	}
-
 	public static function getLabel(): string {
 		return 'Breakeven Lock via limit order';
 	}

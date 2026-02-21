@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ADXFilter extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'adxFilter';
-	}
-
 	public static function getLabel(): string {
 		return 'ADX trend strength filter';
 	}

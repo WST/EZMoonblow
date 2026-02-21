@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class RSINeutralLow extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'rsiNeutralLow';
-	}
-
 	public static function getLabel(): string {
 		return 'RSI neutral zone low';
 	}

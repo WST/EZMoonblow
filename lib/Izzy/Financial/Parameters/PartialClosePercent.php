@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class PartialClosePercent extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'partialClosePercent';
-	}
-
 	public static function getLabel(): string {
 		return 'Partial Close portion (%)';
 	}

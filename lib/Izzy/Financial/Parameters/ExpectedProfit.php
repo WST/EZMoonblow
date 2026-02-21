@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ExpectedProfit extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'expectedProfit';
-	}
-
 	public static function getLabel(): string {
 		return 'Expected profit percentage';
 	}
@@ -26,5 +22,9 @@ class ExpectedProfit extends AbstractStrategyParameter
 
 	protected static function getClassDefault(): string {
 		return '2';
+	}
+
+	public function getValue(): int|float|bool|string {
+		return (float)str_replace('%', '', $this->getRawValue());
 	}
 }

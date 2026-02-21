@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BreakevenLockEnabled extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'breakevenLockEnabled';
-	}
-
 	public static function getLabel(): string {
 		return 'Breakeven Lock enabled';
 	}

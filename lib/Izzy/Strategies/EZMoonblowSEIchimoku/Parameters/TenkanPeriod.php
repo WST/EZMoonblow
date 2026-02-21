@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class TenkanPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'tenkanPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'Tenkan-sen period (Conversion Line)';
 	}

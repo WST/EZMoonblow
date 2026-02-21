@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class InitialEntryVolumeShort extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'initialEntryVolumeShort';
-	}
-
 	public static function getLabel(): string {
 		return 'Initial Entry volume (Short)';
 	}

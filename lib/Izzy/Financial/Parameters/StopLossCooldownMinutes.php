@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class StopLossCooldownMinutes extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'stopLossCooldownMinutes';
-	}
-
 	public static function getLabel(): string {
 		return 'Cooldown after stop-loss (min)';
 	}

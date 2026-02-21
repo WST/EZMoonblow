@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBSlopePeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'bbSlopePeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'BB slope lookback (candles)';
 	}

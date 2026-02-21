@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class CooldownCandles extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'cooldownCandles';
-	}
-
 	public static function getLabel(): string {
 		return 'Cooldown between entries (candles)';
 	}

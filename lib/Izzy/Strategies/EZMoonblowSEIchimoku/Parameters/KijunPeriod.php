@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class KijunPeriod extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'kijunPeriod';
-	}
-
 	public static function getLabel(): string {
 		return 'Kijun-sen period (Base Line)';
 	}

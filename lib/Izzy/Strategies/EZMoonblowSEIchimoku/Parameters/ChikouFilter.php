@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class ChikouFilter extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'chikouFilter';
-	}
-
 	public static function getLabel(): string {
 		return 'Chikou Span confirmation';
 	}

@@ -7,10 +7,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class BBSlopeFilter extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'bbSlopeFilter';
-	}
-
 	public static function getLabel(): string {
 		return 'BB slope filter';
 	}

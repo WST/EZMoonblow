@@ -8,10 +8,6 @@ use Izzy\Financial\AbstractStrategyParameter;
 
 class TakeProfitPercent extends AbstractStrategyParameter
 {
-	public static function getName(): string {
-		return 'takeProfitPercent';
-	}
-
 	public static function getLabel(): string {
 		return 'Take-profit distance (%)';
 	}
@@ -26,5 +22,9 @@ class TakeProfitPercent extends AbstractStrategyParameter
 
 	protected static function getClassDefault(): string {
 		return '10';
+	}
+
+	public function getValue(): int|float|bool|string {
+		return (float)str_replace('%', '', $this->getRawValue());
 	}
 }
