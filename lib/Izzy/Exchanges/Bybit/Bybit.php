@@ -586,6 +586,36 @@ class Bybit extends AbstractExchangeDriver
 		return false;
 	}
 
+	public function getCurrentFuturesPositionByDirection(IMarket $market, PositionDirectionEnum $direction): IPositionOnExchange|false {
+		$pair = $market->getPair();
+		$marketType = $market->getMarketType();
+		if (!$marketType->isFutures()) {
+			$this->logger->error("Trying to get a futures position on a spot market: $market");
+			return false;
+		}
+
+		$params = [
+			BybitParam::Category => $this->getBybitCategory($pair),
+			BybitParam::Symbol => $pair->getExchangeTicker($this),
+		];
+
+		$response = $this->api->positionApi()->getPositionInfo($params);
+		$positionList = $response[BybitParam::List];
+		$targetIdx = $this->getPositionIdxByDirection($direction);
+
+		foreach ($positionList as $positionInfo) {
+			if (($positionInfo[BybitParam::PositionIdx] ?? 0) != $targetIdx) {
+				continue;
+			}
+			if (Money::from($positionInfo[BybitParam::Size], $pair->getBaseCurrency())?->isZero()) {
+				return false;
+			}
+			return PositionOnBybit::create($market, $positionInfo);
+		}
+
+		return false;
+	}
+
 	/**
 	 * @inheritDoc
 	 *

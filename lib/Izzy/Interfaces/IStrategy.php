@@ -43,6 +43,11 @@ interface IStrategy
 	public function updatePosition(IStoredPosition $position): void;
 
 	/**
+	 * Whether the strategy can hold Long and Short positions simultaneously on the same pair.
+	 */
+	public function isTwoWayMode(): bool;
+
+	/**
 	 * Returns the list of indicators used by this strategy.
 	 * @return string[]
 	 */

@@ -8,6 +8,7 @@ use Izzy\Financial\Parameters\ExpectedProfitShort;
 use Izzy\Financial\Parameters\NumberOfLevelsShort;
 use Izzy\Financial\Parameters\PriceDeviationMultiplierShort;
 use Izzy\Financial\Parameters\PriceDeviationShort;
+use Izzy\Financial\Parameters\TwoWayMode;
 use Izzy\Financial\Parameters\VolumeMultiplierShort;
 use Izzy\Strategies\EZMoonblowDCA\EZMoonblowDCA;
 
@@ -39,6 +40,7 @@ class EZMoonblowDCAWithShorts extends EZMoonblowDCA
 	 */
 	public static function getParameters(): array {
 		return array_merge(parent::getParameters(), [
+			new TwoWayMode(),
 			new NumberOfLevelsShort(),
 			new InitialEntryVolumeShort('1%'),
 			new VolumeMultiplierShort(),

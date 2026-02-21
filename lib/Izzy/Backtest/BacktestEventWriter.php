@@ -100,13 +100,17 @@ class BacktestEventWriter
 	/**
 	 * Position closed (TP, SL, or liquidation).
 	 */
-	public function writePositionClose(float $price, float $pnl, string $reason, int $time): void {
-		$this->write('position_close', [
+	public function writePositionClose(float $price, float $pnl, string $reason, int $time, string $direction = ''): void {
+		$data = [
 			'price' => $price,
 			'pnl' => $pnl,
 			'reason' => $reason,
 			'time' => $time,
-		]);
+		];
+		if ($direction !== '') {
+			$data['dir'] = $direction;
+		}
+		$this->write('position_close', $data);
 	}
 
 	/**

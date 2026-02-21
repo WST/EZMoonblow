@@ -632,11 +632,9 @@ class Market implements IMarket
 			return false;
 		}
 
-		// Use getStoredPosition() directly instead of getCurrentPosition().
-		// exchange->openPosition() already creates and saves a StoredPosition to DB.
-		// getCurrentPosition() has a fallback to getCurrentFuturesPosition() which
-		// would create a DUPLICATE position from exchange data if the DB lookup fails.
-		$position = $this->getStoredPosition();
+		// Use direction-aware lookup to find the just-created position.
+		// In Two-Way mode this avoids returning the wrong direction's position.
+		$position = $this->getStoredPositionByDirection($direction);
 		if ($position && !Logger::getLogger()->isBacktestMode()) {
 			QueueTask::addTelegramNotification_positionOpened($this, $position);
 		}
@@ -670,6 +668,21 @@ class Market implements IMarket
 			StoredPosition::FExchangeName => $this->getExchangeName(),
 			StoredPosition::FTicker => $this->getTicker(),
 			StoredPosition::FMarketType => $this->getMarketType()->value,
+			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+		];
+		return $this->database->selectOneObject($this->positionRecordClass, $where, $this);
+	}
+
+	/**
+	 * Get a stored position for this market filtered by direction.
+	 * Used in Two-Way mode where Long and Short positions coexist.
+	 */
+	public function getStoredPositionByDirection(PositionDirectionEnum $direction): IStoredPosition|false {
+		$where = [
+			StoredPosition::FExchangeName => $this->getExchangeName(),
+			StoredPosition::FTicker => $this->getTicker(),
+			StoredPosition::FMarketType => $this->getMarketType()->value,
+			StoredPosition::FDirection => $direction->value,
 			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 		];
 		return $this->database->selectOneObject($this->positionRecordClass, $where, $this);
@@ -715,21 +728,37 @@ class Market implements IMarket
 	 * @return void
 	 */
 	public function processTrading(): void {
-		// Do we have a Strategy?
 		$strategy = $this->getStrategy();
 		if (!$strategy) {
 			return;
 		}
 
-		// Do we already have an open position?
+		if ($strategy->isTwoWayMode()) {
+			$this->processTradingTwoWay($strategy);
+			return;
+		}
+
+		// One-way mode: original logic.
 		$currentPosition = $this->getCurrentPosition();
 		if ($currentPosition) {
-			// If position is open, update it (check for DCA, etc.)
 			$this->updatePosition($currentPosition);
 		} else {
-			// DEBUG: Log position class and table
 			$this->exchange->getLogger()->debug("[DEBUG] No position found for $this, positionRecordClass: {$this->positionRecordClass}");
 			$this->checkEntrySignals();
+		}
+	}
+
+	/**
+	 * Two-Way mode: independently manage Long and Short positions on the same pair.
+	 */
+	private function processTradingTwoWay(IStrategy $strategy): void {
+		foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $direction) {
+			$position = $this->getStoredPositionByDirection($direction);
+			if ($position) {
+				$this->updatePosition($position);
+			} else {
+				$this->checkEntrySignalForDirection($direction);
+			}
 		}
 	}
 
@@ -744,8 +773,6 @@ class Market implements IMarket
 			return;
 		}
 
-		// Check for entry signals first — avoid expensive checks when
-		// the strategy does not want to open a position anyway.
 		$wantsLong = $strategy->shouldLong();
 		$wantsShort = !$wantsLong && $this->isFutures() && $strategy->shouldShort();
 
@@ -753,55 +780,7 @@ class Market implements IMarket
 			return;
 		}
 
-		// Check if the exchange-wide position limit has been reached.
-		$maxPositions = $this->exchange->getMaxPositions();
-		if ($maxPositions !== null) {
-			$openCount = $this->database->countRows(
-				StoredPosition::getTableName(),
-				[
-					StoredPosition::FExchangeName => $this->getExchangeName(),
-					StoredPosition::FStatus => [PositionStatusEnum::OPEN->value, PositionStatusEnum::PENDING->value],
-				],
-			);
-			if ($openCount >= $maxPositions) {
-				$this->exchange->getLogger()->info(
-					"Position limit reached for {$this->getExchangeName()} ($openCount/$maxPositions), skipping entry for $this"
-				);
-				return;
-			}
-		}
-
-		// Validate exchange settings before trading.
-		// Results are cached (see VALIDATION_CACHE_TTL), so this does not
-		// hit the exchange API on every cycle.
-		$previousResult = $this->lastValidationResult;
-		$validation = $this->runValidation();
-
-		// Log messages only when the result has just been refreshed
-		// (i.e. it is a different object from the previous one) to
-		// avoid spamming the same errors every minute.
-		$isNewResult = ($validation !== $previousResult);
-
-		if (!$validation->isValid()) {
-			if ($isNewResult) {
-				foreach ($validation->getErrors() as $error) {
-					$this->exchange->getLogger()->error("Strategy validation failed for $this: $error");
-				}
-			}
-			return; // Do not attempt to trade.
-		}
-		if ($isNewResult) {
-			foreach ($validation->getWarnings() as $warning) {
-				$this->exchange->getLogger()->warning("Strategy warning for $this: $warning");
-			}
-		}
-
-		// Is trading enabled for this Pair?
-		if (!$this->pair->isTradingEnabled()) {
-			$this->exchange->getLogger()->info("Trading is disabled for $this");
-			if ($this->pair->isNotificationsEnabled()) {
-				$this->sendNewPositionIntentNotifications();
-			}
+		if (!$this->checkPositionLimitAndValidation()) {
 			return;
 		}
 
@@ -812,6 +791,98 @@ class Market implements IMarket
 			$this->exchange->getLogger()->info("Short signal detected for $this.");
 			$this->executeShortEntry();
 		}
+	}
+
+	/**
+	 * Check entry signal for a specific direction (Two-Way mode).
+	 * Unlike checkEntrySignals(), this does NOT prioritize Long over Short.
+	 */
+	protected function checkEntrySignalForDirection(PositionDirectionEnum $direction): void {
+		$strategy = $this->getStrategy();
+		if (!$strategy) {
+			return;
+		}
+
+		$wantsEntry = $direction->isLong()
+			? $strategy->shouldLong()
+			: ($this->isFutures() && $strategy->shouldShort());
+
+		if (!$wantsEntry) {
+			return;
+		}
+
+		if (!$this->checkPositionLimitAndValidation()) {
+			return;
+		}
+
+		if ($direction->isLong()) {
+			$this->exchange->getLogger()->info("Long signal detected for $this (two-way).");
+			$this->executeLongEntry();
+		} else {
+			$this->exchange->getLogger()->info("Short signal detected for $this (two-way).");
+			$this->executeShortEntry();
+		}
+	}
+
+	/**
+	 * Common pre-entry checks: position limit, exchange validation, trading enabled.
+	 * @return bool True if entry is allowed.
+	 */
+	private function checkPositionLimitAndValidation(): bool {
+		$maxPositions = $this->exchange->getMaxPositions();
+		if ($maxPositions !== null) {
+			$openSlots = $this->countOpenPositionSlots();
+			if ($openSlots >= $maxPositions) {
+				$this->exchange->getLogger()->info(
+					"Position limit reached for {$this->getExchangeName()} ($openSlots/$maxPositions), skipping entry for $this"
+				);
+				return false;
+			}
+		}
+
+		$previousResult = $this->lastValidationResult;
+		$validation = $this->runValidation();
+		$isNewResult = ($validation !== $previousResult);
+
+		if (!$validation->isValid()) {
+			if ($isNewResult) {
+				foreach ($validation->getErrors() as $error) {
+					$this->exchange->getLogger()->error("Strategy validation failed for $this: $error");
+				}
+			}
+			return false;
+		}
+		if ($isNewResult) {
+			foreach ($validation->getWarnings() as $warning) {
+				$this->exchange->getLogger()->warning("Strategy warning for $this: $warning");
+			}
+		}
+
+		if (!$this->pair->isTradingEnabled()) {
+			$this->exchange->getLogger()->info("Trading is disabled for $this");
+			if ($this->pair->isNotificationsEnabled()) {
+				$this->sendNewPositionIntentNotifications();
+			}
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
+	 * Count open position "slots" (unique tickers).
+	 * Long + Short on the same pair counts as one slot.
+	 */
+	private function countOpenPositionSlots(): int {
+		$table = StoredPosition::getTableName();
+		$exch = $this->database->escape($this->getExchangeName());
+		$open = PositionStatusEnum::OPEN->value;
+		$pending = PositionStatusEnum::PENDING->value;
+		$sql = "SELECT COUNT(DISTINCT position_ticker) AS cnt FROM `$table`"
+			. " WHERE position_exchange_name = '$exch'"
+			. " AND position_status IN ('$open', '$pending')";
+		$row = $this->database->exec($sql)->fetch_assoc();
+		return (int)($row['cnt'] ?? 0);
 	}
 
 	/**
@@ -1019,8 +1090,12 @@ class Market implements IMarket
 			// entry being missed due to price movement. DCA averaging levels are still
 			// placed as regular limit orders below.
 
-			// Clear any stale limit orders from a previous grid before placing new ones.
-			$this->removeLimitOrders();
+			// Clear stale limit orders for this direction before placing new ones.
+			if ($this->exchange instanceof BacktestExchange) {
+				$this->exchange->clearPendingLimitOrdersByDirection($this, $direction);
+			} else {
+				$this->removeLimitOrders();
+			}
 
 			// Pass volume in quote currency (USDT). Bybit::openPosition expects quote
 			// currency and converts to base internally. Do NOT pre-convert here, otherwise
@@ -1039,8 +1114,8 @@ class Market implements IMarket
 			}
 
 			// The position was already created and saved by exchange->openPosition().
-			// Use getStoredPosition() to avoid duplicate creation via exchange fallback.
-			$position = $this->getStoredPosition();
+			// Use direction-aware lookup to avoid returning wrong position in Two-Way mode.
+			$position = $this->getStoredPositionByDirection($direction);
 			if ($position && !Logger::getLogger()->isBacktestMode()) {
 				QueueTask::addTelegramNotification_positionOpened($this, $position);
 			}

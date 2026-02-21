@@ -16,6 +16,7 @@ use Izzy\Financial\Parameters\PriceDeviation;
 use Izzy\Financial\Parameters\PriceDeviationMultiplier;
 use Izzy\Financial\Parameters\PriceDeviationMultiplierShort;
 use Izzy\Financial\Parameters\PriceDeviationShort;
+use Izzy\Financial\Parameters\TwoWayMode;
 use Izzy\Financial\Parameters\UseLimitOrders;
 use Izzy\Financial\Parameters\VolumeMultiplier;
 use Izzy\Financial\Parameters\VolumeMultiplierShort;
@@ -110,6 +111,13 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	 */
 	public function shouldShort(): bool {
 		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function isTwoWayMode(): bool {
+		return ($this->params[TwoWayMode::getName()] ?? null)?->getValue() === true;
 	}
 
 	/**

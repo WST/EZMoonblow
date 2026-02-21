@@ -13,6 +13,7 @@ use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Backtest\BacktestRiskRatios;
 use Izzy\Backtest\BacktestTradeStats;
 use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
 use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
@@ -457,57 +458,46 @@ class Backtester extends ConsoleApplication
 					$market->calculateIndicators();
 
 					// --- 3. processTrading: entry signals / position updates ---
-					// Snapshot position state before processTrading for event detection.
-					$preVolume = null;
-					$preSL = null;
-					$posCountBefore = 0;
+					// Snapshot per-direction state before processTrading for event detection.
+					$preSnap = []; // direction => ['volume' => float, 'sl' => ?float]
 					if ($writer !== null) {
-						$posCountBefore = $this->database->countRows(
-							BacktestStoredPosition::getTableName(),
-							[
-								BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
-								BacktestStoredPosition::FTicker => $market->getTicker(),
-								BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
-								BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
-							]
-						);
-						$existingPos = $market->getStoredPosition();
-						if ($existingPos !== false) {
-							$preVolume = $existingPos->getVolume()->getAmount();
-							$preSL = $existingPos->getStopLossPrice()?->getAmount();
+						foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $snapDir) {
+							$pos = $market->getStoredPositionByDirection($snapDir);
+							if ($pos !== false) {
+								$preSnap[$snapDir->value] = [
+									'volume' => $pos->getVolume()->getAmount(),
+									'sl' => $pos->getStopLossPrice()?->getAmount(),
+								];
+							}
 						}
 					}
 					$market->processTrading();
 					// Detect events that occurred during processTrading.
 					if ($writer !== null) {
-						$posCountAfter = $this->database->countRows(
-							BacktestStoredPosition::getTableName(),
-							[
-								BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
-								BacktestStoredPosition::FTicker => $market->getTicker(),
-								BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
-								BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
-							]
-						);
-						// New position opened.
-						if ($posCountAfter > $posCountBefore) {
-							$newPos = $market->getStoredPosition();
-							if ($newPos !== false) {
-							$writer->writePositionOpen(
-								$newPos->getDirection()->value,
-								$newPos->getAverageEntryPrice()->getAmount(),
-								$newPos->getVolume()->getAmount(),
-								$candleTime,
-							);
+						foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $snapDir) {
+							$postPos = $market->getStoredPositionByDirection($snapDir);
+							$had = isset($preSnap[$snapDir->value]);
+							if ($postPos === false) {
+								continue;
 							}
-						}
-						// DCA fill: volume increased while the same position stays open.
-						if ($preVolume !== null) {
-							$postPos = $market->getStoredPosition();
-							if ($postPos !== false) {
-								$postVolume = $postPos->getVolume()->getAmount();
-								$postSL = $postPos->getStopLossPrice()?->getAmount();
-								if ($postVolume > $preVolume) {
+							$postVolume = $postPos->getVolume()->getAmount();
+							$postSL = $postPos->getStopLossPrice()?->getAmount();
+
+							if (!$had) {
+								// New position opened.
+								$writer->writePositionOpen(
+									$postPos->getDirection()->value,
+									$postPos->getAverageEntryPrice()->getAmount(),
+									$postVolume,
+									$candleTime,
+								);
+								continue;
+							}
+
+							$preVolume = $preSnap[$snapDir->value]['volume'];
+							$preSL = $preSnap[$snapDir->value]['sl'];
+
+							if ($postVolume > $preVolume) {
 								$writer->writeDCAFill(
 									$postPos->getDirection()->value,
 									$tickPrice,
@@ -516,20 +506,17 @@ class Backtester extends ConsoleApplication
 									$postVolume,
 									$candleTime,
 								);
-								}
-							// Volume decreased — partial close or Breakeven Lock.
+							}
 							if ($postVolume < $preVolume) {
 								$closedVolume = $preVolume - $postVolume;
 								$entry = $postPos->getAverageEntryPrice()->getAmount();
 
 								if ($postSL !== null && $postSL !== $preSL) {
-									// SL moved — Breakeven Lock.
 									$lockedProfit = $postPos->getDirection()->isLong()
 										? $closedVolume * ($postSL - $entry)
 										: $closedVolume * ($entry - $postSL);
 									$writer->writeBreakevenLock($closedVolume, $postSL, abs($lockedProfit), $candleTime);
 								} else {
-									// SL unchanged — Partial Close.
 									$closePrice = $tickPrice;
 									$lockedProfit = $postPos->getDirection()->isLong()
 										? $closedVolume * ($closePrice - $entry)
@@ -537,7 +524,6 @@ class Backtester extends ConsoleApplication
 									$writer->writePartialClose($closedVolume, $closePrice, abs($lockedProfit), $candleTime);
 								}
 								$writer->writeBalance($backtestExchange->getVirtualBalance()->getAmount());
-							}
 							}
 						}
 					}
@@ -549,19 +535,19 @@ class Backtester extends ConsoleApplication
 							? ($tickPrice <= $orderPrice)
 							: ($tickPrice >= $orderPrice);
 						if ($filled) {
-							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price']);
+							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price'], $order['direction']);
 							$backtestExchange->removePendingLimitOrder($market, $order['orderId']);
 							if ($writer !== null) {
-								$filledPos = $market->getStoredPosition();
+								$filledPos = $market->getStoredPositionByDirection($order['direction']);
 								if ($filledPos !== false) {
-							$writer->writeDCAFill(
-									$order['direction']->value,
-									$order['price'],
-									$order['volumeBase'],
-									$filledPos->getAverageEntryPrice()->getAmount(),
-									$filledPos->getVolume()->getAmount(),
-									$candleTime,
-								);
+									$writer->writeDCAFill(
+										$order['direction']->value,
+										$order['price'],
+										$order['volumeBase'],
+										$filledPos->getAverageEntryPrice()->getAmount(),
+										$filledPos->getVolume()->getAmount(),
+										$candleTime,
+									);
 								}
 							}
 						}
@@ -606,13 +592,13 @@ class Backtester extends ConsoleApplication
 						$position->save();
 						$backtestExchange->creditBalance($profit);
 						$backtestExchange->deductTradeFee($position->getVolume()->getAmount() * $tp);
-						$backtestExchange->clearPendingLimitOrders($market);
+						$backtestExchange->clearPendingLimitOrdersByDirection($market, $position->getDirection());
 						$closedPositionIds[] = spl_object_id($position);
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$dir = $position->getDirection()->value;
 						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 						if ($writer !== null) {
-						$writer->writePositionClose($tp, $profit, 'TP', $candleTime);
+						$writer->writePositionClose($tp, $profit, 'TP', $candleTime, $dir);
 						$writer->writeBalance($balanceAfter);
 					}
 					}
@@ -642,13 +628,13 @@ class Backtester extends ConsoleApplication
 						$position->save();
 						$backtestExchange->creditBalance($pnl);
 						$backtestExchange->deductTradeFee($position->getVolume()->getAmount() * $sl);
-						$backtestExchange->clearPendingLimitOrders($market);
+						$backtestExchange->clearPendingLimitOrdersByDirection($market, $position->getDirection());
 						$closedPositionIds[] = spl_object_id($position);
 						$dir = $position->getDirection()->value;
 						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
 						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
 						if ($writer !== null) {
-						$writer->writePositionClose($sl, $pnl, 'SL', $candleTime);
+						$writer->writePositionClose($sl, $pnl, 'SL', $candleTime, $dir);
 						$writer->writeBalance($balanceAfter);
 					}
 						$strategy = $market->getStrategy();

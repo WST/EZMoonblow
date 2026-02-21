@@ -102,6 +102,13 @@ abstract class AbstractStrategy implements IStrategy
 	/**
 	 * @inheritDoc
 	 */
+	public function isTwoWayMode(): bool {
+		return false;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function useIndicators(): array {
 		return [];
 	}

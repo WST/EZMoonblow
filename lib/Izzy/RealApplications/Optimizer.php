@@ -413,7 +413,7 @@ class Optimizer extends ConsoleApplication
 							? ($tickPrice <= $orderPrice)
 							: ($tickPrice >= $orderPrice);
 						if ($filled) {
-							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price']);
+							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price'], $order['direction']);
 							$backtestExchange->removePendingLimitOrder($market, $order['orderId']);
 						}
 					}
@@ -449,7 +449,7 @@ class Optimizer extends ConsoleApplication
 						$position->setFinishReason(PositionFinishReasonEnum::TAKE_PROFIT_MARKET);
 						$position->save();
 						$backtestExchange->creditBalance($profit);
-						$backtestExchange->clearPendingLimitOrders($market);
+						$backtestExchange->clearPendingLimitOrdersByDirection($market, $position->getDirection());
 						$closedPositionIds[] = spl_object_id($position);
 					}
 
@@ -474,7 +474,7 @@ class Optimizer extends ConsoleApplication
 						$position->setFinishReason(PositionFinishReasonEnum::STOP_LOSS_MARKET);
 						$position->save();
 						$backtestExchange->creditBalance($pnl);
-						$backtestExchange->clearPendingLimitOrders($market);
+						$backtestExchange->clearPendingLimitOrdersByDirection($market, $position->getDirection());
 						$closedPositionIds[] = spl_object_id($position);
 						$strategy = $market->getStrategy();
 						if ($strategy instanceof AbstractSingleEntryStrategy) {

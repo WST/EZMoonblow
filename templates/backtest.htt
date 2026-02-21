@@ -421,6 +421,58 @@
 	}
 	.info-value.positive { color: #2e7d32; }
 	.info-value.negative { color: #c62828; }
+	/* Position panel */
+	.position-columns {
+		display: flex;
+		gap: 0;
+	}
+	.pos-col {
+		flex: 1;
+		min-width: 0;
+	}
+	.pos-col-divider {
+		width: 1px;
+		background: #dee2e6;
+		margin: 0 10px;
+		flex-shrink: 0;
+	}
+	.pos-dir-label {
+		font-size: 10px;
+		font-weight: 700;
+		letter-spacing: 0.5px;
+		text-transform: uppercase;
+		margin-bottom: 6px;
+		padding-bottom: 4px;
+		border-bottom: 2px solid transparent;
+	}
+	.pos-dir-label.long  { color: #26a69a; border-bottom-color: #26a69a; }
+	.pos-dir-label.short { color: #ef5350; border-bottom-color: #ef5350; }
+	.pos-dir-label.inactive { color: #ccc; border-bottom-color: #eee; }
+	.pos-field {
+		display: flex;
+		justify-content: space-between;
+		align-items: baseline;
+		padding: 2px 0;
+		line-height: 16px;
+	}
+	.pos-field .pos-label {
+		font-size: 10px;
+		color: #aaa;
+		text-transform: uppercase;
+		flex-shrink: 0;
+	}
+	.pos-field .pos-value {
+		font-size: 11px;
+		font-weight: 600;
+		color: #333;
+		text-align: right;
+		white-space: nowrap;
+		overflow: hidden;
+		text-overflow: ellipsis;
+	}
+	.pos-field .pos-value.pos-empty { color: #ddd; font-weight: 400; }
+	.pos-field .pos-value.pos-positive { color: #2e7d32; }
+	.pos-field .pos-value.pos-negative { color: #c62828; }
 	/* DCA grid tables */
 	.dca-grid-section { margin-bottom: 12px; }
 	.dca-grid-section:last-child { margin-bottom: 0; }
@@ -548,16 +600,31 @@
 				<span class="info-value" id="info-balance">--</span>
 			</div>
 			<div class="info-item">
-				<span class="info-label">Position</span>
-				<span class="info-value" id="info-position">--</span>
-			</div>
-			<div class="info-item">
 				<span class="info-label">Realized PnL</span>
 				<span class="info-value" id="info-pnl">--</span>
 			</div>
 			<div class="info-item">
 				<span class="info-label">Status</span>
 				<span class="info-value" id="info-status">Idle</span>
+			</div>
+		</div>
+
+		<div class="right-sidebar-panel" id="position-panel">
+			<h3>Position</h3>
+			<div class="position-columns">
+				<div class="pos-col">
+					<div class="pos-dir-label long inactive" id="pos-long-header">Long</div>
+					<div class="pos-field"><span class="pos-label">Entry</span><span class="pos-value pos-empty" id="pos-long-entry">—</span></div>
+					<div class="pos-field"><span class="pos-label">Size</span><span class="pos-value pos-empty" id="pos-long-size">—</span></div>
+					<div class="pos-field"><span class="pos-label">uPnL</span><span class="pos-value pos-empty" id="pos-long-upnl">—</span></div>
+				</div>
+				<div class="pos-col-divider"></div>
+				<div class="pos-col">
+					<div class="pos-dir-label short inactive" id="pos-short-header">Short</div>
+					<div class="pos-field"><span class="pos-label">Entry</span><span class="pos-value pos-empty" id="pos-short-entry">—</span></div>
+					<div class="pos-field"><span class="pos-label">Size</span><span class="pos-value pos-empty" id="pos-short-size">—</span></div>
+					<div class="pos-field"><span class="pos-label">uPnL</span><span class="pos-value pos-empty" id="pos-short-upnl">—</span></div>
+				</div>
 			</div>
 		</div>
 
@@ -631,8 +698,9 @@
 	let initialBalance = 0;
 	let currentBalance = 0;
 	let realizedBalance = 0;
-	let currentPosition = null;
-	let dcaFilledLevel = 0; // Highest filled DCA level (0 = entry only).
+	let currentPositions = {}; // dir => { dir, price, volume }
+	let dcaFilledLevels = {}; // dir => int
+	let lastPrice = 0;
 
 	// Liquidation alarm sound (preloaded).
 	const liquidationSound = new Audio('/extras/liquidated.m4a');
@@ -668,7 +736,6 @@
 	const elProgressBar = document.getElementById('progress-bar');
 	const elProgressText = document.getElementById('progress-text');
 	const elInfoBalance = document.getElementById('info-balance');
-	const elInfoPosition = document.getElementById('info-position');
 	const elInfoPnl = document.getElementById('info-pnl');
 	const elInfoStatus = document.getElementById('info-status');
 	const elResultsPanel = document.getElementById('results-panel');
@@ -1110,13 +1177,60 @@
 		return v.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',') + ' USDT';
 	}
 
+	/** Format a price for display (adaptive decimals). */
+	function formatPrice(p) {
+		if (p >= 1) return p.toFixed(4);
+		if (p >= 0.01) return p.toFixed(6);
+		return p.toFixed(8);
+	}
+
+	/** Update the POSITION panel in the right sidebar. */
+	function updatePositionPanel() {
+		['LONG', 'SHORT'].forEach(dir => {
+			const key = dir.toLowerCase();
+			const header = document.getElementById('pos-' + key + '-header');
+			const elEntry = document.getElementById('pos-' + key + '-entry');
+			const elSize  = document.getElementById('pos-' + key + '-size');
+			const elUpnl  = document.getElementById('pos-' + key + '-upnl');
+			const pos = currentPositions[dir];
+			if (!pos) {
+				header.className = 'pos-dir-label ' + key + ' inactive';
+				elEntry.textContent = '—';
+				elEntry.className = 'pos-value pos-empty';
+				elSize.textContent = '—';
+				elSize.className = 'pos-value pos-empty';
+				elUpnl.textContent = '—';
+				elUpnl.className = 'pos-value pos-empty';
+				return;
+			}
+			header.className = 'pos-dir-label ' + key;
+			elEntry.textContent = formatPrice(pos.price);
+			elEntry.className = 'pos-value';
+			const notional = pos.price * pos.volume;
+			elSize.textContent = formatMoney(notional);
+			elSize.className = 'pos-value';
+			if (lastPrice > 0) {
+				const pnl = dir === 'LONG'
+					? (lastPrice - pos.price) * pos.volume
+					: (pos.price - lastPrice) * pos.volume;
+				const sign = pnl >= 0 ? '+' : '';
+				elUpnl.textContent = sign + pnl.toFixed(2);
+				elUpnl.className = 'pos-value ' + (pnl >= 0 ? 'pos-positive' : 'pos-negative');
+			} else {
+				elUpnl.textContent = '—';
+				elUpnl.className = 'pos-value pos-empty';
+			}
+		});
+	}
+
 	/** Highlight filled DCA levels in the order grid tables. */
 	function updateGridHighlights() {
 		const rows = elDCAGridsContainer.querySelectorAll('tr[data-dir][data-level]');
 		rows.forEach(row => {
 			const rowDir = row.dataset.dir;
 			const rowLevel = parseInt(row.dataset.level);
-			if (currentPosition && currentPosition.dir === rowDir && rowLevel <= dcaFilledLevel) {
+			const pos = currentPositions[rowDir];
+			if (pos && rowLevel <= (dcaFilledLevels[rowDir] || 0)) {
 				row.classList.add('grid-filled');
 			} else {
 				row.classList.remove('grid-filled');
@@ -1245,11 +1359,13 @@
 		renderedCandles = 0;
 		totalCandles = 0;
 		markers = [];
-		currentPosition = null;
-		dcaFilledLevel = 0;
+		currentPositions = {};
+		dcaFilledLevels = {};
+		lastPrice = 0;
 		currentBalance = 0;
 		realizedBalance = 0;
 		initialBalance = body.initialBalance;
+		updatePositionPanel();
 
 		// Fully recreate chart to reset price scale for the new asset.
 		resetChart();
@@ -1392,18 +1508,19 @@
 		renderedCandles = 0;
 		totalCandles = 0;
 		markers = [];
-		currentPosition = null;
-		dcaFilledLevel = 0;
+		currentPositions = {};
+		dcaFilledLevels = {};
+		lastPrice = 0;
 		currentBalance = 0;
 		realizedBalance = 0;
 		sessionId = null;
+		updatePositionPanel();
 
 		// Fully recreate chart to reset price scale.
 		resetChart();
 
 		// Reset info panel.
 		elInfoBalance.textContent = '--';
-		elInfoPosition.textContent = '--';
 		elInfoPnl.textContent = '--';
 		elInfoPnl.className = 'info-value';
 		elInfoStatus.textContent = 'Idle';
@@ -1439,36 +1556,43 @@
 				break;
 
 			case 'position_open':
-				currentPosition = { dir: evt.dir, price: evt.price, volume: evt.volume };
-				dcaFilledLevel = 0;
-				elInfoPosition.textContent = evt.dir + ' @ ' + evt.price.toFixed(4) + ' (' + formatMoney(evt.price * evt.volume) + ')';
+				currentPositions[evt.dir] = { dir: evt.dir, price: evt.price, volume: evt.volume };
+				dcaFilledLevels[evt.dir] = 0;
+				updatePositionPanel();
 				addMarker(evt.time, evt.dir === 'LONG' ? 'arrowUp' : 'arrowDown',
 					evt.dir === 'LONG' ? '#26a69a' : '#ef5350',
 					evt.dir === 'LONG' ? 'L' : 'S');
 				updateGridHighlights();
 				break;
 
-			case 'position_close':
-				currentPosition = null;
-				dcaFilledLevel = 0;
-				elInfoPosition.textContent = '--';
+			case 'position_close': {
+				const closeDir = evt.dir || Object.keys(currentPositions)[0] || '';
+				if (closeDir) {
+					delete currentPositions[closeDir];
+					delete dcaFilledLevels[closeDir];
+				}
+				updatePositionPanel();
 				const shape = evt.reason === 'TP' ? 'circle' : (evt.reason === 'SL' ? 'circle' : 'diamond');
 				const color = evt.pnl >= 0 ? '#26a69a' : '#ef5350';
 				addMarker(evt.time, shape, color, evt.reason);
 				updateGridHighlights();
 				break;
+			}
 
-			case 'dca_fill':
-				dcaFilledLevel++;
-				if (currentPosition) {
-					currentPosition.volume = evt.totalVolume;
-					currentPosition.price = evt.newAvgEntry;
-					elInfoPosition.textContent = currentPosition.dir + ' @ ' + evt.newAvgEntry.toFixed(4) + ' (' + formatMoney(evt.newAvgEntry * evt.totalVolume) + ')';
+			case 'dca_fill': {
+				const fillDir = evt.dir || 'LONG';
+				dcaFilledLevels[fillDir] = (dcaFilledLevels[fillDir] || 0) + 1;
+				const pos = currentPositions[fillDir];
+				if (pos) {
+					pos.volume = evt.totalVolume;
+					pos.price = evt.newAvgEntry;
 				}
+				updatePositionPanel();
 				addMarker(evt.time, 'arrowUp', '#ff9800',
 					evt.dir === 'LONG' ? 'DCA↓' : 'DCA↑');
 				updateGridHighlights();
 				break;
+			}
 
 			case 'breakeven_lock':
 				addMarker(evt.time, 'diamond', '#ff9800', 'BL');
@@ -1523,6 +1647,8 @@
 			close: evt.c,
 		};
 		candleSeries.update(candleData);
+		lastPrice = evt.c;
+		updatePositionPanel();
 
 		// Bollinger Bands overlay.
 		if (evt.ind) {

@@ -127,6 +127,15 @@ interface IExchangeDriver
 	public function getCurrentFuturesPosition(IMarket $market): IPositionOnExchange|false;
 
 	/**
+	 * Get current futures position filtered by direction (Two-Way mode safe).
+	 *
+	 * @param IMarket $market Market to check.
+	 * @param PositionDirectionEnum $direction Position direction to look for.
+	 * @return IPositionOnExchange|false Position data or false if no position exists.
+	 */
+	public function getCurrentFuturesPositionByDirection(IMarket $market, PositionDirectionEnum $direction): IPositionOnExchange|false;
+
+	/**
 	 * Place a limit order.
 	 * @param IMarket $market Active Market to place the order into.
 	 * @param Money $amount Amount in the base currency.

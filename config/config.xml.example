@@ -51,6 +51,8 @@
 						<param name="VolumeMultiplier" value="1.45"/>
 						<param name="PriceDeviationMultiplier" value="1.7"/>
 						<param name="ExpectedProfit" value="5%"/>
+						<!-- Two-Way Mode -->
+						<param name="TwoWayMode" value="true"/>
 						<!-- Short -->
 						<param name="NumberOfLevelsShort" value="6" />
 						<param name="InitialEntryVolumeShort" value="40" />

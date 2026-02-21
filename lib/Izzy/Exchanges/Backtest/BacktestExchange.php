@@ -203,6 +203,21 @@ class BacktestExchange implements IExchangeDriver
 		return new BacktestPositionOnExchange($market, $position);
 	}
 
+	public function getCurrentFuturesPositionByDirection(IMarket $market, PositionDirectionEnum $direction): IPositionOnExchange|false {
+		$where = [
+			BacktestStoredPosition::FExchangeName => $this->getName(),
+			BacktestStoredPosition::FTicker => $market->getTicker(),
+			BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
+			BacktestStoredPosition::FDirection => $direction->value,
+			BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+		];
+		$position = $this->database->selectOneObject(BacktestStoredPosition::class, $where);
+		if (!$position instanceof BacktestStoredPosition) {
+			return false;
+		}
+		return new BacktestPositionOnExchange($market, $position);
+	}
+
 	public function placeLimitOrder(
 		IMarket $market,
 		Money $amount,
@@ -214,15 +229,14 @@ class BacktestExchange implements IExchangeDriver
 		if (!$currentPrice) {
 			return false;
 		}
-		// Do not deduct from balance: margin stays on the account and only funds the position.
 		$orderId = 'bt-' . (++$this->orderIdCounter);
-		$key = $this->marketKey($market);
+		$key = $this->directionKey($market, $direction);
 		// Entry order (takeProfitPercent set): Market::openPositionByDCAGrid creates the position. Do not create here.
-		// Clear any stale pending orders for this market so we only have orders from the current grid.
+		// Clear any stale pending orders for this direction so we only have orders from the current grid.
 		if ($takeProfitPercent !== null) {
 			unset($this->pendingLimitOrders[$key]);
 		}
-		// Grid level (takeProfitPercent null): do not create a position; record as pending limit order to fill when price is reached.
+		// Grid level (takeProfitPercent null): record as pending limit order to fill when price is reached.
 		if ($takeProfitPercent === null) {
 			if (!isset($this->pendingLimitOrders[$key])) {
 				$this->pendingLimitOrders[$key] = [];
@@ -240,36 +254,44 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 	/**
-	 * Get pending limit orders (grid levels) for a market. When price reaches the order level, the backtester should call addToPosition and removePendingLimitOrder.
+	 * Get all pending limit orders for a market (both directions).
 	 * @return list<array{orderId: string, price: float, volumeBase: float, direction: PositionDirectionEnum}>
 	 */
 	public function getPendingLimitOrders(IMarket $market): array {
-		$key = $this->marketKey($market);
-		return $this->pendingLimitOrders[$key] ?? [];
+		$longKey = $this->directionKey($market, PositionDirectionEnum::LONG);
+		$shortKey = $this->directionKey($market, PositionDirectionEnum::SHORT);
+		return array_merge(
+			$this->pendingLimitOrders[$longKey] ?? [],
+			$this->pendingLimitOrders[$shortKey] ?? [],
+		);
 	}
 
 	/**
-	 * Remove a filled pending limit order.
+	 * Remove a filled pending limit order (searches both direction buckets).
 	 */
 	public function removePendingLimitOrder(IMarket $market, string $orderId): void {
-		$key = $this->marketKey($market);
-		if (!isset($this->pendingLimitOrders[$key])) {
-			return;
-		}
-		$this->pendingLimitOrders[$key] = array_values(array_filter(
-			$this->pendingLimitOrders[$key],
-			fn($o) => $o['orderId'] !== $orderId
-		));
-		if ($this->pendingLimitOrders[$key] === []) {
-			unset($this->pendingLimitOrders[$key]);
+		foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $dir) {
+			$key = $this->directionKey($market, $dir);
+			if (!isset($this->pendingLimitOrders[$key])) {
+				continue;
+			}
+			$this->pendingLimitOrders[$key] = array_values(array_filter(
+				$this->pendingLimitOrders[$key],
+				fn($o) => $o['orderId'] !== $orderId
+			));
+			if ($this->pendingLimitOrders[$key] === []) {
+				unset($this->pendingLimitOrders[$key]);
+			}
 		}
 	}
 
 	/**
 	 * Add filled grid level to the existing position (DCA): update volume and average entry, recalc TP from new average.
 	 */
-	public function addToPosition(IMarket $market, float $volumeBase, float $fillPrice): bool {
-		$position = $market->getStoredPosition();
+	public function addToPosition(IMarket $market, float $volumeBase, float $fillPrice, ?PositionDirectionEnum $direction = null): bool {
+		$position = $direction !== null
+			? $market->getStoredPositionByDirection($direction)
+			: $market->getStoredPosition();
 		if (!$position instanceof BacktestStoredPosition) {
 			return false;
 		}
@@ -298,12 +320,25 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 	/**
-	 * Clear all pending limit orders for a market.
-	 * Called when a position is closed to remove stale DCA orders.
+	 * Clear all pending limit orders for a market (both directions).
 	 */
 	public function clearPendingLimitOrders(IMarket $market): void {
-		$key = $this->marketKey($market);
+		$longKey = $this->directionKey($market, PositionDirectionEnum::LONG);
+		$shortKey = $this->directionKey($market, PositionDirectionEnum::SHORT);
+		unset($this->pendingLimitOrders[$longKey], $this->pendingLimitOrders[$shortKey]);
+	}
+
+	/**
+	 * Clear pending limit orders for a specific direction only.
+	 * Used in Two-Way mode so that closing one side doesn't destroy the other side's grid.
+	 */
+	public function clearPendingLimitOrdersByDirection(IMarket $market, PositionDirectionEnum $direction): void {
+		$key = $this->directionKey($market, $direction);
 		unset($this->pendingLimitOrders[$key]);
+	}
+
+	private function directionKey(IMarket $market, PositionDirectionEnum $direction): string {
+		return $this->marketKey($market) . '_' . $direction->value;
 	}
 
 

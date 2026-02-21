@@ -515,8 +515,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 					Logger::getLogger()->debug("Entry order not found for $market, turning the position OPEN");
 					$this->setStatus(PositionStatusEnum::OPEN);
 					
-					// Get the actual position from exchange to update our stored data.
-					$positionOnExchange = $exchange->getCurrentFuturesPosition($market);
+					$positionOnExchange = $exchange->getCurrentFuturesPositionByDirection($market, $this->getDirection());
 					if ($positionOnExchange) {
 						$this->setAverageEntryPrice($positionOnExchange->getAverageEntryPrice());
 						$this->setVolume($positionOnExchange->getVolume());
@@ -540,8 +539,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 			}
 
 			if ($currentStatus->isOpen()) {
-				// To turn Open into Finished, we need to ensure that the position on the Exchange is finished.
-				$positionOnExchange = $exchange->getCurrentFuturesPosition($market);
+				$positionOnExchange = $exchange->getCurrentFuturesPositionByDirection($market, $this->getDirection());
 				if (!$positionOnExchange) {
 					if ($market->removeLimitOrders()) {
 						$this->setStatus(PositionStatusEnum::FINISHED);
@@ -550,7 +548,6 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 						Logger::getLogger()->error("Failed to cancel limit orders for $market");
 					}
 				} else {
-					// Position still exists on exchange, update all relevant data.
 					$this->setCurrentPrice($positionOnExchange->getCurrentPrice());
 					$this->setAverageEntryPrice($positionOnExchange->getAverageEntryPrice());
 					$this->setVolume($positionOnExchange->getVolume());

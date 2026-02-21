@@ -315,6 +315,16 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	/**
 	 * @inheritDoc
 	 *
+	 * Default: delegates to getCurrentFuturesPosition (no direction filter).
+	 * Override in exchange-specific drivers for proper Two-Way mode support.
+	 */
+	public function getCurrentFuturesPositionByDirection(IMarket $market, PositionDirectionEnum $direction): \Izzy\Interfaces\IPositionOnExchange|false {
+		return $this->getCurrentFuturesPosition($market);
+	}
+
+	/**
+	 * @inheritDoc
+	 *
 	 * Default: not supported. Override in exchange-specific drivers.
 	 */
 	public function placeLimitClose(
