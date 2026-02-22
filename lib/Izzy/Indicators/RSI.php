@@ -8,69 +8,176 @@ use Izzy\Interfaces\IMarket;
 /**
  * Relative Strength Index (RSI) indicator.
  * Measures the speed and magnitude of price changes to identify overbought or oversold conditions.
+ *
+ * Incremental: after the initial full calculation, each subsequent tick
+ * recomputes only the last RSI value in O(1).
  */
 class RSI extends AbstractIndicator
 {
-	/**
-	 * Default RSI period.
-	 */
 	private const int DEFAULT_PERIOD = 14;
-
-	/**
-	 * Default overbought threshold.
-	 */
 	private const int DEFAULT_OVERBOUGHT = 69;
-
-	/**
-	 * Default oversold threshold.
-	 */
 	private const int DEFAULT_OVERSOLD = 31;
 
-	/**
-	 * Get indicator name.
-	 *
-	 * @return string Indicator name.
-	 */
+	/** avgGain at the second-to-last position (base for recomputing the last value). */
+	private float $baseAvgGain = 0.0;
+	private float $baseAvgLoss = 0.0;
+
+	/** Current avgGain/avgLoss for the last position (updated on every tick). */
+	private float $lastAvgGain = 0.0;
+	private float $lastAvgLoss = 0.0;
+
+	/** @var float[] Incrementally maintained RSI values. */
+	private array $rsiValues = [];
+	/** @var int[] Corresponding timestamps. */
+	private array $rsiTimestamps = [];
+	/** @var string[] Corresponding signals. */
+	private array $rsiSignals = [];
+
+	private bool $initialized = false;
+
 	public static function getName(): string {
 		return 'RSI';
 	}
 
-	/**
-	 * Calculate RSI values for the given market.
-	 *
-	 * @param IMarket $market Market with candle data.
-	 * @return IndicatorResult RSI calculation result.
-	 */
 	public function calculate(IMarket $market): IndicatorResult {
 		$period = $this->parameters['period'] ?? self::DEFAULT_PERIOD;
 		$overbought = $this->parameters['overbought'] ?? self::DEFAULT_OVERBOUGHT;
 		$oversold = $this->parameters['oversold'] ?? self::DEFAULT_OVERSOLD;
 
 		$candles = $market->getCandles();
-		if (count($candles) < $period + 1) {
+		$n = count($candles);
+
+		if ($n < $period + 1) {
 			return new IndicatorResult([], [], []);
 		}
 
-		$closePrices = $this->getClosePrices($candles);
-		$timestamps = $this->getTimestamps($candles);
+		$newCandles = $this->syncPrices($candles);
 
-		$rsiValues = $this->calculateRSI($closePrices, $period);
-		$signals = $this->generateSignals($rsiValues, $overbought, $oversold);
+		if (!$this->initialized) {
+			$this->fullCalculate($period, $overbought, $oversold);
+			$this->initialized = true;
+		} elseif ($newCandles > 0) {
+			if ($newCandles > 1) {
+				$this->fullCalculate($period, $overbought, $oversold);
+			} else {
+				// Advance base state from the finalized previous value.
+				$this->baseAvgGain = $this->lastAvgGain;
+				$this->baseAvgLoss = $this->lastAvgLoss;
 
-		// Adjust timestamps to match RSI values (skip first period)
-		$rsiTimestamps = array_slice($timestamps, $period);
+				$change = $this->closePrices[$n - 1] - $this->closePrices[$n - 2];
+				$this->lastAvgGain = (($this->baseAvgGain * ($period - 1)) + max($change, 0)) / $period;
+				$this->lastAvgLoss = (($this->baseAvgLoss * ($period - 1)) + max(-$change, 0)) / $period;
 
-		return new IndicatorResult($rsiValues, $rsiTimestamps, $signals);
+				$rsi = $this->computeRSI($this->lastAvgGain, $this->lastAvgLoss);
+				$this->rsiValues[] = $rsi;
+				$this->rsiTimestamps[] = $this->timestamps[$n - 1];
+				$this->rsiSignals[] = self::classifySignal($rsi, $overbought, $oversold);
+			}
+		}
+
+		// Partial candle update: recompute last RSI from base state + current close.
+		$change = $this->closePrices[$n - 1] - $this->closePrices[$n - 2];
+		$this->lastAvgGain = (($this->baseAvgGain * ($period - 1)) + max($change, 0)) / $period;
+		$this->lastAvgLoss = (($this->baseAvgLoss * ($period - 1)) + max(-$change, 0)) / $period;
+
+		$rsi = $this->computeRSI($this->lastAvgGain, $this->lastAvgLoss);
+		$lastIdx = count($this->rsiValues) - 1;
+		$this->rsiValues[$lastIdx] = $rsi;
+		$this->rsiSignals[$lastIdx] = self::classifySignal($rsi, $overbought, $oversold);
+
+		return new IndicatorResult($this->rsiValues, $this->rsiTimestamps, $this->rsiSignals);
 	}
 
 	/**
-	 * Calculate RSI values directly from an array of close prices.
-	 * Convenience method for strategies that compute RSI without
-	 * going through the indicator system.
-	 *
-	 * @param float[] $closePrices Array of close prices.
-	 * @param int $period RSI period (default 14).
-	 * @return float[] Array of RSI values.
+	 * Full calculation with base-state extraction.
+	 */
+	private function fullCalculate(int $period, float $overbought, float $oversold): void {
+		$prices = $this->closePrices;
+		$count = count($prices);
+
+		$changes = [];
+		for ($i = 1; $i < $count; $i++) {
+			$changes[] = $prices[$i] - $prices[$i - 1];
+		}
+
+		$sumGain = 0.0;
+		$sumLoss = 0.0;
+		for ($i = 0; $i < $period; $i++) {
+			if ($changes[$i] > 0) $sumGain += $changes[$i];
+			else $sumLoss += abs($changes[$i]);
+		}
+		$avgGain = $sumGain / $period;
+		$avgLoss = $sumLoss / $period;
+
+		$this->rsiValues = [];
+		$this->rsiTimestamps = [];
+		$this->rsiSignals = [];
+
+		$rsi = $this->computeRSI($avgGain, $avgLoss);
+		$this->rsiValues[] = $rsi;
+		$this->rsiTimestamps[] = $this->timestamps[$period];
+		$this->rsiSignals[] = self::classifySignal($rsi, $overbought, $oversold);
+
+		$prevAvgGain = $avgGain;
+		$prevAvgLoss = $avgLoss;
+
+		for ($i = $period; $i < count($changes); $i++) {
+			$c = $changes[$i];
+			$avgGain = (($prevAvgGain * ($period - 1)) + max($c, 0)) / $period;
+			$avgLoss = (($prevAvgLoss * ($period - 1)) + max(-$c, 0)) / $period;
+
+			$rsi = $this->computeRSI($avgGain, $avgLoss);
+			$this->rsiValues[] = $rsi;
+			$this->rsiTimestamps[] = $this->timestamps[$i + 1];
+			$this->rsiSignals[] = self::classifySignal($rsi, $overbought, $oversold);
+
+			// Track base state: the value at the second-to-last position.
+			if ($i === count($changes) - 2) {
+				$this->baseAvgGain = $avgGain;
+				$this->baseAvgLoss = $avgLoss;
+			}
+
+			$prevAvgGain = $avgGain;
+			$prevAvgLoss = $avgLoss;
+		}
+
+		$this->lastAvgGain = $prevAvgGain;
+		$this->lastAvgLoss = $prevAvgLoss;
+
+		// When there are exactly period+1 prices, there's only 1 RSI value.
+		if (count($changes) <= $period) {
+			$this->baseAvgGain = $avgGain;
+			$this->baseAvgLoss = $avgLoss;
+		}
+	}
+
+	private function computeRSI(float $avgGain, float $avgLoss): float {
+		if ($avgLoss == 0.0) {
+			return 100.0;
+		}
+		return 100.0 - (100.0 / (1.0 + $avgGain / $avgLoss));
+	}
+
+	private static function classifySignal(float $rsi, float $overbought, float $oversold): string {
+		if ($rsi >= $overbought) return 'overbought';
+		if ($rsi <= $oversold) return 'oversold';
+		return 'neutral';
+	}
+
+	protected function resetState(): void {
+		parent::resetState();
+		$this->baseAvgGain = 0.0;
+		$this->baseAvgLoss = 0.0;
+		$this->lastAvgGain = 0.0;
+		$this->lastAvgLoss = 0.0;
+		$this->rsiValues = [];
+		$this->rsiTimestamps = [];
+		$this->rsiSignals = [];
+		$this->initialized = false;
+	}
+
+	/**
+	 * Calculate RSI from an array of close prices (stateless, used by strategies directly).
 	 */
 	public static function calculateFromPrices(array $closePrices, int $period = self::DEFAULT_PERIOD): array {
 		$count = count($closePrices);
@@ -100,85 +207,5 @@ class RSI extends AbstractIndicator
 		}
 
 		return $rsi;
-	}
-
-	/**
-	 * Calculate RSI values from close prices.
-	 *
-	 * @param array $prices Array of close prices.
-	 * @param int $period RSI period.
-	 * @return array Array of RSI values.
-	 */
-	private function calculateRSI(array $prices, int $period): array {
-		$rsi = [];
-		$count = count($prices);
-
-		if ($count < $period + 1) {
-			return $rsi;
-		}
-
-		// Calculate price changes
-		$changes = [];
-		for ($i = 1; $i < $count; $i++) {
-			$changes[] = $prices[$i] - $prices[$i - 1];
-		}
-
-		// Calculate initial average gain and loss
-		$gains = array_map(fn($change) => $change > 0 ? $change : 0, array_slice($changes, 0, $period));
-		$losses = array_map(fn($change) => $change < 0 ? abs($change) : 0, array_slice($changes, 0, $period));
-
-		$avgGain = array_sum($gains) / $period;
-		$avgLoss = array_sum($losses) / $period;
-
-		// Calculate first RSI value
-		if ($avgLoss == 0) {
-			$rsi[] = 100;
-		} else {
-			$rs = $avgGain / $avgLoss;
-			$rsi[] = 100 - (100 / (1 + $rs));
-		}
-
-		// Calculate subsequent RSI values using smoothed averages
-		for ($i = $period; $i < count($changes); $i++) {
-			$change = $changes[$i];
-			$gain = $change > 0 ? $change : 0;
-			$loss = $change < 0 ? abs($change) : 0;
-
-			$avgGain = (($avgGain * ($period - 1)) + $gain) / $period;
-			$avgLoss = (($avgLoss * ($period - 1)) + $loss) / $period;
-
-			if ($avgLoss == 0) {
-				$rsi[] = 100;
-			} else {
-				$rs = $avgGain / $avgLoss;
-				$rsi[] = 100 - (100 / (1 + $rs));
-			}
-		}
-
-		return $rsi;
-	}
-
-	/**
-	 * Generate signals based on RSI values.
-	 *
-	 * @param array $rsiValues Array of RSI values.
-	 * @param float $overbought Overbought threshold.
-	 * @param float $oversold Oversold threshold.
-	 * @return array Array of signals.
-	 */
-	private function generateSignals(array $rsiValues, float $overbought, float $oversold): array {
-		$signals = [];
-
-		foreach ($rsiValues as $rsi) {
-			if ($rsi >= $overbought) {
-				$signals[] = 'overbought';
-			} elseif ($rsi <= $oversold) {
-				$signals[] = 'oversold';
-			} else {
-				$signals[] = 'neutral';
-			}
-		}
-
-		return $signals;
 	}
 }

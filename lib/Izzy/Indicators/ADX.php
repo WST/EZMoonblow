@@ -12,56 +12,230 @@ use Izzy\Interfaces\IMarket;
  * ADX > 20-25 typically indicates a trending market; below that the market
  * is considered range-bound.
  *
- * Calculation steps (Wilder's smoothing):
- *   1. True Range (TR), +DM, -DM per bar
- *   2. Smooth TR, +DM, -DM over `period` bars (Wilder's method)
- *   3. +DI = 100 * Smoothed(+DM) / Smoothed(TR)
- *   4. -DI = 100 * Smoothed(-DM) / Smoothed(TR)
- *   5. DX  = 100 * |+DI - -DI| / (+DI + -DI)
- *   6. ADX = Wilder-smoothed DX over `period` bars
+ * Incremental: maintains Wilder-smoothed TR/DM/DX state so each tick costs
+ * O(1) instead of full O(n) recalculation.
  */
 class ADX extends AbstractIndicator
 {
 	private const int DEFAULT_PERIOD = 14;
 
+	// ── Base state (at second-to-last position) ──────────────────────
+	private float $baseSmoothTR = 0.0;
+	private float $baseSmoothPlusDM = 0.0;
+	private float $baseSmoothMinusDM = 0.0;
+	private float $baseADX = 0.0;
+
+	// ── Current state (at last position, recomputed on each tick) ────
+	private float $lastSmoothTR = 0.0;
+	private float $lastSmoothPlusDM = 0.0;
+	private float $lastSmoothMinusDM = 0.0;
+	private float $lastADX = 0.0;
+
+	/** @var float[] Incrementally maintained ADX values. */
+	private array $adxValues = [];
+	/** @var int[] Timestamps for each ADX value. */
+	private array $adxTimestamps = [];
+
+	private bool $initialized = false;
+
 	public static function getName(): string {
 		return 'ADX';
 	}
 
-	/**
-	 * Calculate ADX for the given market.
-	 *
-	 * @param IMarket $market Market with candle data.
-	 * @return IndicatorResult ADX values and timestamps.
-	 */
 	public function calculate(IMarket $market): IndicatorResult {
 		$period = (int)($this->parameters['period'] ?? self::DEFAULT_PERIOD);
 
 		$candles = $market->getCandles();
-		// Need at least 2*period candles for meaningful ADX output.
-		if (count($candles) < $period * 2) {
+		$n = count($candles);
+
+		if ($n < $period * 2) {
 			return new IndicatorResult([], [], []);
 		}
 
-		$highPrices = array_map(fn($c) => $c->getHighPrice(), $candles);
-		$lowPrices = array_map(fn($c) => $c->getLowPrice(), $candles);
-		$closePrices = $this->getClosePrices($candles);
-		$timestamps = $this->getTimestamps($candles);
+		$newCandles = $this->syncPrices($candles);
 
-		$adxValues = self::calculateFromPrices($highPrices, $lowPrices, $closePrices, $period);
-		if (empty($adxValues)) {
-			return new IndicatorResult([], [], []);
+		if (!$this->initialized) {
+			$this->fullCalculate($period);
+			$this->initialized = true;
+		} elseif ($newCandles > 0) {
+			if ($newCandles > 1) {
+				$this->fullCalculate($period);
+			} else {
+				// Advance base state from finalized previous values.
+				$this->baseSmoothTR = $this->lastSmoothTR;
+				$this->baseSmoothPlusDM = $this->lastSmoothPlusDM;
+				$this->baseSmoothMinusDM = $this->lastSmoothMinusDM;
+				$this->baseADX = $this->lastADX;
+
+				$this->computeLastValue($n, $period);
+
+				$this->adxValues[] = $this->lastADX;
+				$this->adxTimestamps[] = $this->timestamps[$n - 1];
+			}
 		}
 
-		$adxTimestamps = array_slice($timestamps, count($timestamps) - count($adxValues));
-		return new IndicatorResult($adxValues, $adxTimestamps);
+		// Partial candle update: recompute last ADX from base state.
+		$this->computeLastValue($n, $period);
+		$this->adxValues[count($this->adxValues) - 1] = $this->lastADX;
+
+		return new IndicatorResult($this->adxValues, $this->adxTimestamps);
 	}
 
 	/**
-	 * Calculate ADX from arrays of high, low, and close prices.
-	 *
-	 * Can be called directly by strategies without going through the
-	 * indicator system.
+	 * Recompute the last ADX value from base state + current candle data.
+	 */
+	private function computeLastValue(int $n, int $period): void {
+		$i = $n - 1;
+		$tr = $this->computeTR($i);
+		$plusDM = $this->computePlusDM($i);
+		$minusDM = $this->computeMinusDM($i);
+
+		$this->lastSmoothTR = $this->baseSmoothTR - ($this->baseSmoothTR / $period) + $tr;
+		$this->lastSmoothPlusDM = $this->baseSmoothPlusDM - ($this->baseSmoothPlusDM / $period) + $plusDM;
+		$this->lastSmoothMinusDM = $this->baseSmoothMinusDM - ($this->baseSmoothMinusDM / $period) + $minusDM;
+
+		$dx = $this->computeDX($this->lastSmoothTR, $this->lastSmoothPlusDM, $this->lastSmoothMinusDM);
+		$this->lastADX = (($this->baseADX * ($period - 1)) + $dx) / $period;
+	}
+
+	private function computeTR(int $i): float {
+		$highLow = $this->highPrices[$i] - $this->lowPrices[$i];
+		$highPrevClose = abs($this->highPrices[$i] - $this->closePrices[$i - 1]);
+		$lowPrevClose = abs($this->lowPrices[$i] - $this->closePrices[$i - 1]);
+		return max($highLow, $highPrevClose, $lowPrevClose);
+	}
+
+	private function computePlusDM(int $i): float {
+		$upMove = $this->highPrices[$i] - $this->highPrices[$i - 1];
+		$downMove = $this->lowPrices[$i - 1] - $this->lowPrices[$i];
+		return ($upMove > $downMove && $upMove > 0) ? $upMove : 0.0;
+	}
+
+	private function computeMinusDM(int $i): float {
+		$upMove = $this->highPrices[$i] - $this->highPrices[$i - 1];
+		$downMove = $this->lowPrices[$i - 1] - $this->lowPrices[$i];
+		return ($downMove > $upMove && $downMove > 0) ? $downMove : 0.0;
+	}
+
+	private function computeDX(float $smoothTR, float $smoothPlusDM, float $smoothMinusDM): float {
+		if ($smoothTR == 0.0) {
+			return 0.0;
+		}
+		$plusDI = 100.0 * $smoothPlusDM / $smoothTR;
+		$minusDI = 100.0 * $smoothMinusDM / $smoothTR;
+		$diSum = $plusDI + $minusDI;
+		if ($diSum == 0.0) {
+			return 0.0;
+		}
+		return 100.0 * abs($plusDI - $minusDI) / $diSum;
+	}
+
+	/**
+	 * Full calculation with base-state extraction.
+	 */
+	private function fullCalculate(int $period): void {
+		$count = count($this->closePrices);
+
+		// Step 1: Compute per-bar TR, +DM, -DM.
+		$tr = [];
+		$plusDM = [];
+		$minusDM = [];
+
+		for ($i = 1; $i < $count; $i++) {
+			$tr[] = $this->computeTR($i);
+			$plusDM[] = $this->computePlusDM($i);
+			$minusDM[] = $this->computeMinusDM($i);
+		}
+
+		$barsCount = count($tr);
+		if ($barsCount < $period) {
+			$this->adxValues = [];
+			$this->adxTimestamps = [];
+			return;
+		}
+
+		// Step 2: First smoothed values = sum of first period bars.
+		$smoothTR = array_sum(array_slice($tr, 0, $period));
+		$smoothPlusDM = array_sum(array_slice($plusDM, 0, $period));
+		$smoothMinusDM = array_sum(array_slice($minusDM, 0, $period));
+
+		// Step 3: Compute DX values.
+		$dx = [];
+		$dxVal = $this->computeDX($smoothTR, $smoothPlusDM, $smoothMinusDM);
+		$dx[] = $dxVal;
+
+		for ($i = $period; $i < $barsCount; $i++) {
+			$smoothTR = $smoothTR - ($smoothTR / $period) + $tr[$i];
+			$smoothPlusDM = $smoothPlusDM - ($smoothPlusDM / $period) + $plusDM[$i];
+			$smoothMinusDM = $smoothMinusDM - ($smoothMinusDM / $period) + $minusDM[$i];
+
+			$dx[] = $this->computeDX($smoothTR, $smoothPlusDM, $smoothMinusDM);
+		}
+
+		if (count($dx) < $period) {
+			$this->adxValues = [];
+			$this->adxTimestamps = [];
+			return;
+		}
+
+		// Step 4: First ADX = SMA of first period DX values.
+		$firstADX = array_sum(array_slice($dx, 0, $period)) / $period;
+		$this->adxValues = [$firstADX];
+		$prevADX = $firstADX;
+
+		for ($i = $period; $i < count($dx); $i++) {
+			$currentADX = (($prevADX * ($period - 1)) + $dx[$i]) / $period;
+			$this->adxValues[] = $currentADX;
+			$prevADX = $currentADX;
+		}
+
+		$adxLen = count($this->adxValues);
+		$this->adxTimestamps = array_slice($this->timestamps, count($this->timestamps) - $adxLen);
+
+		// Extract base states (second-to-last positions).
+		// The smooth values at second-to-last: replay Wilder smoothing to $barsCount - 2.
+		$sTR = array_sum(array_slice($tr, 0, $period));
+		$sPDM = array_sum(array_slice($plusDM, 0, $period));
+		$sMDM = array_sum(array_slice($minusDM, 0, $period));
+		for ($i = $period; $i < $barsCount - 1; $i++) {
+			$sTR = $sTR - ($sTR / $period) + $tr[$i];
+			$sPDM = $sPDM - ($sPDM / $period) + $plusDM[$i];
+			$sMDM = $sMDM - ($sMDM / $period) + $minusDM[$i];
+		}
+		$this->baseSmoothTR = $sTR;
+		$this->baseSmoothPlusDM = $sPDM;
+		$this->baseSmoothMinusDM = $sMDM;
+
+		$this->lastSmoothTR = $smoothTR;
+		$this->lastSmoothPlusDM = $smoothPlusDM;
+		$this->lastSmoothMinusDM = $smoothMinusDM;
+
+		if ($adxLen >= 2) {
+			$this->baseADX = $this->adxValues[$adxLen - 2];
+		} else {
+			$this->baseADX = $this->adxValues[0];
+		}
+		$this->lastADX = $this->adxValues[$adxLen - 1];
+	}
+
+	protected function resetState(): void {
+		parent::resetState();
+		$this->baseSmoothTR = 0.0;
+		$this->baseSmoothPlusDM = 0.0;
+		$this->baseSmoothMinusDM = 0.0;
+		$this->baseADX = 0.0;
+		$this->lastSmoothTR = 0.0;
+		$this->lastSmoothPlusDM = 0.0;
+		$this->lastSmoothMinusDM = 0.0;
+		$this->lastADX = 0.0;
+		$this->adxValues = [];
+		$this->adxTimestamps = [];
+		$this->initialized = false;
+	}
+
+	/**
+	 * Calculate ADX from arrays of high, low, and close prices
+	 * (stateless, used by strategies directly).
 	 *
 	 * @param float[] $highPrices  High prices (chronological order).
 	 * @param float[] $lowPrices   Low prices (chronological order).
@@ -76,12 +250,10 @@ class ADX extends AbstractIndicator
 		int $period = 14,
 	): array {
 		$count = count($closePrices);
-		// Minimum bars: 1 (for prev close) + period (smoothing) + period (ADX smoothing).
 		if ($count < 2 * $period + 1) {
 			return [];
 		}
 
-		// Step 1: Compute per-bar TR, +DM, -DM (starting from index 1).
 		$tr = [];
 		$plusDM = [];
 		$minusDM = [];
@@ -104,55 +276,38 @@ class ADX extends AbstractIndicator
 			return [];
 		}
 
-		// Step 2: First smoothed values = sum of the first `period` bars.
 		$smoothTR = array_sum(array_slice($tr, 0, $period));
 		$smoothPlusDM = array_sum(array_slice($plusDM, 0, $period));
 		$smoothMinusDM = array_sum(array_slice($minusDM, 0, $period));
 
-		// Step 3: Compute +DI, -DI, DX for each bar from `period` onward
-		// using Wilder's smoothing: Smoothed_t = Smoothed_(t-1) - Smoothed_(t-1)/period + value_t.
 		$dx = [];
 
-		$computeDX = function () use ($smoothTR, $smoothPlusDM, $smoothMinusDM): ?float {
-			if ($smoothTR == 0.0) {
-				return null;
-			}
+		$computeDX = function () use (&$smoothTR, &$smoothPlusDM, &$smoothMinusDM): float {
+			if ($smoothTR == 0.0) return 0.0;
 			$plusDI = 100.0 * $smoothPlusDM / $smoothTR;
 			$minusDI = 100.0 * $smoothMinusDM / $smoothTR;
 			$diSum = $plusDI + $minusDI;
-			if ($diSum == 0.0) {
-				return 0.0;
-			}
+			if ($diSum == 0.0) return 0.0;
 			return 100.0 * abs($plusDI - $minusDI) / $diSum;
 		};
 
-		// First DX value from the initial smoothed sums.
-		$dxVal = $computeDX();
-		if ($dxVal !== null) {
-			$dx[] = $dxVal;
-		}
+		$dx[] = $computeDX();
 
 		for ($i = $period; $i < $barsCount; $i++) {
 			$smoothTR = $smoothTR - ($smoothTR / $period) + $tr[$i];
 			$smoothPlusDM = $smoothPlusDM - ($smoothPlusDM / $period) + $plusDM[$i];
 			$smoothMinusDM = $smoothMinusDM - ($smoothMinusDM / $period) + $minusDM[$i];
-
-			$dxVal = $computeDX();
-			if ($dxVal !== null) {
-				$dx[] = $dxVal;
-			}
+			$dx[] = $computeDX();
 		}
 
 		if (count($dx) < $period) {
 			return [];
 		}
 
-		// Step 4: First ADX = SMA of first `period` DX values.
 		$adx = [];
 		$firstADX = array_sum(array_slice($dx, 0, $period)) / $period;
 		$adx[] = $firstADX;
 
-		// Subsequent ADX values: Wilder's smoothing of DX.
 		$prevADX = $firstADX;
 		for ($i = $period; $i < count($dx); $i++) {
 			$currentADX = (($prevADX * ($period - 1)) + $dx[$i]) / $period;

@@ -82,6 +82,14 @@ class Market implements IMarket
 	private ?int $cachedPriceTimestamp = null;
 
 	/**
+	 * Per-tick position cache. When non-null, position lookups use this
+	 * in-memory array instead of querying the database, drastically reducing
+	 * the number of SELECTs during backtest tick processing.
+	 * @var array<string, IStoredPosition>|null  direction->value => position, or null if cache inactive
+	 */
+	private ?array $positionCacheByDir = null;
+
+	/**
 	 * Last strategy validation result (for web UI access).
 	 */
 	private ?StrategyValidationResult $lastValidationResult = null;
@@ -391,6 +399,22 @@ class Market implements IMarket
 	}
 
 	/**
+	 * Append a single candle to the end of the candle array. O(1).
+	 */
+	public function appendCandle(Candle $candle): void {
+		$candle->setMarket($this);
+		$this->candles[] = $candle;
+	}
+
+	/**
+	 * Replace the last candle in the array (e.g. with a partial snapshot). O(1).
+	 */
+	public function replaceLastCandle(Candle $candle): void {
+		$candle->setMarket($this);
+		$this->candles[count($this->candles) - 1] = $candle;
+	}
+
+	/**
 	 * @inheritDoc
 	 */
 	public function getCurrentPosition(): IStoredPosition|false {
@@ -408,10 +432,12 @@ class Market implements IMarket
 			if ($storedPosition) {
 				$this->exchange->getLogger()->debug("Found a stored position for $this");
 				return $storedPosition;
-			} else {
+			}
+			// When position cache is active (backtest mode), stored positions
+			// are the single source of truth — skip the redundant exchange query.
+			if ($this->positionCacheByDir === null) {
 				$positionFromExchange = $this->exchange->getCurrentFuturesPosition($this);
 				if ($positionFromExchange) {
-					// NOTE: we don’t have info about entry order here.
 					$this->exchange->getLogger()->debug("Found position on the exchange for $this, creating a stored position");
 					return $positionFromExchange->store();
 				}
@@ -632,8 +658,7 @@ class Market implements IMarket
 			return false;
 		}
 
-		// Use direction-aware lookup to find the just-created position.
-		// In Two-Way mode this avoids returning the wrong direction's position.
+		$this->invalidatePositionCache();
 		$position = $this->getStoredPositionByDirection($direction);
 		if ($position && !Logger::getLogger()->isBacktestMode()) {
 			QueueTask::addTelegramNotification_positionOpened($this, $position);
@@ -664,6 +689,12 @@ class Market implements IMarket
 	 * @return IStoredPosition|false Position data or false if not found.
 	 */
 	public function getStoredPosition(): IStoredPosition|false {
+		if ($this->positionCacheByDir !== null) {
+			foreach ($this->positionCacheByDir as $pos) {
+				return $pos;
+			}
+			return false;
+		}
 		$where = [
 			StoredPosition::FExchangeName => $this->getExchangeName(),
 			StoredPosition::FTicker => $this->getTicker(),
@@ -678,6 +709,9 @@ class Market implements IMarket
 	 * Used in Two-Way mode where Long and Short positions coexist.
 	 */
 	public function getStoredPositionByDirection(PositionDirectionEnum $direction): IStoredPosition|false {
+		if ($this->positionCacheByDir !== null) {
+			return $this->positionCacheByDir[$direction->value] ?? false;
+		}
 		$where = [
 			StoredPosition::FExchangeName => $this->getExchangeName(),
 			StoredPosition::FTicker => $this->getTicker(),
@@ -686,6 +720,44 @@ class Market implements IMarket
 			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
 		];
 		return $this->database->selectOneObject($this->positionRecordClass, $where, $this);
+	}
+
+	/**
+	 * Load all open/pending positions into an in-memory cache.
+	 * Subsequent calls to getStoredPosition() and getStoredPositionByDirection()
+	 * will return cached objects without hitting the database.
+	 */
+	public function warmPositionCache(): void {
+		$where = [
+			StoredPosition::FExchangeName => $this->getExchangeName(),
+			StoredPosition::FTicker => $this->getTicker(),
+			StoredPosition::FMarketType => $this->getMarketType()->value,
+			StoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
+		];
+		$positions = $this->database->selectAllObjects($this->positionRecordClass, $where);
+		$this->positionCacheByDir = [];
+		foreach ($positions as $pos) {
+			$this->positionCacheByDir[$pos->getDirection()->value] = $pos;
+		}
+	}
+
+	/**
+	 * Clear the position cache, forcing subsequent lookups to hit the database.
+	 */
+	public function invalidatePositionCache(): void {
+		$this->positionCacheByDir = null;
+	}
+
+	/**
+	 * Return all currently cached open/pending positions as a flat array.
+	 * Only valid when the cache is warm (after warmPositionCache).
+	 * @return IStoredPosition[]
+	 */
+	public function getCachedPositions(): array {
+		if ($this->positionCacheByDir === null) {
+			return [];
+		}
+		return array_values($this->positionCacheByDir);
 	}
 
 	/**
@@ -1112,8 +1184,7 @@ class Market implements IMarket
 				$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
 			}
 
-			// The position was already created and saved by exchange->openPosition().
-			// Use direction-aware lookup to avoid returning wrong position in Two-Way mode.
+			$this->invalidatePositionCache();
 			$position = $this->getStoredPositionByDirection($direction);
 			if ($position && !Logger::getLogger()->isBacktestMode()) {
 				QueueTask::addTelegramNotification_positionOpened($this, $position);
@@ -1165,8 +1236,8 @@ class Market implements IMarket
 		}
 
 		$position->save();
+		$this->invalidatePositionCache();
 
-		// Notify about the new position (works for all strategies).
 		if (!Logger::getLogger()->isBacktestMode()) {
 			QueueTask::addTelegramNotification_positionOpened($this, $position);
 		}

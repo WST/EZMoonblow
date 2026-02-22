@@ -41,6 +41,9 @@ class Database
 	/** @var array<string, string[]> Cache for getFieldList() to avoid repeated SHOW COLUMNS queries. */
 	private array $fieldListCache = [];
 
+	/** @var float Cumulative time spent in SQL queries (nanoseconds). */
+	private float $cumulativeQueryTimeNs = 0;
+
 	/**
 	 * Initialize database connection parameters.
 	 * @param string $host Database server hostname or IP address
@@ -55,6 +58,29 @@ class Database
 		$this->username = $username;
 		$this->password = $password;
 		$this->port = $port;
+	}
+
+	/**
+	 * Record elapsed query time for cumulative tracking and per-query logging.
+	 */
+	private function trackQueryTime(string $sql, float $startNs): void {
+		$elapsedNs = hrtime(true) - $startNs;
+		$this->cumulativeQueryTimeNs += $elapsedNs;
+		Logger::getLogger()->logQuery($sql, $elapsedNs / 1e6);
+	}
+
+	/**
+	 * Get cumulative time spent in SQL queries since last reset (milliseconds).
+	 */
+	public function getCumulativeQueryTimeMs(): float {
+		return $this->cumulativeQueryTimeNs / 1e6;
+	}
+
+	/**
+	 * Reset the cumulative query timer.
+	 */
+	public function resetQueryTimer(): void {
+		$this->cumulativeQueryTimeNs = 0;
 	}
 
 	/**
@@ -113,7 +139,7 @@ class Database
 		if (!$statement)
 			return null;
 		$row = $statement->fetch(PDO::FETCH_ASSOC);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $row !== false ? $row : null;
 	}
 
@@ -128,7 +154,7 @@ class Database
 		if (!$statement)
 			return [];
 		$result = $statement->fetchAll(PDO::FETCH_ASSOC);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result;
 	}
 
@@ -204,11 +230,11 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
-			Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+			$this->trackQueryTime($sql, $t0);
 			return null;
 		}
 		$row = $stmt->fetch(PDO::FETCH_ASSOC);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $row !== false ? $row : null;
 	}
 
@@ -257,11 +283,11 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
-			Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+			$this->trackQueryTime($sql, $t0);
 			return [];
 		}
 		$result = $stmt->fetchAll(PDO::FETCH_ASSOC);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result;
 	}
 
@@ -284,7 +310,7 @@ class Database
 	public function exec(string $sql): false|int {
 		$t0 = hrtime(true);
 		$result = $this->pdo->exec($sql);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result;
 	}
 
@@ -426,7 +452,7 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		$result = $stmt->execute($data);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		if (!$result) {
 			$this->setError(new \Exception(implode(' | ', $stmt->errorInfo())));
 		}
@@ -456,7 +482,7 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		$result = $stmt->execute($data);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result;
 	}
 
@@ -487,7 +513,7 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		$result = $stmt->execute(array_merge($data, $whereParams));
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result;
 	}
 
@@ -508,7 +534,7 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		$result = $stmt->execute($whereParams);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result;
 	}
 
@@ -533,12 +559,12 @@ class Database
 		$t0 = hrtime(true);
 		$stmt = $this->pdo->prepare($sql);
 		if (!$stmt->execute($whereParams)) {
-			Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+			$this->trackQueryTime($sql, $t0);
 			return 0;
 		}
 
 		$result = $stmt->fetch(PDO::FETCH_ASSOC);
-		Logger::getLogger()->logQuery($sql, (hrtime(true) - $t0) / 1e6);
+		$this->trackQueryTime($sql, $t0);
 		return $result ? (int)$result['count'] : 0;
 	}
 

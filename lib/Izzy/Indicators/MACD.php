@@ -13,8 +13,8 @@ use Izzy\Interfaces\IMarket;
  *   - Signal Line = EMA(signalPeriod) of the MACD Line
  *   - Histogram   = MACD Line - Signal Line
  *
- * A bullish signal occurs when the MACD Line crosses above the Signal Line;
- * a bearish signal occurs when it crosses below.
+ * Incremental: maintains three EMA base values (fast, slow, signal) so each
+ * tick costs O(1) instead of O(3n).
  */
 class MACD extends AbstractIndicator
 {
@@ -22,54 +22,176 @@ class MACD extends AbstractIndicator
 	private const int DEFAULT_SLOW_PERIOD = 26;
 	private const int DEFAULT_SIGNAL_PERIOD = 9;
 
+	private float $baseFastEMA = 0.0;
+	private float $baseSlowEMA = 0.0;
+	private float $baseSignalEMA = 0.0;
+
+	private float $lastFastEMA = 0.0;
+	private float $lastSlowEMA = 0.0;
+
+	/** @var float[] MACD line values (trimmed to signal length). */
+	private array $macdValues = [];
+	/** @var float[] Signal line values. */
+	private array $signalValues = [];
+	/** @var float[] Histogram values. */
+	private array $histogramValues = [];
+	/** @var int[] Timestamps aligned with the output. */
+	private array $macdTimestamps = [];
+
+	private bool $initialized = false;
+
 	public static function getName(): string {
 		return 'MACD';
 	}
 
-	/**
-	 * Calculate MACD for the given market using indicator-system parameters.
-	 *
-	 * The result packs MACD Line into values, timestamps, and signal/histogram
-	 * into the signals array as associative entries.
-	 *
-	 * @param IMarket $market Market with candle data.
-	 * @return IndicatorResult MACD calculation result.
-	 */
 	public function calculate(IMarket $market): IndicatorResult {
 		$fastPeriod = (int)($this->parameters['fastPeriod'] ?? self::DEFAULT_FAST_PERIOD);
 		$slowPeriod = (int)($this->parameters['slowPeriod'] ?? self::DEFAULT_SLOW_PERIOD);
 		$signalPeriod = (int)($this->parameters['signalPeriod'] ?? self::DEFAULT_SIGNAL_PERIOD);
 
 		$candles = $market->getCandles();
+		$n = count($candles);
 		$minRequired = $slowPeriod + $signalPeriod - 1;
-		if (count($candles) < $minRequired) {
+
+		if ($n < $minRequired) {
 			return new IndicatorResult([], [], []);
 		}
 
-		$closePrices = $this->getClosePrices($candles);
-		$timestamps = $this->getTimestamps($candles);
+		$newCandles = $this->syncPrices($candles);
+		$kFast = 2.0 / ($fastPeriod + 1);
+		$kSlow = 2.0 / ($slowPeriod + 1);
+		$kSignal = 2.0 / ($signalPeriod + 1);
 
-		$result = self::calculateFromPrices($closePrices, $fastPeriod, $slowPeriod, $signalPeriod);
-		if (empty($result['macd'])) {
-			return new IndicatorResult([], [], []);
+		if (!$this->initialized) {
+			$this->fullCalculate($fastPeriod, $slowPeriod, $signalPeriod);
+			$this->initialized = true;
+		} elseif ($newCandles > 0) {
+			if ($newCandles > 1) {
+				$this->fullCalculate($fastPeriod, $slowPeriod, $signalPeriod);
+			} else {
+				// Advance base states from the finalized previous values.
+				$this->baseFastEMA = $this->lastFastEMA;
+				$this->baseSlowEMA = $this->lastSlowEMA;
+				$this->baseSignalEMA = $this->signalValues[count($this->signalValues) - 1];
+
+				$close = $this->closePrices[$n - 1];
+				$this->lastFastEMA = $close * $kFast + $this->baseFastEMA * (1 - $kFast);
+				$this->lastSlowEMA = $close * $kSlow + $this->baseSlowEMA * (1 - $kSlow);
+
+				$macd = $this->lastFastEMA - $this->lastSlowEMA;
+				$signal = $macd * $kSignal + $this->baseSignalEMA * (1 - $kSignal);
+
+				$this->macdValues[] = $macd;
+				$this->signalValues[] = $signal;
+				$this->histogramValues[] = $macd - $signal;
+				$this->macdTimestamps[] = $this->timestamps[$n - 1];
+			}
 		}
 
-		// Trim timestamps to match signal/histogram length (shortest output).
-		$signalLength = count($result['signal']);
-		$trimmedTimestamps = array_slice($timestamps, count($timestamps) - $signalLength);
+		// Partial candle update: recompute last values from base states.
+		$close = $this->closePrices[$n - 1];
+		$this->lastFastEMA = $close * $kFast + $this->baseFastEMA * (1 - $kFast);
+		$this->lastSlowEMA = $close * $kSlow + $this->baseSlowEMA * (1 - $kSlow);
+
+		$macd = $this->lastFastEMA - $this->lastSlowEMA;
+		$signal = $macd * $kSignal + $this->baseSignalEMA * (1 - $kSignal);
+
+		$lastIdx = count($this->macdValues) - 1;
+		$this->macdValues[$lastIdx] = $macd;
+		$this->signalValues[$lastIdx] = $signal;
+		$this->histogramValues[$lastIdx] = $macd - $signal;
 
 		return new IndicatorResult(
-			array_slice($result['macd'], count($result['macd']) - $signalLength),
-			$trimmedTimestamps,
-			$result['histogram'],
+			$this->macdValues,
+			$this->macdTimestamps,
+			$this->histogramValues,
 		);
 	}
 
 	/**
-	 * Calculate MACD from an array of close prices.
-	 *
-	 * Can be called directly by strategies for custom parameter combinations
-	 * without going through the indicator system.
+	 * Full calculation with base-state extraction.
+	 */
+	private function fullCalculate(int $fastPeriod, int $slowPeriod, int $signalPeriod): void {
+		$prices = $this->closePrices;
+		$count = count($prices);
+
+		$emaFast = EMA::calculateFromPrices($prices, $fastPeriod);
+		$emaSlow = EMA::calculateFromPrices($prices, $slowPeriod);
+
+		if (empty($emaFast) || empty($emaSlow)) {
+			$this->macdValues = [];
+			$this->signalValues = [];
+			$this->histogramValues = [];
+			$this->macdTimestamps = [];
+			return;
+		}
+
+		$fastOffset = $slowPeriod - $fastPeriod;
+		$alignedFast = array_slice($emaFast, $fastOffset);
+		$macdLine = [];
+		$len = min(count($alignedFast), count($emaSlow));
+		for ($i = 0; $i < $len; $i++) {
+			$macdLine[] = $alignedFast[$i] - $emaSlow[$i];
+		}
+
+		if (count($macdLine) < $signalPeriod) {
+			$this->macdValues = [];
+			$this->signalValues = [];
+			$this->histogramValues = [];
+			$this->macdTimestamps = [];
+			return;
+		}
+
+		$signalLine = EMA::calculateFromPrices($macdLine, $signalPeriod);
+		if (empty($signalLine)) {
+			$this->macdValues = [];
+			$this->signalValues = [];
+			$this->histogramValues = [];
+			$this->macdTimestamps = [];
+			return;
+		}
+
+		$macdTrimmed = array_slice($macdLine, count($macdLine) - count($signalLine));
+		$histogram = [];
+		for ($i = 0; $i < count($signalLine); $i++) {
+			$histogram[] = $macdTrimmed[$i] - $signalLine[$i];
+		}
+
+		$this->macdValues = $macdTrimmed;
+		$this->signalValues = $signalLine;
+		$this->histogramValues = $histogram;
+
+		$signalLength = count($signalLine);
+		$this->macdTimestamps = array_slice($this->timestamps, count($this->timestamps) - $signalLength);
+
+		// Extract base EMA states (second-to-last positions).
+		$fastCount = count($emaFast);
+		$slowCount = count($emaSlow);
+		$this->baseFastEMA = $fastCount >= 2 ? $emaFast[$fastCount - 2] : $emaFast[0];
+		$this->baseSlowEMA = $slowCount >= 2 ? $emaSlow[$slowCount - 2] : $emaSlow[0];
+		$this->lastFastEMA = $emaFast[$fastCount - 1];
+		$this->lastSlowEMA = $emaSlow[$slowCount - 1];
+
+		$sigCount = count($signalLine);
+		$this->baseSignalEMA = $sigCount >= 2 ? $signalLine[$sigCount - 2] : $signalLine[0];
+	}
+
+	protected function resetState(): void {
+		parent::resetState();
+		$this->baseFastEMA = 0.0;
+		$this->baseSlowEMA = 0.0;
+		$this->baseSignalEMA = 0.0;
+		$this->lastFastEMA = 0.0;
+		$this->lastSlowEMA = 0.0;
+		$this->macdValues = [];
+		$this->signalValues = [];
+		$this->histogramValues = [];
+		$this->macdTimestamps = [];
+		$this->initialized = false;
+	}
+
+	/**
+	 * Calculate MACD from an array of close prices (stateless, used by strategies directly).
 	 *
 	 * @param float[] $closePrices Close prices (chronological order).
 	 * @param int $fastPeriod Fast EMA period (typically 12).
@@ -92,9 +214,6 @@ class MACD extends AbstractIndicator
 			return $empty;
 		}
 
-		// Align: EMA fast starts at index (fastPeriod-1), EMA slow at (slowPeriod-1).
-		// MACD Line values exist from index (slowPeriod-1) onward.
-		// The fast EMA array is longer; trim its beginning to match the slow EMA length.
 		$fastOffset = $slowPeriod - $fastPeriod;
 		$alignedFast = array_slice($emaFast, $fastOffset);
 		$macdLine = [];
@@ -107,13 +226,11 @@ class MACD extends AbstractIndicator
 			return $empty;
 		}
 
-		// Signal Line = EMA of the MACD Line.
 		$signalLine = EMA::calculateFromPrices($macdLine, $signalPeriod);
 		if (empty($signalLine)) {
 			return $empty;
 		}
 
-		// Histogram = MACD - Signal (aligned to signal length).
 		$macdTrimmed = array_slice($macdLine, count($macdLine) - count($signalLine));
 		$histogram = [];
 		for ($i = 0; $i < count($signalLine); $i++) {

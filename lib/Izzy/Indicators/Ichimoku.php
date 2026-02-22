@@ -9,18 +9,11 @@ use Izzy\Interfaces\IMarket;
  * Ichimoku Cloud (Ichimoku Kinko Hyo) indicator.
  *
  * A comprehensive indicator that defines support/resistance, trend direction,
- * momentum, and trading signals all at once. Consists of five components:
+ * momentum, and trading signals all at once.
  *
- *   - Tenkan-sen (Conversion Line) = midpoint of highest high and lowest low
- *     over tenkanPeriod (default 9)
- *   - Kijun-sen (Base Line) = midpoint over kijunPeriod (default 26)
- *   - Senkou Span A (Leading Span A) = (Tenkan + Kijun) / 2, plotted
- *     displacement periods ahead
- *   - Senkou Span B (Leading Span B) = midpoint over senkouBPeriod (default 52),
- *     plotted displacement periods ahead
- *   - Chikou Span (Lagging Span) = close price plotted displacement periods behind
- *
- * The "cloud" (Kumo) is the shaded area between Senkou Span A and Senkou Span B.
+ * Incremental: on each tick only the current candle's components are
+ * recomputed via O(period) midpoint lookups, instead of recalculating
+ * all candles O(n × period).
  */
 class Ichimoku extends AbstractIndicator
 {
@@ -29,19 +22,27 @@ class Ichimoku extends AbstractIndicator
 	private const int DEFAULT_SENKOU_B_PERIOD = 52;
 	private const int DEFAULT_DISPLACEMENT = 26;
 
+	/** @var float[] Tenkan-sen values (NAN where not enough lookback). */
+	private array $tenkan = [];
+	/** @var float[] Kijun-sen values. */
+	private array $kijun = [];
+	/** @var float[] Raw Senkou Span A (before displacement shift). */
+	private array $senkouARaw = [];
+	/** @var float[] Raw Senkou Span B (before displacement shift). */
+	private array $senkouBRaw = [];
+	/** @var float[] Shifted Senkou Span A. */
+	private array $senkouA = [];
+	/** @var float[] Shifted Senkou Span B. */
+	private array $senkouB = [];
+	/** @var float[] Chikou Span (= close prices). */
+	private array $chikou = [];
+
+	private bool $initialized = false;
+
 	public static function getName(): string {
 		return 'Ichimoku';
 	}
 
-	/**
-	 * Calculate Ichimoku for the given market via the indicator system.
-	 *
-	 * Returns Tenkan-sen values, corresponding timestamps, and all other
-	 * components packed into the signals array.
-	 *
-	 * @param IMarket $market Market with candle data.
-	 * @return IndicatorResult Ichimoku calculation result.
-	 */
 	public function calculate(IMarket $market): IndicatorResult {
 		$tenkanPeriod = (int)($this->parameters['tenkanPeriod'] ?? self::DEFAULT_TENKAN_PERIOD);
 		$kijunPeriod = (int)($this->parameters['kijunPeriod'] ?? self::DEFAULT_KIJUN_PERIOD);
@@ -49,49 +50,202 @@ class Ichimoku extends AbstractIndicator
 		$displacement = (int)($this->parameters['displacement'] ?? self::DEFAULT_DISPLACEMENT);
 
 		$candles = $market->getCandles();
+		$n = count($candles);
 		$minRequired = $senkouBPeriod + $displacement;
-		if (count($candles) < $minRequired) {
+
+		if ($n < $minRequired) {
 			return new IndicatorResult([], [], []);
 		}
 
-		$highPrices = array_map(fn($c) => $c->getHighPrice(), $candles);
-		$lowPrices = array_map(fn($c) => $c->getLowPrice(), $candles);
-		$closePrices = $this->getClosePrices($candles);
-		$timestamps = $this->getTimestamps($candles);
+		$newCandles = $this->syncPrices($candles);
 
-		$result = self::calculateFromPrices(
-			$highPrices, $lowPrices, $closePrices,
-			$tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement,
-		);
-
-		if (empty($result['tenkan'])) {
-			return new IndicatorResult([], [], []);
+		if (!$this->initialized) {
+			$this->fullCalculate($tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement);
+			$this->initialized = true;
+		} elseif ($newCandles > 0) {
+			if ($newCandles > 1) {
+				$this->fullCalculate($tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement);
+			} else {
+				$this->extendByOne($n, $tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement);
+			}
 		}
 
-		$tenkanLen = count($result['tenkan']);
-		$trimmedTimestamps = array_slice($timestamps, count($timestamps) - $tenkanLen);
+		// Partial candle update: recompute only the last position.
+		$this->updateLastPosition($n, $tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement);
 
 		return new IndicatorResult(
-			$result['tenkan'],
-			$trimmedTimestamps,
+			$this->tenkan,
+			$this->timestamps,
 			[
-				'kijun' => $result['kijun'],
-				'senkouA' => $result['senkouA'],
-				'senkouB' => $result['senkouB'],
-				'chikou' => $result['chikou'],
+				'kijun' => $this->kijun,
+				'senkouA' => $this->senkouA,
+				'senkouB' => $this->senkouB,
+				'chikou' => $this->chikou,
 			],
 		);
 	}
 
 	/**
-	 * Calculate Ichimoku components from arrays of high, low, and close prices.
-	 *
-	 * Can be called directly by strategies without going through the
-	 * indicator system, allowing strategy-specific parameter combinations.
-	 *
-	 * All returned arrays are aligned to the input arrays: index i corresponds
-	 * to bar i of the original data. Entries that cannot be computed (not enough
-	 * lookback) are set to NAN.
+	 * Extend all arrays by one position for a new candle.
+	 */
+	private function extendByOne(
+		int $n,
+		int $tenkanPeriod,
+		int $kijunPeriod,
+		int $senkouBPeriod,
+		int $displacement,
+	): void {
+		$i = $n - 1;
+
+		$this->tenkan[] = NAN;
+		$this->kijun[] = NAN;
+		$this->senkouARaw[] = NAN;
+		$this->senkouBRaw[] = NAN;
+		$this->senkouA[] = NAN;
+		$this->senkouB[] = NAN;
+		$this->chikou[] = NAN;
+
+		$this->computeAt($i, $tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement);
+	}
+
+	/**
+	 * Recompute all Ichimoku components at a single position.
+	 */
+	private function computeAt(
+		int $i,
+		int $tenkanPeriod,
+		int $kijunPeriod,
+		int $senkouBPeriod,
+		int $displacement,
+	): void {
+		if ($i >= $tenkanPeriod - 1) {
+			$this->tenkan[$i] = $this->midpoint($tenkanPeriod, $i);
+		}
+		if ($i >= $kijunPeriod - 1) {
+			$this->kijun[$i] = $this->midpoint($kijunPeriod, $i);
+		}
+		if (!is_nan($this->tenkan[$i]) && !is_nan($this->kijun[$i])) {
+			$this->senkouARaw[$i] = ($this->tenkan[$i] + $this->kijun[$i]) / 2.0;
+		}
+		if ($i >= $senkouBPeriod - 1) {
+			$this->senkouBRaw[$i] = $this->midpoint($senkouBPeriod, $i);
+		}
+
+		// Apply displacement shift: senkouA/B at position $i come from raw at $i - displacement.
+		$srcIdx = $i - $displacement;
+		if ($srcIdx >= 0) {
+			if (!is_nan($this->senkouARaw[$srcIdx])) {
+				$this->senkouA[$i] = $this->senkouARaw[$srcIdx];
+			}
+			if (!is_nan($this->senkouBRaw[$srcIdx])) {
+				$this->senkouB[$i] = $this->senkouBRaw[$srcIdx];
+			}
+		}
+
+		$this->chikou[$i] = $this->closePrices[$i];
+	}
+
+	/**
+	 * Update only the last position (partial candle update).
+	 */
+	private function updateLastPosition(
+		int $n,
+		int $tenkanPeriod,
+		int $kijunPeriod,
+		int $senkouBPeriod,
+		int $displacement,
+	): void {
+		$i = $n - 1;
+		$this->tenkan[$i] = NAN;
+		$this->kijun[$i] = NAN;
+		$this->senkouARaw[$i] = NAN;
+		$this->computeAt($i, $tenkanPeriod, $kijunPeriod, $senkouBPeriod, $displacement);
+	}
+
+	/**
+	 * Full calculation of all positions.
+	 */
+	private function fullCalculate(
+		int $tenkanPeriod,
+		int $kijunPeriod,
+		int $senkouBPeriod,
+		int $displacement,
+	): void {
+		$count = count($this->closePrices);
+
+		$this->tenkan = array_fill(0, $count, NAN);
+		$this->kijun = array_fill(0, $count, NAN);
+		$this->senkouARaw = array_fill(0, $count, NAN);
+		$this->senkouBRaw = array_fill(0, $count, NAN);
+		$this->senkouA = array_fill(0, $count, NAN);
+		$this->senkouB = array_fill(0, $count, NAN);
+		$this->chikou = $this->closePrices;
+
+		for ($i = 0; $i < $count; $i++) {
+			if ($i >= $tenkanPeriod - 1) {
+				$this->tenkan[$i] = $this->midpoint($tenkanPeriod, $i);
+			}
+			if ($i >= $kijunPeriod - 1) {
+				$this->kijun[$i] = $this->midpoint($kijunPeriod, $i);
+			}
+			if (!is_nan($this->tenkan[$i]) && !is_nan($this->kijun[$i])) {
+				$this->senkouARaw[$i] = ($this->tenkan[$i] + $this->kijun[$i]) / 2.0;
+			}
+			if ($i >= $senkouBPeriod - 1) {
+				$this->senkouBRaw[$i] = $this->midpoint($senkouBPeriod, $i);
+			}
+		}
+
+		// Apply displacement shift.
+		for ($i = 0; $i < $count; $i++) {
+			$target = $i + $displacement;
+			if ($target < $count) {
+				if (!is_nan($this->senkouARaw[$i])) {
+					$this->senkouA[$target] = $this->senkouARaw[$i];
+				}
+				if (!is_nan($this->senkouBRaw[$i])) {
+					$this->senkouB[$target] = $this->senkouBRaw[$i];
+				}
+			}
+		}
+	}
+
+	/**
+	 * Compute the midpoint: (highest high + lowest low) / 2 over the last
+	 * $period bars ending at $index (inclusive).
+	 */
+	private function midpoint(int $period, int $index): float {
+		$start = $index - $period + 1;
+		$highestHigh = PHP_FLOAT_MIN;
+		$lowestLow = PHP_FLOAT_MAX;
+
+		for ($i = $start; $i <= $index; $i++) {
+			if ($this->highPrices[$i] > $highestHigh) {
+				$highestHigh = $this->highPrices[$i];
+			}
+			if ($this->lowPrices[$i] < $lowestLow) {
+				$lowestLow = $this->lowPrices[$i];
+			}
+		}
+
+		return ($highestHigh + $lowestLow) / 2.0;
+	}
+
+	protected function resetState(): void {
+		parent::resetState();
+		$this->tenkan = [];
+		$this->kijun = [];
+		$this->senkouARaw = [];
+		$this->senkouBRaw = [];
+		$this->senkouA = [];
+		$this->senkouB = [];
+		$this->chikou = [];
+		$this->initialized = false;
+	}
+
+	/**
+	 * Calculate Ichimoku components from arrays of high, low, and close prices
+	 * (stateless, used by strategies directly).
 	 *
 	 * @param float[] $highPrices  High prices (chronological order).
 	 * @param float[] $lowPrices   Low prices (chronological order).
@@ -123,25 +277,21 @@ class Ichimoku extends AbstractIndicator
 		$senkouARaw = array_fill(0, $count, NAN);
 		$senkouBRaw = array_fill(0, $count, NAN);
 
-		// Compute Tenkan, Kijun, raw Senkou A and raw Senkou B for each bar.
 		for ($i = 0; $i < $count; $i++) {
 			if ($i >= $tenkanPeriod - 1) {
-				$tenkan[$i] = self::midpoint($highPrices, $lowPrices, $tenkanPeriod, $i);
+				$tenkan[$i] = self::staticMidpoint($highPrices, $lowPrices, $tenkanPeriod, $i);
 			}
 			if ($i >= $kijunPeriod - 1) {
-				$kijun[$i] = self::midpoint($highPrices, $lowPrices, $kijunPeriod, $i);
+				$kijun[$i] = self::staticMidpoint($highPrices, $lowPrices, $kijunPeriod, $i);
 			}
 			if ($i >= $kijunPeriod - 1 && !is_nan($tenkan[$i]) && !is_nan($kijun[$i])) {
 				$senkouARaw[$i] = ($tenkan[$i] + $kijun[$i]) / 2.0;
 			}
 			if ($i >= $senkouBPeriod - 1) {
-				$senkouBRaw[$i] = self::midpoint($highPrices, $lowPrices, $senkouBPeriod, $i);
+				$senkouBRaw[$i] = self::staticMidpoint($highPrices, $lowPrices, $senkouBPeriod, $i);
 			}
 		}
 
-		// Senkou Span A/B: shift forward by displacement periods.
-		// senkouA[j] represents the cloud value at bar j, which was calculated
-		// at bar j - displacement.
 		$senkouA = array_fill(0, $count, NAN);
 		$senkouB = array_fill(0, $count, NAN);
 
@@ -157,32 +307,19 @@ class Ichimoku extends AbstractIndicator
 			}
 		}
 
-		// Chikou Span: close[i] plotted at position i - displacement.
-		// For strategy signal detection we store it aligned to source bar:
-		// chikou[i] = close[i], and the strategy compares close[current]
-		// against close[current - displacement].
-		$chikou = $closePrices;
-
 		return [
 			'tenkan' => $tenkan,
 			'kijun' => $kijun,
 			'senkouA' => $senkouA,
 			'senkouB' => $senkouB,
-			'chikou' => $chikou,
+			'chikou' => $closePrices,
 		];
 	}
 
 	/**
-	 * Compute the midpoint: (highest high + lowest low) / 2 over the last
-	 * $period bars ending at $index (inclusive).
-	 *
-	 * @param float[] $highPrices High prices array.
-	 * @param float[] $lowPrices  Low prices array.
-	 * @param int $period Lookback period.
-	 * @param int $index  Current bar index (inclusive end).
-	 * @return float Midpoint value.
+	 * Static midpoint for the stateless calculateFromPrices method.
 	 */
-	private static function midpoint(array $highPrices, array $lowPrices, int $period, int $index): float {
+	private static function staticMidpoint(array $highPrices, array $lowPrices, int $period, int $index): float {
 		$start = $index - $period + 1;
 		$highestHigh = PHP_FLOAT_MIN;
 		$lowestLow = PHP_FLOAT_MAX;

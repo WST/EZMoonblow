@@ -400,14 +400,16 @@ class Backtester extends ConsoleApplication
 			 */
 			$candleDuration = $pair->getTimeframe()->toSeconds();
 			$balanceSnapshots = [];
+			$market->setCandles([]);
+
+			$this->database->resetQueryTimer();
+			$indicatorTimeNs = 0;
+			$simWallStart = hrtime(true);
 
 			for ($i = 0; $i < $n; $i++) {
-				$slice = array_slice($candles, 0, $i + 1);
-				foreach ($slice as $c) {
-					$c->setMarket($market);
-				}
 				$currentCandle = $candles[$i];
 				$lastCandle = $currentCandle;
+				$market->appendCandle($currentCandle);
 				$candleTime = (int) $currentCandle->getOpenTime();
 
 				$openPrice = $currentCandle->getOpenPrice();
@@ -433,7 +435,6 @@ class Backtester extends ConsoleApplication
 				 * high/low = running max/min of all tick prices so far.
 				 * Volume is distributed proportionally across ticks.
 				 */
-				$sliceLastIdx = count($slice) - 1;
 				$totalTicks = count($ticks);
 				$runningHigh = $openPrice;
 				$runningLow = $openPrice;
@@ -447,8 +448,7 @@ class Backtester extends ConsoleApplication
 						$candleTime, $openPrice, $runningHigh, $runningLow, $tickPrice,
 						$candleVolume * $volumeFraction, $market,
 					);
-					$slice[$sliceLastIdx] = $partialCandle;
-					$market->setCandles($slice);
+					$market->replaceLastCandle($partialCandle);
 					$tickIdx++;
 
 					// --- 1. Set simulation time and price ---
@@ -457,11 +457,16 @@ class Backtester extends ConsoleApplication
 					$backtestExchange->setCurrentPriceForMarket($market, Money::from($tickPrice));
 
 					// --- 2. Recalculate indicators ---
+					$indT0 = hrtime(true);
 					$market->calculateIndicators();
+					$indicatorTimeNs += hrtime(true) - $indT0;
 
 					// --- 3. processTrading: entry signals / position updates ---
-					// Snapshot per-direction state before processTrading for event detection.
-					$preSnap = []; // direction => ['volume' => float, 'sl' => ?float]
+					// Warm position cache: a single SELECT loads all open/pending
+					// positions. All subsequent lookups within this tick use cache.
+					$market->warmPositionCache();
+
+					$preSnap = [];
 					if ($writer !== null) {
 						foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $snapDir) {
 							$pos = $market->getStoredPositionByDirection($snapDir);
@@ -474,7 +479,11 @@ class Backtester extends ConsoleApplication
 						}
 					}
 					$market->processTrading();
-					// Detect events that occurred during processTrading.
+
+					// processTrading may have opened/closed positions; refresh cache.
+					$market->invalidatePositionCache();
+					$market->warmPositionCache();
+
 					if ($writer !== null) {
 						foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $snapDir) {
 							$postPos = $market->getStoredPositionByDirection($snapDir);
@@ -486,7 +495,6 @@ class Backtester extends ConsoleApplication
 							$postSL = $postPos->getStopLossPrice()?->getAmount();
 
 							if (!$had) {
-								// New position opened.
 								$writer->writePositionOpen(
 									$postPos->getDirection()->value,
 									$postPos->getAverageEntryPrice()->getAmount(),
@@ -531,6 +539,8 @@ class Backtester extends ConsoleApplication
 					}
 
 					// --- 4. Fill pending DCA limit orders ---
+					// addToPosition modifies the cached position object in-place,
+					// so subsequent cache lookups see the updated data.
 					foreach ($backtestExchange->getPendingLimitOrders($market) as $order) {
 						$orderPrice = $order['price'];
 						$filled = $order['direction']->isLong()
@@ -555,16 +565,8 @@ class Backtester extends ConsoleApplication
 						}
 					}
 
-					// Load open/pending positions from DB once per tick.
-					// TP/SL/Liquidation checks below filter this array in-memory
-					// instead of re-querying the database (saves ~2 SELECTs per tick).
-					$where = [
-						BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
-						BacktestStoredPosition::FTicker => $market->getTicker(),
-						BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
-						BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
-					];
-					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+					// Reuse cached positions for TP/SL/Liquidation checks (no extra SELECT).
+					$openPositions = $market->getCachedPositions();
 
 					// Track which positions get closed by TP/SL so we can
 					// exclude them in subsequent checks without re-querying DB.
@@ -686,6 +688,12 @@ class Backtester extends ConsoleApplication
 						break 2; // Exit both tick and candle loops.
 					}
 				}
+
+				$market->invalidatePositionCache();
+
+				// Restore the full candle after the tick loop so that indicator
+				// calculations on subsequent candles see finalized OHLC data.
+				$market->replaceLastCandle($currentCandle);
 
 				// Record equity (balance + unrealized PnL) at the end of each candle.
 				$equity = $backtestExchange->getVirtualBalance()->getAmount() + $unrealizedPnl;
@@ -931,6 +939,10 @@ class Backtester extends ConsoleApplication
 			);
 			echo $result;
 
+			$simWallTimeMs = (hrtime(true) - $simWallStart) / 1e6;
+			$sqlTimeMs = $this->database->getCumulativeQueryTimeMs();
+			$indicatorTimeMs = $indicatorTimeNs / 1e6;
+
 			// Emit the result summary for the web UI.
 			if ($writer !== null) {
 				$pnl = $result->financial->getPnl();
@@ -955,6 +967,9 @@ class Backtester extends ConsoleApplication
 					'coinPriceEnd' => $result->financial->coinPriceEnd,
 					'totalFees' => round($result->financial->totalFees, 2),
 					'longestLosingDuration' => $result->financial->longestLosingDuration,
+					'perfSimTimeMs' => round($simWallTimeMs),
+					'perfSqlTimeMs' => round($sqlTimeMs),
+					'perfIndicatorTimeMs' => round($indicatorTimeMs),
 				]);
 			}
 

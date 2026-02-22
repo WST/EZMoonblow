@@ -4,9 +4,8 @@ namespace Izzy\Financial;
 
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionStatusEnum;
-use Izzy\Financial\Money;
+use Izzy\Exchanges\Backtest\BacktestExchange;
 use Izzy\Interfaces\IMarket;
-use Izzy\System\Database\Database;
 
 /**
  * Stored position for backtest runs.
@@ -75,5 +74,29 @@ class BacktestStoredPosition extends StoredPosition
 			self::FExpectedProfitPercent => 0.0,
 		];
 		return new self($market->getDatabase(), $row);
+	}
+
+	/**
+	 * Lightweight override for backtest mode.
+	 * In backtesting, stored positions ARE the single source of truth (there is
+	 * no real exchange to sync with), so the parent’s round-trip to
+	 * getCurrentFuturesPositionByDirection() + save() is pure waste.
+	 */
+	public function updateInfo(IMarket $market): bool {
+		$exchange = $market->getExchange();
+		$this->setCurrentPrice($exchange->getCurrentPrice($market));
+
+		if ($this->getStatus()->isPending()) {
+			$this->setStatus(PositionStatusEnum::OPEN);
+		}
+
+		if ($exchange instanceof BacktestExchange) {
+			$this->setUpdatedAt($exchange->getSimulationTime());
+		} else {
+			$this->setUpdatedAt(time());
+		}
+
+		// Don’t save here — Market::updatePosition() saves after strategy logic.
+		return true;
 	}
 }

@@ -404,7 +404,11 @@ class Optimizer extends ConsoleApplication
 					$backtestExchange->setCurrentPriceForMarket($market, Money::from($tickPrice));
 
 					$market->calculateIndicators();
+
+					$market->warmPositionCache();
 					$market->processTrading();
+					$market->invalidatePositionCache();
+					$market->warmPositionCache();
 
 					// Fill pending DCA limit orders.
 					foreach ($backtestExchange->getPendingLimitOrders($market) as $order) {
@@ -418,14 +422,7 @@ class Optimizer extends ConsoleApplication
 						}
 					}
 
-					// TP/SL checks.
-					$where = [
-						BacktestStoredPosition::FExchangeName => $market->getExchangeName(),
-						BacktestStoredPosition::FTicker => $market->getTicker(),
-						BacktestStoredPosition::FMarketType => $market->getMarketType()->value,
-						BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
-					];
-					$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $where, '');
+					$openPositions = $market->getCachedPositions();
 					$closedPositionIds = [];
 
 					foreach ($openPositions as $position) {
@@ -507,6 +504,7 @@ class Optimizer extends ConsoleApplication
 				}
 
 				$balanceSnapshots[] = [$candleTime, $backtestExchange->getVirtualBalance()->getAmount()];
+				$market->invalidatePositionCache();
 			}
 
 			// Collect results.
