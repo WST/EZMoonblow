@@ -306,7 +306,12 @@ class Optimizer extends ConsoleApplication
 
 		$this->database->dropTableIfExists($tableName);
 		if (!$this->database->createTableLike($tableName, 'positions')) {
-			$this->logger->error("Failed to create {$tableName} table.");
+			$this->logger->error("Failed to create $tableName (source table 'positions' may not exist).");
+			BacktestStoredPosition::resetTableSuffix();
+			return null;
+		}
+		if (!$this->database->tableExists($tableName)) {
+			$this->logger->error("Table $tableName was reportedly created but does not exist. Possible disk or permission issue.");
 			BacktestStoredPosition::resetTableSuffix();
 			return null;
 		}

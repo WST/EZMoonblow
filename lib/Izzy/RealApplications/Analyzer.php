@@ -167,7 +167,7 @@ class Analyzer extends ConsoleApplication
 	 */
 	public function run(): void {
 		$iteration = 0;
-		$lastDailyCleanup = 0;
+		$lastDailyCleanup = time();
 
 		$this->logger->info("Starting Analyzer application...");
 		$this->logger->info("Balance RRD file: $this->balanceRrdFile");
@@ -215,20 +215,29 @@ class Analyzer extends ConsoleApplication
 	}
 
 	/**
-	 * Drop backtest_positions_* tables left behind by crashed/aborted web backtests.
-	 * Only tables older than 2 hours are dropped to avoid killing active backtests.
+	 * Drop backtest_positions_* tables left behind by crashed/aborted backtests.
+	 *
+	 * Web backtest tables (web_*) are dropped after 2 hours.
+	 * Optimizer tables (opt_*) are given a longer grace period (24 hours)
+	 * because the Optimizer sleeps for hours between iterations and may
+	 * still need its table when it wakes up.
 	 */
 	private function dropOrphanedBacktestTables(): int {
 		$rows = $this->database->queryAllRows("SHOW TABLE STATUS LIKE 'backtest\\_positions\\_%'");
 		$dropped = 0;
-		$cutoff = time() - 7200;
+		$webCutoff = time() - 7200;
+		$optCutoff = time() - 86400;
 		foreach ($rows as $row) {
 			$tableName = $row['Name'];
 			if ($tableName === 'backtest_positions') {
 				continue;
 			}
 			$createTime = strtotime($row['Create_time'] ?? '');
-			if ($createTime === false || $createTime > $cutoff) {
+			if ($createTime === false) {
+				continue;
+			}
+			$cutoff = str_contains($tableName, '_opt_') ? $optCutoff : $webCutoff;
+			if ($createTime > $cutoff) {
 				continue;
 			}
 			$this->database->dropTableIfExists($tableName);
