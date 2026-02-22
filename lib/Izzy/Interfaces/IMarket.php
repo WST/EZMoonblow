@@ -120,28 +120,39 @@ interface IMarket
 	public function removeLimitOrders(): bool;
 
 	/**
-	 * Set or update take profit price for the current position.
+	 * Remove pending limit orders for a specific direction only (Two-Way Mode safe).
 	 *
-	 * @param Money $expectedTPPrice Target take profit price.
+	 * @param PositionDirectionEnum $direction Direction whose orders to cancel.
 	 * @return bool True if successful, false otherwise.
 	 */
-	public function setTakeProfit(Money $expectedTPPrice): bool;
+	public function removeLimitOrdersByDirection(PositionDirectionEnum $direction): bool;
 
 	/**
-	 * Set or update stop-loss price for the current position.
+	 * Set or update take profit price for a position.
 	 *
-	 * @param Money $expectedSLPrice Target stop-loss price.
+	 * @param Money $expectedTPPrice Target take profit price.
+	 * @param PositionDirectionEnum $direction Position direction (required for Two-Way Mode).
 	 * @return bool True if successful, false otherwise.
 	 */
-	public function setStopLoss(Money $expectedSLPrice): bool;
+	public function setTakeProfit(Money $expectedTPPrice, PositionDirectionEnum $direction): bool;
+
+	/**
+	 * Set or update stop-loss price for a position.
+	 *
+	 * @param Money $expectedSLPrice Target stop-loss price.
+	 * @param PositionDirectionEnum $direction Position direction (required for Two-Way Mode).
+	 * @return bool True if successful, false otherwise.
+	 */
+	public function setStopLoss(Money $expectedSLPrice, PositionDirectionEnum $direction): bool;
 
 	/**
 	 * Partially close an open position (reduce-only order).
 	 *
 	 * @param Money $volume Volume to close (in base currency).
+	 * @param PositionDirectionEnum $direction Position direction (required for Two-Way Mode).
 	 * @return bool True if successful, false otherwise.
 	 */
-	public function partialClose(Money $volume): bool;
+	public function partialClose(Money $volume, PositionDirectionEnum $direction): bool;
 
 	/**
 	 * Get the trading pair for this market.

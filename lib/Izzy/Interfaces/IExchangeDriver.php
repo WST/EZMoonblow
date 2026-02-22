@@ -160,22 +160,35 @@ interface IExchangeDriver
 	public function removeLimitOrders(IMarket $market): bool;
 
 	/**
+	 * Remove limit orders for a specific direction only (Two-Way Mode safe).
+	 * In hedge mode this cancels only orders belonging to the given side,
+	 * leaving the opposite direction's DCA grid and TP intact.
+	 *
+	 * @param IMarket $market
+	 * @param PositionDirectionEnum $direction Direction whose orders to cancel.
+	 * @return bool
+	 */
+	public function removeLimitOrdersByDirection(IMarket $market, PositionDirectionEnum $direction): bool;
+
+	/**
 	 * Set or update take profit order for a position.
 	 *
 	 * @param IMarket $market Market with the position.
 	 * @param Money $expectedPrice Target take profit price.
+	 * @param PositionDirectionEnum $direction Position direction (required for Two-Way Mode).
 	 * @return bool True on success, false on failure.
 	 */
-	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool;
+	public function setTakeProfit(IMarket $market, Money $expectedPrice, PositionDirectionEnum $direction): bool;
 
 	/**
 	 * Set or update stop-loss order for a position.
 	 *
 	 * @param IMarket $market Market with the position.
 	 * @param Money $expectedPrice Target stop-loss price.
+	 * @param PositionDirectionEnum $direction Position direction (required for Two-Way Mode).
 	 * @return bool True on success, false on failure.
 	 */
-	public function setStopLoss(IMarket $market, Money $expectedPrice): bool;
+	public function setStopLoss(IMarket $market, Money $expectedPrice, PositionDirectionEnum $direction): bool;
 
 	/**
 	 * Partially close an open position (reduce-only order).
@@ -187,9 +200,10 @@ interface IExchangeDriver
 	 *                               a market order fills at market price, but in backtesting the
 	 *                               simulated tick may overshoot the trigger level significantly.
 	 *                               Passing the exact trigger price produces realistic results.
+	 * @param PositionDirectionEnum|null $direction Position direction (required for Two-Way Mode).
 	 * @return bool True on success, false on failure.
 	 */
-	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool;
+	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null, ?PositionDirectionEnum $direction = null): bool;
 
 	/**
 	 * Place a reduce-only limit order to partially close a position.

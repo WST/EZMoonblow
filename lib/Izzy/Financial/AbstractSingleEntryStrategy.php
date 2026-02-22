@@ -174,7 +174,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 
 		// Calculate and set SL price.
 		$slPrice = $currentPrice->modifyByPercentWithDirection(-$this->stopLossPercent, $direction);
-		$market->setStopLoss($slPrice);
+		$market->setStopLoss($slPrice, $direction);
 		$position->setStopLossPrice($slPrice);
 		$position->setExpectedStopLossPercent($this->stopLossPercent);
 
@@ -279,7 +279,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 			$closePrice = Money::from($triggerAmount, $entryPrice->getCurrency());
 		}
 
-		if (!$market->partialClose($closeVolume, isBreakevenLock: true, closePrice: $closePrice)) {
+		if (!$market->partialClose($closeVolume, $position->getDirection(), isBreakevenLock: true, closePrice: $closePrice)) {
 			$logger->error("Breakeven Lock: failed to partially close position on {$market->getTicker()}");
 			return;
 		}
@@ -301,7 +301,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		$offset = $direction->isLong() ? -$tickSize : $tickSize;
 		$newSLPrice = Money::from($entryPrice->getAmount() + $offset, $entryPrice->getCurrency());
 
-		if (!$market->setStopLoss($newSLPrice)) {
+		if (!$market->setStopLoss($newSLPrice, $direction)) {
 			$logger->error("Breakeven Lock: failed to move SL to entry on {$market->getTicker()}");
 			return;
 		}
@@ -485,7 +485,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		$offset = $direction->isLong() ? -$tickSize : $tickSize;
 		$newSLPrice = Money::from($entryPrice->getAmount() + $offset, $entryPrice->getCurrency());
 
-		if (!$market->setStopLoss($newSLPrice)) {
+		if (!$market->setStopLoss($newSLPrice, $direction)) {
 			$logger->error("Breakeven Lock: failed to move SL to entry on {$market->getTicker()} after limit fill");
 			return;
 		}
@@ -542,7 +542,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 			$closePrice = Money::from($triggerAmount, $entryPrice->getCurrency());
 		}
 
-		if (!$market->partialClose($closeVolume, isBreakevenLock: false, closePrice: $closePrice)) {
+		if (!$market->partialClose($closeVolume, $position->getDirection(), isBreakevenLock: false, closePrice: $closePrice)) {
 			$logger->error("Partial Close: failed to partially close position on {$market->getTicker()}");
 			return;
 		}

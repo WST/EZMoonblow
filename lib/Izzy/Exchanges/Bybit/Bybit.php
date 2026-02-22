@@ -729,7 +729,45 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
+	public function removeLimitOrdersByDirection(IMarket $market, PositionDirectionEnum $direction): bool {
+		$pair = $market->getPair();
+		$ticker = $pair->getExchangeTicker($this);
+		$targetIdx = $this->getPositionIdxByDirection($direction);
+
+		try {
+			$response = $this->api->tradeApi()->getOpenOrders([
+				BybitParam::Category => $this->getBybitCategory($pair),
+				BybitParam::Symbol => $ticker,
+				BybitParam::Limit => '50',
+			]);
+
+			if (empty($response[BybitParam::List])) {
+				return true;
+			}
+
+			foreach ($response[BybitParam::List] as $order) {
+				$orderIdx = (int) ($order[BybitParam::PositionIdx] ?? 0);
+				if ($orderIdx !== $targetIdx) {
+					continue;
+				}
+				$this->api->tradeApi()->cancelOrder([
+					BybitParam::Category => $this->getBybitCategory($pair),
+					BybitParam::Symbol => $ticker,
+					BybitParam::OrderId => $order[BybitParam::OrderId],
+				]);
+			}
+
+			return true;
+		} catch (Throwable $e) {
+			$this->logger->error("Failed to remove limit orders by direction for $ticker: " . $e->getMessage());
+			return false;
+		}
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setTakeProfit(IMarket $market, Money $expectedPrice, PositionDirectionEnum $direction): bool {
 		$pair = $market->getPair();
 		try {
 			$params = [
@@ -737,13 +775,8 @@ class Bybit extends AbstractExchangeDriver
 				BybitParam::Symbol => $pair->getExchangeTicker($this),
 				BybitParam::TPTriggerBy => BybitTPTriggerByEnum::LastPrice->value,
 				BybitParam::TakeProfit => $expectedPrice->formatForOrder($this->getTickSize($market)),
+				BybitParam::PositionIdx => $this->getPositionIdxByDirection($direction),
 			];
-
-			// Hedge mode requires positionIdx to identify which position the TP belongs to.
-			$position = $market->getCurrentPosition();
-			if ($position) {
-				$params[BybitParam::PositionIdx] = $this->getPositionIdxByDirection($position->getDirection());
-			}
 
 			$this->api->positionApi()->setTradingStop($params);
 			return true;
@@ -756,7 +789,7 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function setStopLoss(IMarket $market, Money $expectedPrice): bool {
+	public function setStopLoss(IMarket $market, Money $expectedPrice, PositionDirectionEnum $direction): bool {
 		$pair = $market->getPair();
 		try {
 			$params = [
@@ -764,13 +797,8 @@ class Bybit extends AbstractExchangeDriver
 				BybitParam::Symbol => $pair->getExchangeTicker($this),
 				BybitParam::SLTriggerBy => BybitTPTriggerByEnum::LastPrice->value,
 				BybitParam::StopLoss => $expectedPrice->formatForOrder($this->getTickSize($market)),
+				BybitParam::PositionIdx => $this->getPositionIdxByDirection($direction),
 			];
-
-			// Hedge mode requires positionIdx to identify which position the SL belongs to.
-			$position = $market->getCurrentPosition();
-			if ($position) {
-				$params[BybitParam::PositionIdx] = $this->getPositionIdxByDirection($position->getDirection());
-			}
 
 			$this->api->positionApi()->setTradingStop($params);
 			return true;
@@ -783,18 +811,19 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
-	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
+	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null, ?PositionDirectionEnum $direction = null): bool {
 		$pair = $market->getPair();
 		try {
-			// Get the current position to determine direction.
-			$position = $this->getCurrentFuturesPosition($market);
-			if (!$position) {
-				$this->logger->error("Cannot partial close: no position found for {$market->getTicker()}");
-				return false;
+			if ($direction === null) {
+				$position = $this->getCurrentFuturesPosition($market);
+				if (!$position) {
+					$this->logger->error("Cannot partial close: no position found for {$market->getTicker()}");
+					return false;
+				}
+				$direction = $position->getDirection();
 			}
 
-			// Reduce-only order: sell if long, buy if short.
-			$closeSide = $position->getDirection()->isLong() ? 'Sell' : 'Buy';
+			$closeSide = $direction->isLong() ? 'Sell' : 'Buy';
 
 			$params = [
 				BybitParam::Category => $this->getBybitCategory($pair),
@@ -803,7 +832,7 @@ class Bybit extends AbstractExchangeDriver
 				BybitParam::OrderType => OrderTypeEnum::MARKET->value,
 				BybitParam::Qty => $volume->formatForOrder($this->getQtyStep($market)),
 				BybitParam::IsReduceOnly => true,
-				BybitParam::PositionIdx => $this->getPositionIdxByDirection($position->getDirection()),
+				BybitParam::PositionIdx => $this->getPositionIdxByDirection($direction),
 			];
 
 			$response = $this->api->tradeApi()->placeOrder($params);

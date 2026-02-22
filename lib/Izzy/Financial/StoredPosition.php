@@ -528,7 +528,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 					 */
 					$priceDifference = abs($this->getEntryPrice()->getPercentDifference($currentPrice));
 					if ($priceDifference > 0.5) {
-						if ($market->removeLimitOrders()) {
+						if ($market->removeLimitOrdersByDirection($this->getDirection())) {
 							$this->setStatus(PositionStatusEnum::CANCELED);
 							$this->setFinishedAt(time());
 						} else {
@@ -541,7 +541,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 			if ($currentStatus->isOpen()) {
 				$positionOnExchange = $exchange->getCurrentFuturesPositionByDirection($market, $this->getDirection());
 				if (!$positionOnExchange) {
-					if ($market->removeLimitOrders()) {
+					if ($market->removeLimitOrdersByDirection($this->getDirection())) {
 						$this->setStatus(PositionStatusEnum::FINISHED);
 						$this->setFinishedAt(time());
 					} else {
@@ -685,7 +685,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		// Current SL price on the exchange (may be unset on first update).
 		$currentSLPrice = $this->getStopLossPrice();
 		if ($currentSLPrice === null) {
-			$market->setStopLoss($expectedSLPrice);
+			$market->setStopLoss($expectedSLPrice, $direction);
 			$this->setStopLossPrice($expectedSLPrice);
 			return;
 		}
@@ -693,7 +693,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		// If the prices are different enough, we should move the SL order.
 		$diff = abs($currentSLPrice->getPercentDifference($expectedSLPrice));
 		if ($diff > 0.1) {
-			$market->setStopLoss($expectedSLPrice);
+			$market->setStopLoss($expectedSLPrice, $direction);
 			$this->setStopLossPrice($expectedSLPrice);
 		}
 	}
@@ -749,7 +749,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		// Current price of the take profit order (may be unset on first update).
 		$currentTPPrice = $this->getTakeProfitPrice();
 		if ($currentTPPrice === null) {
-			$market->setTakeProfit($expectedTPPrice);
+			$market->setTakeProfit($expectedTPPrice, $direction);
 			$this->setTakeProfitPrice($expectedTPPrice);
 			return;
 		}
@@ -759,7 +759,7 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 
 		// If the prices are different enough, we should move the TP order.
 		if ($diff > 0.1) {
-			$market->setTakeProfit($expectedTPPrice);
+			$market->setTakeProfit($expectedTPPrice, $direction);
 			$this->setTakeProfitPrice($expectedTPPrice);
 		}
 	}

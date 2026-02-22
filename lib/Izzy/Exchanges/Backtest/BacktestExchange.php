@@ -320,6 +320,14 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 	/**
+	 * @inheritDoc
+	 */
+	public function removeLimitOrdersByDirection(IMarket $market, PositionDirectionEnum $direction): bool {
+		$this->clearPendingLimitOrdersByDirection($market, $direction);
+		return true;
+	}
+
+	/**
 	 * Clear all pending limit orders for a market (both directions).
 	 */
 	public function clearPendingLimitOrders(IMarket $market): void {
@@ -342,23 +350,24 @@ class BacktestExchange implements IExchangeDriver
 	}
 
 
-	public function setTakeProfit(IMarket $market, Money $expectedPrice): bool {
+	public function setTakeProfit(IMarket $market, Money $expectedPrice, PositionDirectionEnum $direction): bool {
 		return true;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function setStopLoss(IMarket $market, Money $expectedPrice): bool {
-		// In backtesting, SL is simulated by the backtest runner checking price vs SL level.
+	public function setStopLoss(IMarket $market, Money $expectedPrice, PositionDirectionEnum $direction): bool {
 		return true;
 	}
 
 	/**
 	 * @inheritDoc
 	 */
-	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
-		$position = $market->getStoredPosition();
+	public function partialClose(IMarket $market, Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null, ?PositionDirectionEnum $direction = null): bool {
+		$position = $direction !== null
+			? $market->getStoredPositionByDirection($direction)
+			: $market->getStoredPosition();
 		if (!$position instanceof BacktestStoredPosition) {
 			return false;
 		}
@@ -402,7 +411,7 @@ class BacktestExchange implements IExchangeDriver
 		Money $price,
 		PositionDirectionEnum $direction,
 	): string|false {
-		$success = $this->partialClose($market, $volume, closePrice: $price);
+		$success = $this->partialClose($market, $volume, closePrice: $price, direction: $direction);
 		if (!$success) {
 			return false;
 		}

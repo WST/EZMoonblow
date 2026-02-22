@@ -1163,11 +1163,7 @@ class Market implements IMarket
 			// placed as regular limit orders below.
 
 			// Clear stale limit orders for this direction before placing new ones.
-			if ($this->exchange instanceof BacktestExchange) {
-				$this->exchange->clearPendingLimitOrdersByDirection($this, $direction);
-			} else {
-				$this->removeLimitOrders();
-			}
+			$this->exchange->removeLimitOrdersByDirection($this, $direction);
 
 			// Pass volume in quote currency (USDT). Bybit::openPosition expects quote
 			// currency and converts to base internally. Do NOT pre-convert here, otherwise
@@ -1255,25 +1251,26 @@ class Market implements IMarket
 	}
 
 	/**
-	 * Set take profit price.
-	 *
-	 * @param Money $expectedTPPrice Expected take profit price.
-	 * @return bool True if successful, false otherwise.
+	 * @inheritDoc
 	 */
-	public function setTakeProfit(Money $expectedTPPrice): bool {
-		$this->exchange->getLogger()->debug("Updating TP on $this, setting to $expectedTPPrice");
-		return $this->exchange->setTakeProfit($this, $expectedTPPrice);
+	public function removeLimitOrdersByDirection(PositionDirectionEnum $direction): bool {
+		return $this->exchange->removeLimitOrdersByDirection($this, $direction);
 	}
 
 	/**
-	 * Set stop-loss price.
-	 *
-	 * @param Money $expectedSLPrice Expected stop-loss price.
-	 * @return bool True if successful, false otherwise.
+	 * @inheritDoc
 	 */
-	public function setStopLoss(Money $expectedSLPrice): bool {
+	public function setTakeProfit(Money $expectedTPPrice, PositionDirectionEnum $direction): bool {
+		$this->exchange->getLogger()->debug("Updating TP on $this, setting to $expectedTPPrice");
+		return $this->exchange->setTakeProfit($this, $expectedTPPrice, $direction);
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function setStopLoss(Money $expectedSLPrice, PositionDirectionEnum $direction): bool {
 		$this->exchange->getLogger()->debug("Updating SL on $this, setting to $expectedSLPrice");
-		return $this->exchange->setStopLoss($this, $expectedSLPrice);
+		return $this->exchange->setStopLoss($this, $expectedSLPrice, $direction);
 	}
 
 	/**
@@ -1284,8 +1281,8 @@ class Market implements IMarket
 	 * @param Money|null $closePrice Price for PnL calculation in backtesting (see IExchangeDriver).
 	 * @return bool True if successful, false otherwise.
 	 */
-	public function partialClose(Money $volume, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
+	public function partialClose(Money $volume, PositionDirectionEnum $direction, bool $isBreakevenLock = false, ?Money $closePrice = null): bool {
 		$this->exchange->getLogger()->debug("Partial close on $this, volume $volume");
-		return $this->exchange->partialClose($this, $volume, $isBreakevenLock, $closePrice);
+		return $this->exchange->partialClose($this, $volume, $isBreakevenLock, $closePrice, $direction);
 	}
 }
