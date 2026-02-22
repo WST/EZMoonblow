@@ -96,6 +96,7 @@ The project contains two types of applications:
 ```
 ├── trader.php      # Main trading application - central component
 ├── analyzer.php    # Chart generation and analysis
+├── optimizer.php   # Automated strategy optimizations
 └── notifier.php    # Telegram notifications (trades, signals)
 ```
 

@@ -66,6 +66,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	const string FTotalFees = 'br_total_fees';
 	const string FMode = 'br_mode';
 	const string FTicksPerCandle = 'br_ticks_per_candle';
+	const string FLongestLosingDuration = 'br_longest_losing_duration';
 
 	public function __construct(Database $database, array $row) {
 		parent::__construct($database, $row, self::FId);
@@ -196,6 +197,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			self::FBalanceChart => $chartPng,
 			self::FMode => $mode->value,
 			self::FTicksPerCandle => $pair->getBacktestTicksPerCandle() ?? 4,
+			self::FLongestLosingDuration => $fin->longestLosingDuration,
 		];
 
 		$record = new self($database, $row);
@@ -559,6 +561,10 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 		return (int) ($this->row[self::FTicksPerCandle] ?? 4);
 	}
 
+	public function getLongestLosingDuration(): int {
+		return (int) ($this->row[self::FLongestLosingDuration] ?? 0);
+	}
+
 	public function getPairXml(): ?string {
 		return $this->row[self::FPairXml] ?? null;
 	}
@@ -645,6 +651,7 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 			'totalFees' => $this->getTotalFees(),
 			'mode' => $this->getMode(),
 			'ticksPerCandle' => $this->getTicksPerCandle(),
+			'longestLosingDuration' => $this->getLongestLosingDuration(),
 		];
 	}
 }

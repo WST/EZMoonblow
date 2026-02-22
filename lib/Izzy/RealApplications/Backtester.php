@@ -355,6 +355,8 @@ class Backtester extends ConsoleApplication
 			$lastCandle = null;
 			$peakEquity = $initialBalance;
 			$maxDrawdown = 0.0; // Peak-to-trough equity drawdown (negative value).
+			$peakEquityTime = $simStartTime;
+			$longestLosingDuration = 0; // Longest peak-to-recovery period (seconds).
 			/*
 			 * ============================================================
 			 *  INTRA-CANDLE TIME SIMULATION
@@ -660,8 +662,13 @@ class Backtester extends ConsoleApplication
 						}
 					}
 					$equity = $balance + $unrealizedPnl;
-					if ($equity > $peakEquity) {
+					if ($equity >= $peakEquity) {
+						$losingDuration = $tickTime - $peakEquityTime;
+						if ($losingDuration > $longestLosingDuration) {
+							$longestLosingDuration = $losingDuration;
+						}
 						$peakEquity = $equity;
+						$peakEquityTime = $tickTime;
 					}
 					$drawdown = $equity - $peakEquity;
 					if ($drawdown < $maxDrawdown) {
@@ -728,6 +735,12 @@ class Backtester extends ConsoleApplication
 			$firstOpen = !empty($candles) ? $candles[0]->getOpenPrice() : 0.0;
 			$simEndTime = $lastCandle !== null ? ((int) $lastCandle->getOpenTime() + $candleDuration - 1) : time();
 			$simStartTime = !empty($candles) ? (int) $candles[0]->getOpenTime() : $simEndTime;
+
+			// Account for a trailing drawdown that never recovered before the simulation ended.
+			$trailingLosingDuration = $simEndTime - $peakEquityTime;
+			if ($trailingLosingDuration > $longestLosingDuration) {
+				$longestLosingDuration = $trailingLosingDuration;
+			}
 
 			// Resolve exchange-specific ticker (e.g., "1000PEPEUSDT" on Bybit).
 			$exchangeClass = "\\Izzy\\Exchanges\\$exchangeName\\$exchangeName";
@@ -879,6 +892,7 @@ class Backtester extends ConsoleApplication
 					coinPriceStart: $firstOpen,
 					coinPriceEnd: $lastClose,
 					totalFees: $backtestExchange->getTotalFeesPaid(),
+					longestLosingDuration: $longestLosingDuration,
 				),
 				trades: BacktestTradeStats::fromRawData(
 					durations: $tradeDurations,
@@ -940,6 +954,7 @@ class Backtester extends ConsoleApplication
 					'coinPriceStart' => $result->financial->coinPriceStart,
 					'coinPriceEnd' => $result->financial->coinPriceEnd,
 					'totalFees' => round($result->financial->totalFees, 2),
+					'longestLosingDuration' => $result->financial->longestLosingDuration,
 				]);
 			}
 

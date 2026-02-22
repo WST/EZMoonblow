@@ -19,6 +19,8 @@ readonly class BacktestFinancialResult implements Stringable
 	 * @param bool $liquidated Whether the simulation ended in liquidation.
 	 * @param float $coinPriceStart Asset price at simulation start.
 	 * @param float $coinPriceEnd Asset price at simulation end.
+	 * @param float $totalFees Total exchange fees paid during simulation.
+	 * @param int $longestLosingDuration Longest peak-to-recovery period in seconds.
 	 */
 	public function __construct(
 		public float $initialBalance,
@@ -28,6 +30,7 @@ readonly class BacktestFinancialResult implements Stringable
 		public float $coinPriceStart = 0.0,
 		public float $coinPriceEnd = 0.0,
 		public float $totalFees = 0.0,
+		public int $longestLosingDuration = 0,
 	) {
 	}
 
@@ -41,6 +44,26 @@ readonly class BacktestFinancialResult implements Stringable
 			: 0.0;
 	}
 
+	private function formatDuration(int $seconds): string {
+		if ($seconds <= 0) {
+			return '0s';
+		}
+		$days = intdiv($seconds, 86400);
+		$hours = intdiv($seconds % 86400, 3600);
+		$minutes = intdiv($seconds % 3600, 60);
+		$parts = [];
+		if ($days > 0) {
+			$parts[] = $days . 'd';
+		}
+		if ($hours > 0) {
+			$parts[] = $hours . 'h';
+		}
+		if ($minutes > 0) {
+			$parts[] = $minutes . 'm';
+		}
+		return empty($parts) ? $seconds . 's' : implode(' ', $parts);
+	}
+
 	public function __toString(): string {
 		$pnl = $this->getPnl();
 		$pnlPercent = $this->getPnlPercent();
@@ -52,12 +75,15 @@ readonly class BacktestFinancialResult implements Stringable
 			$drawdownStr .= ' (' . number_format($drawdownPercent, 2) . '%)';
 		}
 
+		$losingStr = $this->formatDuration($this->longestLosingDuration);
+
 		$rows = [
 			['Initial balance', number_format($this->initialBalance, 2) . ' USDT'],
 			['Final balance', number_format($this->finalBalance, 2) . ' USDT'],
 			['PnL', number_format($pnl, 2) . ' USDT (' . number_format($pnlPercent, 2) . '%)'],
 			['Total fees', number_format($this->totalFees, 2) . ' USDT'],
 			['Max drawdown', $drawdownStr],
+			['Longest losing period', $losingStr],
 		];
 
 		// Asset price change during the simulation period.
