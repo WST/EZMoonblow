@@ -3,3 +3,4 @@ vendor
 .php-cs-fixer.cache
 test.php
 compose.yml
+docker/data/
