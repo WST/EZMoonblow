@@ -255,6 +255,15 @@ class Configuration
 	}
 
 	/**
+	 * Get instance display name (shown in page header).
+	 * Falls back to "EZMoonblow" when not configured.
+	 */
+	public function getInstanceName(): string {
+		$val = $this->xpath->evaluate('string(//instance_name)');
+		return $val !== '' ? $val : 'EZMoonblow';
+	}
+
+	/**
 	 * Get web interface password from configuration.
 	 * @return string Web password.
 	 */

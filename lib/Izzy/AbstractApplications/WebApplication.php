@@ -30,6 +30,7 @@ abstract class WebApplication extends IzzyApplication
 		$this->twigLoader = new FilesystemLoader(IZZY_TEMPLATES);
 		$this->twig = new Environment($this->twigLoader, ['cache' => false]);
 		parent::__construct();
+		$this->twig->addGlobal('instance_name', $this->configuration->getInstanceName());
 		session_start();
 	}
 

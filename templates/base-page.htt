@@ -9,7 +9,7 @@
 <body>
 {% block body %}
     <header>
-        <h2>EZMoonblow</h2>
+        <h2>{{ instance_name }}</h2>
     </header>
     <nav>
         {% for item in menu %}

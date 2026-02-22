@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <configuration>
+	<instance_name>EZMoonblow</instance_name>
+
 	<database engine="MySQL">
 		<host>localhost</host>
 		<username>izzy</username>
