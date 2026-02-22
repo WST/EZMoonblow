@@ -21,34 +21,61 @@ structure, and architectural patterns that must be followed.
 
 ### Core Trading System
 
-- 🤖 Automated cryptocurrency trading strategies (DCA, Long/Short)
-- 🏢 Multi-exchange support (Bybit, Gate, KuCoin)
-- 📈 Spot and futures market trading
-- 📊 Real-time market analysis and metrics collection
-- 📉 Technical indicators (RSI, extensible framework)
-- 💰 Balance tracking and portfolio monitoring
+- 🤖 Multiple trading strategies:
+    - **DCA** — RSI-based Dollar-Cost Averaging with configurable order grids, volume multipliers, and price deviation levels
+    - **DCA (Long & Short)** — Two-Way Mode for holding simultaneous long and short positions
+    - **Always-Long DCA** — DCA strategy with no signal filter, always enters long
+    - **Single Entry** — mean-reversion and trend-following strategies (RSI, Bollinger Bands, MACD, Ichimoku Cloud, Logistic Regression)
+- 📉 Technical indicators: RSI, MACD, Bollinger Bands, EMA, ADX, Ichimoku Cloud, ATR
+- 🏢 Multi-exchange architecture (Bybit, Gate, KuCoin)
+- 📈 Spot and futures market trading with configurable leverage
+- 💰 Balance and equity tracking, real-time portfolio monitoring
 - 📋 Task queue system for asynchronous operations
 - 🔄 Multi-process exchange monitoring
 - 📊 RRD-based chart generation and data storage
+- 🛡️ Risk management: stop-loss, take-profit, breakeven lock, partial close, stop-loss cooldown
 
 ### Telegram Integration
 
-- 📊 Interactive candlestick chart building for any trading pairs
+- 📊 Interactive candlestick chart building for any trading pair
 - 🏢 Multi-exchange support with easy switching
 - 📈 Spot and futures market analysis
 - ⏰ Various timeframes (1m, 3m, 5m, 15m, 30m, 1h, 2h, 4h, 6h, 12h, 1d, 1w, 1M)
-- 🔔 Strategy signal notifications
+- 🔔 Trade notifications (position opened, closed, DCA fill, liquidation)
 - 💬 Interactive commands with inline buttons
+
+### Backtesting System
+
+- 🧪 Visual backtester with real-time SSE streaming — watch the simulation unfold on a candlestick chart
+- 🎯 Configurable ticks-per-candle resolution (intra-candle price interpolation to avoid lookahead bias)
+- 📊 Equity curve generation with RRD charts
+- 💹 Comprehensive result metrics: PnL, win rate, max drawdown, Sharpe/Sortino ratios, exchange commissions
+- 🔀 Parallel backtest execution via isolated position tables
+- ⏹️ Abort running simulations from the UI
+- 🧬 **Optimizer** — a daemon that periodically mutates strategy parameters and backtests them, notifying when a mutation improves PnL
+
+### Web Management Interface
+
+- 📋 **Dashboard** — overview of the trading system state
+- 💱 **Pairs** — configured trading pairs with live market data and DCA order grids
+- 📂 **Positions** — currently open and pending positions
+- 🧪 **Backtest** — visual backtester with strategy parameter editor, real-time chart, and order grid sidebar
+- 📊 **Results** — backtest result history with filtering (Manual / Auto mode)
+- 🧬 **Optimizations** — parameter improvement suggestions from the Optimizer
+- 📈 **Candles** — candlestick chart viewer
+- 🖥️ **System Status** — health of all daemon components (Trader, Analyzer, Notifier, Optimizer)
+- 🔒 Authentication support
 
 ## Usage
 
 ### Software requirements
 
 * Operating system: Linux, FreeBSD, NetBSD, macOS
-* PHP version: 8.3 or greater
+* PHP version: 8.4 or greater
 * MySQL version 5.7 or greater
+* Docker deployments are recommended
 
-### Installing
+### Installing (native)
 
 ```bash
 git clone git@github.com:WST/EZMoonblow.git
@@ -57,6 +84,17 @@ composer install
 cp config/config.xml.example config/config.xml
 # edit your config.xml
 ./tasks/db/migrate
+```
+
+### Installing (Docker)
+
+```bash
+git clone git@github.com:WST/EZMoonblow.git
+cd EZMoonblow
+cp config/config.xml.example config/config.xml
+cp docker-compose.yml.example docker-compose.yml
+# edit your config.xml & docker-compose.yml
+docker compose up
 ```
 
 ### Configuration
@@ -92,9 +130,12 @@ Configure exchanges with trading pairs:
 
 ### Running Applications
 
-* `./trader.php` - Main trading application
-* `./analyzer.php` - Metrics collection and analysis
-* `./notifier.php` - **Telegram notifications and interactive bot**
+* `./trader.php` ← Main trading application
+* `./analyzer.php` ← Metrics collection, chart generation, and periodic cleanup
+* `./notifier.php` ← Telegram notifications and interactive bot
+* `./optimizer.php` ← Automated strategy parameter optimization daemon
+
+All four daemons are designed to run continuously. Their status is monitored on the System Status page of the web interface.
 
 ### Telegram Bot Usage
 
@@ -119,15 +160,9 @@ Use `/menu` for the most convenient experience:
 - `/help` — Detailed command reference
 - `/menu` — Interactive menu with buttons
 
-### Test system
-
-* `./tasks/dev/run-tests` performs quick system check-up.
-
 ## TODO
 
 * TA module
 * Support for more exchanges
-* Web management interface
 * User data support (user-defined indicators, strategies)
-* Support for position hedging (having both Short and Long positions open at the same time)
 * Configurable notifications with Telegram & XMPP support

@@ -68,9 +68,9 @@ trading system. Please follow these rules strictly when making any changes to th
 
 ### 8. Money Handling
 
-- **Always use the `Money` class** for monetary amounts
-- Never use plain floats or integers for currency values
-- This ensures proper currency handling and prevents precision issues
+- **Always use the `Money` class** for monetary amounts — this ensures that at every stage of the data flow you can see not only the amount itself, but also the currency it is denominated in.
+- Never use plain floats or integers for currency values.
+- Unwrapping `Money` to a `float` is only acceptable when the variable name explicitly preserves the context of what was stored — for example, `$volumeInQuoteCurrency`, `$balanceUsdt`, `$addedBase`. A bare name like `$volume` or `$amount` without a currency hint is not allowed.
 
 ### 9. Functional Programming Approach
 
