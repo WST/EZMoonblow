@@ -1100,8 +1100,7 @@ class Market implements IMarket
 			// Pass volume in quote currency (USDT). Bybit::openPosition expects quote
 			// currency and converts to base internally. Do NOT pre-convert here, otherwise
 			// the amount will be divided by price twice, inflating the position size.
-			$entryVolumeQuote = Money::from($entryLevel['volume']);
-			$success = $this->exchange->openPosition($this, $direction, $entryVolumeQuote, null, $takeProfitPercent);
+			$success = $this->exchange->openPosition($this, $direction, $entryLevel['volume'], null, $takeProfitPercent);
 			if (!$success) {
 				return false;
 			}
@@ -1109,7 +1108,7 @@ class Market implements IMarket
 			// Place remaining DCA levels as limit orders for averaging.
 			foreach ($orderMap as $level) {
 				$orderPrice = $entryPrice->modifyByPercent($level['offset']);
-				$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
+				$orderVolume = $this->calculateQuantity($level['volume'], $orderPrice);
 				$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
 			}
 
@@ -1124,7 +1123,7 @@ class Market implements IMarket
 
 		// Limit entry: the entry order is placed as a limit order at the current price.
 		// placeLimitOrder expects volume in base currency, so we convert here.
-		$entryVolume = $this->calculateQuantity(Money::from($entryLevel['volume']), $entryPrice);
+		$entryVolume = $this->calculateQuantity($entryLevel['volume'], $entryPrice);
 
 		// The position starts in PENDING status and transitions to OPEN when the
 		// exchange fills the entry order.
@@ -1134,7 +1133,7 @@ class Market implements IMarket
 		// Do not use modifyByPercentWithDirection (that is for TP: LONG up, SHORT down).
 		foreach ($orderMap as $level) {
 			$orderPrice = $entryPrice->modifyByPercent($level['offset']);
-			$orderVolume = $this->calculateQuantity(Money::from($level['volume']), $orderPrice);
+			$orderVolume = $this->calculateQuantity($level['volume'], $orderPrice);
 			$this->placeLimitOrder($orderVolume, $orderPrice, $direction);
 		}
 

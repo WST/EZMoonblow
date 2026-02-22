@@ -137,17 +137,17 @@ class DCASettings
 	}
 
 	public function getMaxTotalPositionVolume(TradingContext $context): Money {
-		$totalVolume = $this->longGrid->getTotalVolume($context)
-			+ $this->shortGrid->getTotalVolume($context);
-		return Money::from($totalVolume);
+		$long = $this->longGrid->getTotalVolume($context)->getAmount();
+		$short = $this->shortGrid->getTotalVolume($context)->getAmount();
+		return new Money($long + $short);
 	}
 
 	public function getMaxLongPositionVolume(TradingContext $context): Money {
-		return Money::from($this->longGrid->getTotalVolume($context));
+		return $this->longGrid->getTotalVolume($context);
 	}
 
 	public function getMaxShortPositionVolume(TradingContext $context): Money {
-		return Money::from($this->shortGrid->getTotalVolume($context));
+		return $this->shortGrid->getTotalVolume($context);
 	}
 
 	public function isUseLimitOrders(): bool {

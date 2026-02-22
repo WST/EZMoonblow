@@ -146,7 +146,7 @@ class DCAOrderGrid
 	 * regardless of the offset mode. The mode affects how the offsets are calculated.
 	 *
 	 * @param TradingContext $context Runtime trading context for volume resolution.
-	 * @return array Array of ['volume' => float, 'offset' => float] entries.
+	 * @return array Array of ['volume' => Money, 'offset' => float] entries.
 	 */
 	public function buildOrderMap(TradingContext $context): array {
 		$orderMap = [];
@@ -243,14 +243,14 @@ class DCAOrderGrid
 	 * Get the total volume of all orders in the grid (resolved to quote currency).
 	 *
 	 * @param TradingContext $context Runtime trading context for volume resolution.
-	 * @return float Total volume in quote currency.
+	 * @return Money Total volume in quote currency.
 	 */
-	public function getTotalVolume(TradingContext $context): float {
+	public function getTotalVolume(TradingContext $context): Money {
 		$total = 0.0;
 		foreach ($this->levels as $level) {
-			$total += $level->resolveVolume($context);
+			$total += $level->resolveVolume($context)->getAmount();
 		}
-		return $total;
+		return new Money($total);
 	}
 
 	/**
@@ -289,7 +289,7 @@ class DCAOrderGrid
 	 * volumes and calculated offsets based on direction.
 	 *
 	 * @param TradingContext $context Runtime trading context.
-	 * @return array[] Array of ['volume' => float, 'offset' => float] entries.
+	 * @return array[] Array of ['volume' => Money, 'offset' => float] entries.
 	 */
 	public function getDisplayData(TradingContext $context): array {
 		return $this->buildOrderMap($context);

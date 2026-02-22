@@ -2,6 +2,9 @@
 
 namespace Izzy\Enums;
 
+use Izzy\Financial\Money;
+use Izzy\Financial\TradingContext;
+
 /**
  * Defines how entry volume is specified in DCA configuration.
  */
@@ -19,9 +22,9 @@ enum EntryVolumeModeEnum: string
 	case PERCENT_BALANCE = 'PERCENT_BALANCE';
 
 	/**
-	 * Percentage of available margin with 1x leverage (e.g., 5%M).
+	 * Percentage of available notional balance provided by available margin (e.g. 10×)
 	 */
-	case PERCENT_MARGIN = 'PERCENT_MARGIN';
+	case PERCENT_NOTIONAL = 'PERCENT_NOTIONAL';
 
 	/**
 	 * Absolute value in base currency (e.g., 0.002 BTC).
@@ -48,8 +51,8 @@ enum EntryVolumeModeEnum: string
 	 * Check if mode is percentage of margin.
 	 * @return bool
 	 */
-	public function isPercentMargin(): bool {
-		return $this === self::PERCENT_MARGIN;
+	public function isPercentNotional(): bool {
+		return $this === self::PERCENT_NOTIONAL;
 	}
 
 	/**
@@ -69,6 +72,23 @@ enum EntryVolumeModeEnum: string
 	}
 
 	/**
+	 * Resolve a raw volume value to quote currency (USDT) based on this mode.
+	 *
+	 * @param float $rawVolume Raw volume value (interpretation depends on this mode).
+	 * @param TradingContext $context Runtime trading context providing balance, price, etc.
+	 * @return float Resolved volume in quote currency.
+	 */
+	public function resolve(float $rawVolume, TradingContext $context): Money {
+		$amount = match ($this) {
+			self::ABSOLUTE_QUOTE => $rawVolume,
+			self::ABSOLUTE_BASE => $rawVolume * $context->getCurrentPrice()->getAmount(),
+			self::PERCENT_BALANCE => $context->getBalance() * ($rawVolume / 100),
+			self::PERCENT_NOTIONAL => $context->getNotional() * ($rawVolume / 100),
+		};
+		return new Money($amount);
+	}
+
+	/**
 	 * Get human-readable description.
 	 * @return string
 	 */
@@ -76,7 +96,7 @@ enum EntryVolumeModeEnum: string
 		return match ($this) {
 			self::ABSOLUTE_QUOTE => 'Absolute value in quote currency (USDT)',
 			self::PERCENT_BALANCE => 'Percentage of account balance',
-			self::PERCENT_MARGIN => 'Percentage of available margin',
+			self::PERCENT_NOTIONAL => 'Percentage of available margin',
 			self::ABSOLUTE_BASE => 'Absolute value in base currency',
 		};
 	}

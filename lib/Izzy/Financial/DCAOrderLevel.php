@@ -73,15 +73,10 @@ class DCAOrderLevel
 	 * Calculate the actual volume in quote currency (USDT) based on mode.
 	 *
 	 * @param TradingContext $context Runtime trading context.
-	 * @return float Volume in quote currency (USDT).
+	 * @return Money Volume in quote currency (USDT).
 	 */
-	public function resolveVolume(TradingContext $context): float {
-		return match ($this->volumeMode) {
-			EntryVolumeModeEnum::ABSOLUTE_QUOTE => $this->volume,
-			EntryVolumeModeEnum::PERCENT_BALANCE => $context->getBalance() * ($this->volume / 100),
-			EntryVolumeModeEnum::PERCENT_MARGIN => $context->getMargin() * ($this->volume / 100),
-			EntryVolumeModeEnum::ABSOLUTE_BASE => $this->volume * $context->getCurrentPrice()->getAmount(),
-		};
+	public function resolveVolume(TradingContext $context): Money {
+		return $this->volumeMode->resolve($this->volume, $context);
 	}
 
 	/**

@@ -10,7 +10,7 @@ use Izzy\Enums\EntryVolumeModeEnum;
  * Supported formats:
  * - "140" or "140 USDT" → ABSOLUTE_QUOTE, 140
  * - "5%" → PERCENT_BALANCE, 5
- * - "5%M" or "5% margin" → PERCENT_MARGIN, 5
+ * - "5%N" or "5% notional" → PERCENT_NOTIONAL, 5 * leverage
  * - "0.002 BTC" or "2 SOL" → ABSOLUTE_BASE, 0.002/2
  */
 class EntryVolumeParser
@@ -52,10 +52,10 @@ class EntryVolumeParser
 	private function parseInput(): void {
 		$input = trim($this->rawInput);
 
-		// Check for percentage with margin modifier: "5%M" or "5% margin" or "5%m"
-		if (preg_match('/^([\d.]+)\s*%\s*[Mm](argin)?$/i', $input, $matches)) {
+		// Check for percentage with notional modifier: "5%N" or "5% notional" or "5%n"
+		if (preg_match('/^([\d.]+)\s*%\s*[Nn](otional)?$/i', $input, $matches)) {
 			$this->value = (float)$matches[1];
-			$this->mode = EntryVolumeModeEnum::PERCENT_MARGIN;
+			$this->mode = EntryVolumeModeEnum::PERCENT_NOTIONAL;
 			return;
 		}
 

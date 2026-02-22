@@ -6,7 +6,7 @@ namespace Izzy\Financial;
  * Represents runtime trading context for volume calculations.
  *
  * This DTO encapsulates market conditions needed to resolve
- * dynamic volume modes (percentage of balance, margin, or base currency).
+ * dynamic volume modes (percentage of balance, notional, or base currency).
  */
 class TradingContext
 {
@@ -14,12 +14,12 @@ class TradingContext
 	 * Creates a new trading context.
 	 *
 	 * @param float $balance Current account balance in quote currency.
-	 * @param float $margin Available margin in quote currency.
+	 * @param float $notional Available notional in quote currency.
 	 * @param Money $currentPrice Current price of base currency.
 	 */
 	public function __construct(
 		private float $balance,
-		private float $margin,
+		private float $notional,
 		private Money $currentPrice
 	) {
 	}
@@ -36,8 +36,8 @@ class TradingContext
 	 * Get the available margin.
 	 * @return float Margin in quote currency.
 	 */
-	public function getMargin(): float {
-		return $this->margin;
+	public function getNotional(): float {
+		return $this->notional;
 	}
 
 	/**
@@ -61,6 +61,6 @@ class TradingContext
 	 * @return bool
 	 */
 	public function isValid(): bool {
-		return $this->balance > 0 || $this->margin > 0 || $this->currentPrice->getAmount() > 0;
+		return $this->balance > 0 || $this->notional > 0 || $this->currentPrice->getAmount() > 0;
 	}
 }

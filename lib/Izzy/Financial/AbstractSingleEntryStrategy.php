@@ -138,21 +138,6 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		$this->stopLossCooldownMinutes = $this->params[StopLossCooldownMinutes::getName()]->getValue();
 	}
 
-	/**
-	 * Resolve entry volume in quote currency using the current trading context.
-	 *
-	 * @return float Volume in quote currency (e.g. USDT).
-	 */
-	protected function resolveEntryVolume(): float {
-		$context = $this->market->getTradingContext();
-		return match ($this->volumeMode) {
-			EntryVolumeModeEnum::ABSOLUTE_QUOTE => $this->entryVolume,
-			EntryVolumeModeEnum::PERCENT_BALANCE => $context->getBalance() * ($this->entryVolume / 100),
-			EntryVolumeModeEnum::PERCENT_MARGIN => $context->getMargin() * ($this->entryVolume / 100),
-			EntryVolumeModeEnum::ABSOLUTE_BASE => $this->entryVolume * $context->getCurrentPrice()->getAmount(),
-		};
-	}
-
 	// ------------------------------------------------------------------
 	// Entry handlers
 	// ------------------------------------------------------------------
@@ -178,7 +163,7 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		// Pass volume in quote currency (USDT). Market::openPosition and the
 		// exchange driver convert to base currency internally. Do NOT
 		// pre-convert here, otherwise the amount will be divided by price twice.
-		$volumeQuote = Money::from($this->resolveEntryVolume());
+		$volumeQuote = $this->volumeMode->resolve($this->entryVolume, $market->getTradingContext());
 		$currentPrice = $market->getCurrentPrice();
 
 		// Open the position at market price.

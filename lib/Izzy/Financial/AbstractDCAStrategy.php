@@ -179,8 +179,7 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 			return Money::from(0);
 		}
 
-		$context = $this->market->getTradingContext();
-		return Money::from($levels[0]->resolveVolume($context));
+		return $levels[0]->resolveVolume($this->market->getTradingContext());
 	}
 
 	/**
@@ -250,13 +249,13 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 	 * position object (the caller is responsible for saving).
 	 *
 	 * @param IStoredPosition $position Position to average into.
-	 * @param float $addedVolumeQuote Additional volume in quote currency (USDT).
+	 * @param Money $addedVolumeQuote Additional volume in quote currency (USDT).
 	 * @param float $fillPrice Price at which the averaging occurs.
 	 */
-	private function executeDCAFill(IStoredPosition $position, float $addedVolumeQuote, float $fillPrice): void {
+	private function executeDCAFill(IStoredPosition $position, Money $addedVolumeQuote, float $fillPrice): void {
 		$oldVolBase = $position->getVolume()->getAmount();
 		$oldAvgEntry = $position->getAverageEntryPrice()->getAmount();
-		$addedBase = $addedVolumeQuote / $fillPrice;
+		$addedBase = $addedVolumeQuote->getAmount() / $fillPrice;
 		$newVolBase = $oldVolBase + $addedBase;
 
 		if ($newVolBase <= 0) {
