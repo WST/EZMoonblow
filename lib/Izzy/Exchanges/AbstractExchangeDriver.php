@@ -353,4 +353,22 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	public function getMakerFee(MarketTypeEnum $marketType): float {
 		return 0.0;
 	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default: empty array. Override in exchange-specific drivers.
+	 */
+	public static function tickerToPair(string $exchangeTicker, MarketTypeEnum $marketType): string {
+		return $exchangeTicker;
+	}
+
+	/**
+	 * @inheritDoc
+	 *
+	 * Default: empty array. Override in exchange-specific drivers.
+	 */
+	public function getTopPairsByVolume(int $limit, string $category = 'linear'): array {
+		return [];
+	}
 }

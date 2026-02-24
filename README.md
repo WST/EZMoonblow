@@ -53,6 +53,7 @@ structure, and architectural patterns that must be followed.
 - 🔀 Parallel backtest execution via isolated position tables
 - ⏹️ Abort running simulations from the UI
 - 🧬 **Optimizer** — a daemon that periodically mutates strategy parameters and backtests them, notifying when a mutation improves PnL
+- 🔍 **Screener** — a daemon that periodically picks random top-volume trading pairs from the exchange and backtests them with configured strategies
 
 ### Web Management Interface
 
@@ -63,7 +64,7 @@ structure, and architectural patterns that must be followed.
 - 📊 **Results** — backtest result history with filtering (Manual / Auto mode)
 - 🧬 **Optimizations** — parameter improvement suggestions from the Optimizer
 - 📈 **Candles** — candlestick chart viewer
-- 🖥️ **System Status** — health of all daemon components (Trader, Analyzer, Notifier, Optimizer)
+- 🖥️ **System Status** — health of all daemon components (Trader, Analyzer, Notifier, Optimizer, Screener)
 - 🔒 Authentication support
 
 ## Usage
@@ -134,8 +135,9 @@ Configure exchanges with trading pairs:
 * `./analyzer.php` ← Metrics collection, chart generation, and periodic cleanup
 * `./notifier.php` ← Telegram notifications and interactive bot
 * `./optimizer.php` ← Automated strategy parameter optimization daemon
+* `./screener.php` ← Random pair screening — backtests top-volume pairs with configured strategies
 
-All four daemons are designed to run continuously. Their status is monitored on the System Status page of the web interface.
+All five daemons are designed to run continuously. Their status is monitored on the System Status page of the web interface.
 
 ### Telegram Bot Usage
 

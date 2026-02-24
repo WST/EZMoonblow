@@ -559,4 +559,12 @@ class BacktestExchange implements IExchangeDriver
 	public function getMakerFee(MarketTypeEnum $marketType): float {
 		return $this->feeRate;
 	}
+
+	public static function tickerToPair(string $exchangeTicker, MarketTypeEnum $marketType): string {
+		return $exchangeTicker;
+	}
+
+	public function getTopPairsByVolume(int $limit, string $category = 'linear'): array {
+		return [];
+	}
 }

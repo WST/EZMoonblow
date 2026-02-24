@@ -111,6 +111,24 @@ interface IExchangeDriver
 	public static function pairToTicker(IPair $pair): string;
 
 	/**
+	 * Convert an exchange-specific ticker back to internal pair format.
+	 *
+	 * @param string $exchangeTicker Exchange ticker (e.g., "1000PEPEUSDT").
+	 * @param MarketTypeEnum $marketType Market type (SPOT or FUTURES).
+	 * @return string Internal pair format (e.g., "PEPE/USDT").
+	 */
+	public static function tickerToPair(string $exchangeTicker, MarketTypeEnum $marketType): string;
+
+	/**
+	 * Get top trading pairs sorted by 24h turnover.
+	 *
+	 * @param int $limit Number of top pairs to return.
+	 * @param string $category Exchange-specific category (e.g., 'linear' for Bybit futures).
+	 * @return string[] Array of pair tickers in internal format (e.g., ['BTC/USDT', 'ETH/USDT']).
+	 */
+	public function getTopPairsByVolume(int $limit, string $category = 'linear'): array;
+
+	/**
 	 * Get spot wallet balance for a specific currency.
 	 *
 	 * @param string $coin Currency symbol (e.g., "BTC", "USDT").

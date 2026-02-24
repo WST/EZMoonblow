@@ -67,4 +67,6 @@ class BybitParam
 	const string BuyLeverage = 'buyLeverage';
 
 	const string SellLeverage = 'sellLeverage';
+
+	const string Turnover24h = 'turnover24h';
 }

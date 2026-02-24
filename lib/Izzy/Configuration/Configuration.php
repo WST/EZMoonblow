@@ -7,6 +7,7 @@ use DOMElement;
 use DOMXPath;
 use Izzy\AbstractApplications\IzzyApplication;
 use Izzy\Enums\MarketTypeEnum;
+use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Pair;
 use Izzy\Interfaces\IExchangeDriver;
 use Izzy\System\Database\Database;
@@ -316,6 +317,71 @@ class Configuration
 			}
 		}
 		return $params;
+	}
+
+	// ------------------------------------------------------------------
+	// Screener settings
+	// ------------------------------------------------------------------
+
+	public function getScreenerIntervalMinutes(): int {
+		$val = $this->xpath->evaluate('string(//screener/interval_minutes)');
+		return $val !== '' ? (int) $val : 30;
+	}
+
+	public function getScreenerTicksPerCandle(): int {
+		$val = $this->xpath->evaluate('string(//screener/ticks_per_candle)');
+		return $val !== '' ? max(4, (int) $val) : 10;
+	}
+
+	public function getScreenerInitialBalance(): float {
+		$val = $this->xpath->evaluate('string(//screener/initial_balance)');
+		return $val !== '' ? (float) $val : 1000.0;
+	}
+
+	public function getScreenerTopPairs(): int {
+		$val = $this->xpath->evaluate('string(//screener/top_pairs)');
+		return $val !== '' ? (int) $val : 30;
+	}
+
+	public function getScreenerMarketType(): string {
+		$val = $this->xpath->evaluate('string(//screener/market_type)');
+		return $val !== '' ? $val : 'futures';
+	}
+
+	public function getScreenerTimeframe(): TimeFrameEnum {
+		$val = $this->xpath->evaluate('string(//screener/timeframe)');
+		return $val !== '' ? TimeFrameEnum::from($val) : TimeFrameEnum::TF_1HOUR;
+	}
+
+	/**
+	 * Parse screener strategies from config.
+	 *
+	 * @return array<array{name: string, params: array<string, string>}>
+	 */
+	public function getScreenerStrategies(): array {
+		$nodes = $this->xpath->query('//screener/strategies/strategy');
+		$strategies = [];
+		foreach ($nodes as $node) {
+			if (!$node instanceof DOMElement) {
+				continue;
+			}
+			$name = $node->getAttribute('name');
+			if ($name === '') {
+				continue;
+			}
+			$params = [];
+			foreach ($this->xpath->query('param', $node) as $paramNode) {
+				if ($paramNode instanceof DOMElement) {
+					$pName = $paramNode->getAttribute('name');
+					$pValue = $paramNode->getAttribute('value');
+					if ($pName !== '') {
+						$params[$pName] = $pValue;
+					}
+				}
+			}
+			$strategies[] = ['name' => $name, 'params' => $params];
+		}
+		return $strategies;
 	}
 
 	// ------------------------------------------------------------------

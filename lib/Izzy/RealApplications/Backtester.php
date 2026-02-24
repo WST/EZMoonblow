@@ -4,25 +4,14 @@ namespace Izzy\RealApplications;
 
 use Izzy\AbstractApplications\ConsoleApplication;
 use Izzy\Backtest\BacktestBalanceChart;
-use Izzy\Backtest\BacktestDirectionStats;
+use Izzy\Backtest\BacktestEngine;
 use Izzy\Backtest\BacktestEventWriter;
-use Izzy\Backtest\BacktestFinancialResult;
-use Izzy\Backtest\BacktestOpenPosition;
-use Izzy\Backtest\BacktestResult;
 use Izzy\Backtest\BacktestResultRecord;
-use Izzy\Backtest\BacktestRiskRatios;
-use Izzy\Backtest\BacktestTradeStats;
 use Izzy\Enums\MarketTypeEnum;
-use Izzy\Enums\PositionDirectionEnum;
-use Izzy\Enums\PositionFinishReasonEnum;
-use Izzy\Enums\PositionStatusEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Exchanges\Backtest\BacktestExchange;
-use Izzy\Financial\AbstractSingleEntryStrategy;
 use Izzy\Financial\BacktestStoredPosition;
-use Izzy\Financial\Candle;
 use Izzy\Financial\CandleRepository;
-use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\Financial\StrategyFactory;
 use Izzy\System\Logger;
@@ -270,6 +259,7 @@ class Backtester extends ConsoleApplication
 	 */
 	private function runBacktestLoop(array $pairsForBacktest, ?BacktestEventWriter $writer = null, ?string $sessionId = null): void {
 		$repository = new CandleRepository($this->database);
+		$engine = new BacktestEngine($this->database, $this->logger);
 
 		$this->database->beginTransaction();
 		foreach ($pairsForBacktest as $entry) {
@@ -297,8 +287,6 @@ class Backtester extends ConsoleApplication
 				$initialBalance
 			);
 
-			$strategyParams = $pair->getStrategyParams();
-
 			$endTime = time();
 			$startTime = $endTime - $days * 24 * 3600;
 			$candles = $repository->getCandles($pair, $startTime, $endTime);
@@ -320,9 +308,6 @@ class Backtester extends ConsoleApplication
 				continue;
 			}
 
-			// Fetch real instrument parameters (tick size, qty step) from the
-			// exchange so that the backtest simulation uses realistic values
-			// instead of hardcoded defaults.
 			$realExchange = $entry['exchange'];
 			try {
 				$backtestExchange->setTickSize($market, $realExchange->getTickSize($market));
@@ -334,616 +319,29 @@ class Backtester extends ConsoleApplication
 
 			$market->initializeStrategy();
 			$market->initializeIndicators();
-			$n = count($candles);
-			$ticker = $pair->getTicker();
-			$log = Logger::getLogger();
-			$log->backtestProgress("$ticker: $n candles, balance " . number_format($initialBalance, 2) . " USDT");
-			$progressStep = max(1, (int) ($n / 20));
 
-			// Emit init event for the web UI.
-			if ($writer !== null) {
-				$writer->writeInit(
-					pair: $ticker,
-					timeframe: $pair->getTimeframe()->value,
-					strategy: $pair->getStrategyName() ?? '',
-					params: $pair->getStrategyParams(),
-					initialBalance: $initialBalance,
-					totalCandles: $n,
-				);
-			}
-			$liquidated = false;
-			$lastCandle = null;
-			$peakEquity = $initialBalance;
-			$maxDrawdown = 0.0; // Peak-to-trough equity drawdown (negative value).
-			$peakEquityTime = $simStartTime;
-			$longestLosingDuration = 0; // Longest peak-to-recovery period (seconds).
-			/*
-			 * ============================================================
-			 *  INTRA-CANDLE TIME SIMULATION
-			 * ============================================================
-			 *
-			 * In the real Trader, Market::processTrading() is called every
-			 * 60 seconds regardless of the candle timeframe. This means
-			 * the bot can open a new position seconds after the previous
-			 * one was closed by TP, even within the same candle.
-			 *
-			 * To model this behaviour without generating millions of fake
-			 * 1-minute ticks, we split each candle into 4 synthetic ticks
-			 * that approximate the price path inside the candle:
-			 *
-			 *   Tick 0  time = candleOpen               price = open
-			 *   Tick 1  time = candleOpen + duration/3   price = low  (bullish) | high (bearish)
-			 *   Tick 2  time = candleOpen + duration*2/3 price = high (bullish) | low  (bearish)
-			 *   Tick 3  time = candleOpen + duration - 1 price = close
-			 *
-			 * A candle is bullish when close >= open (price went up overall),
-			 * bearish otherwise. The assumed intra-candle price path:
-			 *
-			 *   Bullish:  open ──▼ low ──▲ high ──► close   (dips first, then rallies)
-			 *   Bearish:  open ──▲ high ──▼ low  ──► close   (rallies first, then drops)
-			 *
-			 * On EVERY tick we execute the full trading cycle:
-			 *   1. Set simulation time and current market price
-			 *   2. Recalculate indicators (current candle is a partial snapshot —
-			 *      only reflects OHLC state at this tick, not the final values)
-			 *   3. Call processTrading() — checks for existing position,
-			 *      fires entry signals, executes DCA updatePosition, etc.
-			 *   4. Fill any pending DCA limit orders whose price is reached
-			 *   5. Check Take-Profit hits on open positions
-			 *   6. Check liquidation (balance + unrealized PnL <= 0)
-			 *
-			 * Because processTrading() runs on every tick, a TP hit on
-			 * tick 1 is immediately followed by processTrading() on tick 2
-			 * of the SAME candle — the strategy can open a new position
-			 * without waiting for the next candle, just like in production.
-			 * ============================================================
-			 */
-			$candleDuration = $pair->getTimeframe()->toSeconds();
-			$balanceSnapshots = [];
-			$market->setCandles([]);
+			$n = count($candles);
+			$log = Logger::getLogger();
+			$log->backtestProgress("{$pair->getTicker()}: $n candles, balance " . number_format($initialBalance, 2) . " USDT");
 
 			$this->database->resetQueryTimer();
-			$indicatorTimeNs = 0;
 			$simWallStart = hrtime(true);
 
-			for ($i = 0; $i < $n; $i++) {
-				$currentCandle = $candles[$i];
-				$lastCandle = $currentCandle;
-				$market->appendCandle($currentCandle);
-				$candleTime = (int) $currentCandle->getOpenTime();
-
-				$openPrice = $currentCandle->getOpenPrice();
-				$highPrice = $currentCandle->getHighPrice();
-				$lowPrice = $currentCandle->getLowPrice();
-				$closePrice = $currentCandle->getClosePrice();
-				$candleVolume = $currentCandle->getVolume();
-				$isBullish = $closePrice >= $openPrice;
-
-				// Generate N ticks that linearly interpolate the intra-candle price path.
-				// The 4 OHLC waypoints are connected by 3 segments; intermediate
-				// ticks are evenly distributed across these segments.
-				$ticks = $this->generateTicks(
-					$openPrice, $highPrice, $lowPrice, $closePrice,
-					$candleTime, $candleDuration, $this->ticksPerCandle, $isBullish,
-				);
-
-				/*
-				 * PARTIAL CANDLE SNAPSHOTS — lookahead bias prevention.
-				 *
-				 * For each tick, we build a Candle that represents the candle's
-				 * state at this moment: open stays fixed, close = tickPrice,
-				 * high/low = running max/min of all tick prices so far.
-				 * Volume is distributed proportionally across ticks.
-				 */
-				$totalTicks = count($ticks);
-				$runningHigh = $openPrice;
-				$runningLow = $openPrice;
-				$unrealizedPnl = 0.0;
-				$tickIdx = 0;
-				foreach ($ticks as [$tickTime, $tickPrice]) {
-					$runningHigh = max($runningHigh, $tickPrice);
-					$runningLow = min($runningLow, $tickPrice);
-					$volumeFraction = $totalTicks > 1 ? $tickIdx / ($totalTicks - 1) : 1.0;
-					$partialCandle = new Candle(
-						$candleTime, $openPrice, $runningHigh, $runningLow, $tickPrice,
-						$candleVolume * $volumeFraction, $market,
-					);
-					$market->replaceLastCandle($partialCandle);
-					$tickIdx++;
-
-					// --- 1. Set simulation time and price ---
-					$backtestExchange->setSimulationTime($tickTime);
-					$log->setBacktestSimulationTime($tickTime);
-					$backtestExchange->setCurrentPriceForMarket($market, Money::from($tickPrice));
-
-					// --- 2. Recalculate indicators ---
-					$indT0 = hrtime(true);
-					$market->calculateIndicators();
-					$indicatorTimeNs += hrtime(true) - $indT0;
-
-					// --- 3. processTrading: entry signals / position updates ---
-					// Warm position cache: a single SELECT loads all open/pending
-					// positions. All subsequent lookups within this tick use cache.
-					$market->warmPositionCache();
-
-					$preSnap = [];
-					if ($writer !== null) {
-						foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $snapDir) {
-							$pos = $market->getStoredPositionByDirection($snapDir);
-							if ($pos !== false) {
-								$preSnap[$snapDir->value] = [
-									'volume' => $pos->getVolume()->getAmount(),
-									'sl' => $pos->getStopLossPrice()?->getAmount(),
-								];
-							}
-						}
-					}
-					$market->processTrading();
-
-					// processTrading may have opened/closed positions; refresh cache.
-					$market->invalidatePositionCache();
-					$market->warmPositionCache();
-
-					if ($writer !== null) {
-						foreach ([PositionDirectionEnum::LONG, PositionDirectionEnum::SHORT] as $snapDir) {
-							$postPos = $market->getStoredPositionByDirection($snapDir);
-							$had = isset($preSnap[$snapDir->value]);
-							if ($postPos === false) {
-								continue;
-							}
-							$postVolume = $postPos->getVolume()->getAmount();
-							$postSL = $postPos->getStopLossPrice()?->getAmount();
-
-							if (!$had) {
-								$writer->writePositionOpen(
-									$postPos->getDirection()->value,
-									$postPos->getAverageEntryPrice()->getAmount(),
-									$postVolume,
-									$candleTime,
-								);
-								continue;
-							}
-
-							$preVolume = $preSnap[$snapDir->value]['volume'];
-							$preSL = $preSnap[$snapDir->value]['sl'];
-
-							if ($postVolume > $preVolume) {
-								$writer->writeDCAFill(
-									$postPos->getDirection()->value,
-									$tickPrice,
-									$postVolume - $preVolume,
-									$postPos->getAverageEntryPrice()->getAmount(),
-									$postVolume,
-									$candleTime,
-								);
-							}
-							if ($postVolume < $preVolume) {
-								$closedVolume = $preVolume - $postVolume;
-								$entry = $postPos->getAverageEntryPrice()->getAmount();
-
-								if ($postSL !== null && $postSL !== $preSL) {
-									$lockedProfit = $postPos->getDirection()->isLong()
-										? $closedVolume * ($postSL - $entry)
-										: $closedVolume * ($entry - $postSL);
-									$writer->writeBreakevenLock($closedVolume, $postSL, abs($lockedProfit), $candleTime);
-								} else {
-									$closePrice = $tickPrice;
-									$lockedProfit = $postPos->getDirection()->isLong()
-										? $closedVolume * ($closePrice - $entry)
-										: $closedVolume * ($entry - $closePrice);
-									$writer->writePartialClose($closedVolume, $closePrice, abs($lockedProfit), $candleTime);
-								}
-								$writer->writeBalance($backtestExchange->getVirtualBalance()->getAmount());
-							}
-						}
-					}
-
-					// --- 4. Fill pending DCA limit orders ---
-					// addToPosition modifies the cached position object in-place,
-					// so subsequent cache lookups see the updated data.
-					foreach ($backtestExchange->getPendingLimitOrders($market) as $order) {
-						$orderPrice = $order['price'];
-						$filled = $order['direction']->isLong()
-							? ($tickPrice <= $orderPrice)
-							: ($tickPrice >= $orderPrice);
-						if ($filled) {
-							$backtestExchange->addToPosition($market, $order['volumeBase'], $order['price'], $order['direction']);
-							$backtestExchange->removePendingLimitOrder($market, $order['orderId']);
-							if ($writer !== null) {
-								$filledPos = $market->getStoredPositionByDirection($order['direction']);
-								if ($filledPos !== false) {
-									$writer->writeDCAFill(
-										$order['direction']->value,
-										$order['price'],
-										$order['volumeBase'],
-										$filledPos->getAverageEntryPrice()->getAmount(),
-										$filledPos->getVolume()->getAmount(),
-										$candleTime,
-									);
-								}
-							}
-						}
-					}
-
-					// Reuse cached positions for TP/SL/Liquidation checks (no extra SELECT).
-					$openPositions = $market->getCachedPositions();
-
-					// Track which positions get closed by TP/SL so we can
-					// exclude them in subsequent checks without re-querying DB.
-					$closedPositionIds = [];
-
-					// --- 5. Check Take-Profit hits ---
-					foreach ($openPositions as $position) {
-						$tpPrice = $position->getTakeProfitPrice();
-						if ($tpPrice === null) {
-							continue;
-						}
-						$tp = $tpPrice->getAmount();
-						$hit = $position->getDirection()->isLong()
-							? ($tickPrice >= $tp)
-							: ($tickPrice <= $tp);
-						if (!$hit) {
-							continue;
-						}
-						$position->setCurrentPrice($tpPrice);
-						$profitMoney = $position->getUnrealizedPnL();
-						$profit = $profitMoney->getAmount();
-						if ($profit <= 0) {
-							continue;
-						}
-						$position->markFinished($tickTime);
-						$position->setFinishReason(PositionFinishReasonEnum::TAKE_PROFIT_MARKET);
-						$position->save();
-						$backtestExchange->creditBalance($profit);
-						$backtestExchange->deductTradeFee($position->getVolume()->getAmount() * $tp);
-						$backtestExchange->clearPendingLimitOrdersByDirection($market, $position->getDirection());
-						$closedPositionIds[] = spl_object_id($position);
-						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
-						$dir = $position->getDirection()->value;
-						$log->backtestProgress(" * TP HIT $ticker $dir @ " . number_format($tp, 4) . " PnL " . number_format($profit, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
-						if ($writer !== null) {
-						$writer->writePositionClose($tp, $profit, 'TP', $candleTime, $dir);
-						$writer->writeBalance($balanceAfter);
-					}
-					}
-
-					// --- 5.5. Check Stop-Loss hits ---
-					// Use the same in-memory array, skipping positions already closed by TP.
-					foreach ($openPositions as $position) {
-						if (in_array(spl_object_id($position), $closedPositionIds, true)) {
-							continue;
-						}
-						$slPrice = $position->getStopLossPrice();
-						if ($slPrice === null) {
-							continue;
-						}
-						$sl = $slPrice->getAmount();
-						$hit = $position->getDirection()->isLong()
-							? ($tickPrice <= $sl)
-							: ($tickPrice >= $sl);
-						if (!$hit) {
-							continue;
-						}
-						// Close at SL price.
-						$position->setCurrentPrice($slPrice);
-						$pnl = $position->getUnrealizedPnL()->getAmount();
-						$position->markFinished($tickTime);
-						$position->setFinishReason(PositionFinishReasonEnum::STOP_LOSS_MARKET);
-						$position->save();
-						$backtestExchange->creditBalance($pnl);
-						$backtestExchange->deductTradeFee($position->getVolume()->getAmount() * $sl);
-						$backtestExchange->clearPendingLimitOrdersByDirection($market, $position->getDirection());
-						$closedPositionIds[] = spl_object_id($position);
-						$dir = $position->getDirection()->value;
-						$balanceAfter = $backtestExchange->getVirtualBalance()->getAmount();
-						$log->backtestProgress(" * SL HIT $ticker $dir @ " . number_format($sl, 4) . " PnL " . number_format($pnl, 2) . " USDT → balance " . number_format($balanceAfter, 2) . " USDT");
-						if ($writer !== null) {
-						$writer->writePositionClose($sl, $pnl, 'SL', $candleTime, $dir);
-						$writer->writeBalance($balanceAfter);
-					}
-						$strategy = $market->getStrategy();
-						if ($strategy instanceof AbstractSingleEntryStrategy) {
-							$strategy->notifyStopLoss($tickTime);
-						}
-					}
-
-					// --- 6. Liquidation check ---
-					// Use the same in-memory array, skipping closed positions.
-					$balance = $backtestExchange->getVirtualBalance()->getAmount();
-					$unrealizedPnl = 0.0;
-					foreach ($openPositions as $position) {
-						if (in_array(spl_object_id($position), $closedPositionIds, true)) {
-							continue;
-						}
-						$vol = $position->getVolume()->getAmount();
-						$entry = $position->getAverageEntryPrice()->getAmount();
-						if ($position->getDirection()->isLong()) {
-							$unrealizedPnl += $vol * ($tickPrice - $entry);
-						} else {
-							$unrealizedPnl += $vol * ($entry - $tickPrice);
-						}
-					}
-					$equity = $balance + $unrealizedPnl;
-					if ($equity >= $peakEquity) {
-						$losingDuration = $tickTime - $peakEquityTime;
-						if ($losingDuration > $longestLosingDuration) {
-							$longestLosingDuration = $losingDuration;
-						}
-						$peakEquity = $equity;
-						$peakEquityTime = $tickTime;
-					}
-					$drawdown = $equity - $peakEquity;
-					if ($drawdown < $maxDrawdown) {
-						$maxDrawdown = $drawdown;
-					}
-					if ($balance + $unrealizedPnl <= 0) {
-						$liquidated = true;
-						$dateStr = date('Y-m-d H:i', $tickTime);
-						$log->backtestProgress("  LIQUIDATION at candle " . ($i + 1) . "/$n ($dateStr): balance " . number_format($balance, 2) . " USDT + unrealized PnL " . number_format($unrealizedPnl, 2) . " USDT <= 0");
-						$this->logger->warning("Backtest stopped: liquidated at candle " . ($i + 1) . " $dateStr.");
-						if ($writer !== null) {
-						$writer->writePositionClose($tickPrice, $balance + $unrealizedPnl, 'LIQUIDATION', $candleTime);
-						$writer->writeBalance(0.0);
-					}
-						break 2; // Exit both tick and candle loops.
-					}
-				}
-
-				$market->invalidatePositionCache();
-
-				// Restore the full candle after the tick loop so that indicator
-				// calculations on subsequent candles see finalized OHLC data.
-				$market->replaceLastCandle($currentCandle);
-
-				// Record equity (balance + unrealized PnL) at the end of each candle.
-				$equity = $backtestExchange->getVirtualBalance()->getAmount() + $unrealizedPnl;
-				$balanceSnapshots[] = [$candleTime, $equity];
-
-				// After all ticks of a candle: emit candle + progress + equity events.
-				if ($writer !== null) {
-					$indicators = $market->getIndicatorValues();
-					$writer->writeCandle(
-						$candleTime,
-						$openPrice,
-						$highPrice,
-						$lowPrice,
-						$closePrice,
-						$candleVolume,
-						$indicators,
-					);
-					$writer->writeBalance($equity, $backtestExchange->getVirtualBalance()->getAmount());
-					// Emit progress every ~50 candles.
-					if ($i % 50 === 0 || $i === $n - 1) {
-						$writer->writeProgress($i + 1, $n);
-					}
-					if ($sessionId !== null && $i % 50 === 0 && file_exists(self::getStopFilePath($sessionId))) {
-						@unlink(self::getStopFilePath($sessionId));
-						$this->logger->info("Backtest aborted by user at candle " . ($i + 1) . "/$n.");
-						$writer->writeError('Aborted by user.');
-						break 2;
-					}
-				}
-			}
-
-			$finalBalance = $backtestExchange->getVirtualBalance()->getAmount();
-			if ($liquidated) {
-				$finalBalance = 0.0; // Positions closed at a loss; balance is wiped out.
-			}
-			$table = BacktestStoredPosition::getTableName();
-			$marketWhere = [
-				BacktestStoredPosition::FExchangeName => $exchangeName,
-				BacktestStoredPosition::FTicker => $pair->getTicker(),
-				BacktestStoredPosition::FMarketType => $pair->getMarketType()->value,
-			];
-			$finishedCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::FINISHED->value]));
-			$openCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::OPEN->value]));
-			$pendingCount = $this->database->countRows($table, array_merge($marketWhere, [BacktestStoredPosition::FStatus => PositionStatusEnum::PENDING->value]));
-
-			$lastClose = $lastCandle !== null ? $lastCandle->getClosePrice() : 0.0;
-			$firstOpen = !empty($candles) ? $candles[0]->getOpenPrice() : 0.0;
-			$simEndTime = $lastCandle !== null ? ((int) $lastCandle->getOpenTime() + $candleDuration - 1) : time();
-			$simStartTime = !empty($candles) ? (int) $candles[0]->getOpenTime() : $simEndTime;
-
-			// Account for a trailing drawdown that never recovered before the simulation ended.
-			$trailingLosingDuration = $simEndTime - $peakEquityTime;
-			if ($trailingLosingDuration > $longestLosingDuration) {
-				$longestLosingDuration = $trailingLosingDuration;
-			}
-
-			// Resolve exchange-specific ticker (e.g., "1000PEPEUSDT" on Bybit).
-			$exchangeClass = "\\Izzy\\Exchanges\\$exchangeName\\$exchangeName";
-			$exchangeTicker = class_exists($exchangeClass) && method_exists($exchangeClass, 'pairToTicker')
-				? $exchangeClass::pairToTicker($pair)
-				: '';
-			$simDurationDays = max(0, $simEndTime - $simStartTime) / 86400;
-
-			// Collect open/pending positions.
-			$whereOpen = array_merge($marketWhere, [
-				BacktestStoredPosition::FStatus => [PositionStatusEnum::PENDING->value, PositionStatusEnum::OPEN->value],
-			]);
-			$openPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $whereOpen, '');
-			$openPositionDtos = [];
-			$totalUnrealizedPnl = 0.0;
-			foreach ($openPositions as $pos) {
-				$vol = $pos->getVolume()->getAmount();
-				$entry = $pos->getAverageEntryPrice()->getAmount();
-				$unrealizedPnl = $pos->getDirection()->isLong()
-					? $vol * ($lastClose - $entry)
-					: $vol * ($entry - $lastClose);
-				$totalUnrealizedPnl += $unrealizedPnl;
-				$openPositionDtos[] = new BacktestOpenPosition(
-					direction: $pos->getDirection()->value,
-					entry: $entry,
-					volume: $vol,
-					createdAt: $pos->getCreatedAt(),
-					unrealizedPnl: $unrealizedPnl,
-					timeHangingSec: $simEndTime - $pos->getCreatedAt(),
-				);
-			}
-			if (!$liquidated) {
-				$finalBalance += $totalUnrealizedPnl;
-			}
-
-			// Collect finished trade data: durations, intervals, per-trade PnL.
-			$whereFinished = array_merge($marketWhere, [
-				BacktestStoredPosition::FStatus => PositionStatusEnum::FINISHED->value,
-			]);
-			$finishedPositions = $this->database->selectAllObjects(BacktestStoredPosition::class, $whereFinished, BacktestStoredPosition::FCreatedAt . ' ASC');
-			$tradeDurations = [];
-			$tradePnls = [];
-			$tradeIntervals = [];
-			$wins = 0;
-			$losses = 0;
-			$breakevenLocks = 0;
-
-			// Per-direction tracking.
-			$longDurations = [];
-			$longWins = 0;
-			$longLosses = 0;
-			$longBL = 0;
-			$shortDurations = [];
-			$shortWins = 0;
-			$shortLosses = 0;
-			$shortBL = 0;
-
-			foreach ($finishedPositions as $pos) {
-				$created = $pos->getCreatedAt();
-				$finished = $pos->getFinishedAt();
-				$duration = ($created > 0 && $finished > 0) ? $finished - $created : null;
-				if ($duration !== null) {
-					$tradeDurations[] = $duration;
-					$tradeIntervals[] = [$created, $finished];
-				}
-				// Determine close price based on how the position was closed.
-				$finishReason = $pos->getFinishReason();
-				$closePrice = null;
-				if ($finishReason !== null && $finishReason->isTakeProfit()) {
-					$closePrice = $pos->getTakeProfitPrice()?->getAmount();
-				} elseif ($finishReason !== null && $finishReason->isStopLoss()) {
-					$closePrice = $pos->getStopLossPrice()?->getAmount();
-				} else {
-					// Fallback for positions without FinishReason (legacy TP-only path).
-					$closePrice = $pos->getTakeProfitPrice()?->getAmount();
-				}
-				if ($closePrice !== null) {
-					$vol = $pos->getVolume()->getAmount();
-					$entry = $pos->getAverageEntryPrice()->getAmount();
-					$isLong = $pos->getDirection()->isLong();
-					$pnl = $isLong
-						? $vol * ($closePrice - $entry)
-						: $vol * ($entry - $closePrice);
-					$tradePnls[] = $pnl;
-
-					// Detect Breakeven Lock: SL-closed position where SL is
-					// very close to entry (within 0.1%), meaning BL was executed.
-					$isBL = false;
-					if ($finishReason !== null && $finishReason->isStopLoss() && $entry > 0) {
-						$slPrice = $pos->getStopLossPrice()?->getAmount();
-						if ($slPrice !== null) {
-							$diff = abs($slPrice - $entry) / $entry;
-							$isBL = $diff < 0.001;
-						}
-					}
-
-					// Count BL separately from wins/losses.
-					if ($isBL) {
-						$breakevenLocks++;
-					} elseif ($pnl > 0) {
-						$wins++;
-					} else {
-						$losses++;
-					}
-
-					if ($isLong) {
-						if ($duration !== null) {
-							$longDurations[] = $duration;
-						}
-						if ($finishReason !== null && $finishReason->isTakeProfit()) {
-							$longWins++;
-						} elseif ($isBL) {
-							$longBL++;
-						} else {
-							$longLosses++;
-						}
-					} else {
-						if ($duration !== null) {
-							$shortDurations[] = $duration;
-						}
-						if ($finishReason !== null && $finishReason->isTakeProfit()) {
-							$shortWins++;
-						} elseif ($isBL) {
-							$shortBL++;
-						} else {
-							$shortLosses++;
-						}
-					}
-				}
-			}
-			// Include open/pending positions: they cover time from created_at until simulation end.
-			foreach ($openPositions as $pos) {
-				$created = $pos->getCreatedAt();
-				if ($created > 0) {
-					$tradeIntervals[] = [$created, $simEndTime];
-				}
-			}
-
-			// Build DTO and print.
-			$result = new BacktestResult(
-				pair: $pair,
-				simStartTime: $simStartTime,
-				simEndTime: $simEndTime,
-				financial: new BacktestFinancialResult(
-					initialBalance: $initialBalance,
-					finalBalance: $finalBalance,
-					maxDrawdown: $maxDrawdown,
-					liquidated: $liquidated,
-					coinPriceStart: $firstOpen,
-					coinPriceEnd: $lastClose,
-					totalFees: $backtestExchange->getTotalFeesPaid(),
-					longestLosingDuration: $longestLosingDuration,
-				),
-				trades: BacktestTradeStats::fromRawData(
-					durations: $tradeDurations,
-					intervals: $tradeIntervals,
-					simStart: $simStartTime,
-					simEnd: $simEndTime,
-					finished: $finishedCount,
-					open: $openCount,
-					pending: $pendingCount,
-					wins: $wins,
-					losses: $losses,
-					breakevenLocks: $breakevenLocks,
-				),
-				risk: BacktestRiskRatios::fromTradePnls(
-					tradePnls: $tradePnls,
-					initialBalance: $initialBalance,
-					totalTrades: $finishedCount,
-					simDurationDays: $simDurationDays,
-				),
-				openPositions: $openPositionDtos,
-				exchangeTicker: $exchangeTicker,
-				longStats: BacktestDirectionStats::fromRawData(
-					label: 'Longs',
-					durations: $longDurations,
-					wins: $longWins,
-					losses: $longLosses,
-					breakevenLocks: $longBL,
-				),
-				shortStats: BacktestDirectionStats::fromRawData(
-					label: 'Shorts',
-					durations: $shortDurations,
-					wins: $shortWins,
-					losses: $shortLosses,
-					breakevenLocks: $shortBL,
-				),
+			$state = $engine->runSimulation(
+				$pair, $candles, $backtestExchange, $market,
+				$this->ticksPerCandle, $writer, $sessionId,
 			);
-			echo $result;
 
 			$simWallTimeMs = (hrtime(true) - $simWallStart) / 1e6;
 			$sqlTimeMs = $this->database->getCumulativeQueryTimeMs();
-			$indicatorTimeMs = $indicatorTimeNs / 1e6;
+			$indicatorTimeMs = $state->indicatorTimeNs / 1e6;
 
-			// Emit the result summary for the web UI.
+			$result = $engine->collectResults(
+				$state, $pair, $backtestPair, $backtestExchange,
+				$exchangeName, $initialBalance, $candles,
+			);
+			echo $result;
+
 			if ($writer !== null) {
 				$pnl = $result->financial->getPnl();
 				$pnlPercent = $result->financial->getPnlPercent();
@@ -973,89 +371,24 @@ class Backtester extends ConsoleApplication
 				]);
 			}
 
-			// Generate balance chart PNG from collected snapshots.
+			$simStartTime = !empty($candles) ? (int) $candles[0]->getOpenTime() : time();
+			$simEndTime = $state->lastCandle !== null
+				? ((int) $state->lastCandle->getOpenTime() + $state->candleDuration - 1)
+				: time();
+
 			$chartPng = BacktestBalanceChart::generate(
-				$balanceSnapshots,
+				$state->balanceSnapshots,
 				$simStartTime,
 				$simEndTime,
-				$candleDuration,
+				$state->candleDuration,
 			);
 
-			// Persist the result for the Backtest Results history page.
 			BacktestResultRecord::saveFromResult($this->database, $result, $chartPng);
 		}
 		$this->database->commit();
 
-		// Print DB query stats to help profile and optimize SQL usage.
 		$queryStats = Logger::getLogger()->getQueryStats();
 		$totalSec = number_format($queryStats['totalMs'] / 1000, 2);
 		echo "\n\033[90mDB stats: {$queryStats['count']} queries, {$totalSec}s total query time\033[0m\n";
-	}
-
-	// ------------------------------------------------------------------
-	// Tick interpolation
-	// ------------------------------------------------------------------
-
-	/**
-	 * Generate N ticks that linearly interpolate the intra-candle price path.
-	 *
-	 * The path has 4 waypoints connected by 3 segments:
-	 *   Bullish: open -> low  -> high -> close
-	 *   Bearish: open -> high -> low  -> close
-	 *
-	 * Ticks are evenly distributed across the 3 segments.
-	 * With ticksPerCandle <= 4, each waypoint gets exactly 1 tick (original behavior).
-	 *
-	 * @return array<array{int, float}> Array of [timestamp, price] pairs.
-	 */
-	private function generateTicks(
-		float $open, float $high, float $low, float $close,
-		int $candleTime, int $candleDuration, int $ticksPerCandle, bool $isBullish,
-	): array {
-		$waypoints = $isBullish
-			? [$open, $low, $high, $close]
-			: [$open, $high, $low, $close];
-
-		if ($ticksPerCandle <= 4) {
-			$seg = $candleDuration / 3;
-			return [
-				[$candleTime, $waypoints[0]],
-				[$candleTime + (int)($seg), $waypoints[1]],
-				[$candleTime + (int)($seg * 2), $waypoints[2]],
-				[$candleTime + $candleDuration - 1, $waypoints[3]],
-			];
-		}
-
-		// Distribute ticks across 3 segments as evenly as possible.
-		// Total intervals = ticksPerCandle - 1, split into 3 segments.
-		$totalIntervals = $ticksPerCandle - 1;
-		$base = intdiv($totalIntervals, 3);
-		$remainder = $totalIntervals % 3;
-		// Give extra intervals to segments 0,1,2 in order.
-		$segIntervals = [
-			$base + ($remainder > 0 ? 1 : 0),
-			$base + ($remainder > 1 ? 1 : 0),
-			$base,
-		];
-
-		$ticks = [];
-		$tickNumber = 0;
-		for ($seg = 0; $seg < 3; $seg++) {
-			$startPrice = $waypoints[$seg];
-			$endPrice = $waypoints[$seg + 1];
-			$n = $segIntervals[$seg];
-			// Include the start of each segment, exclude end (next segment's start).
-			for ($j = 0; $j < $n; $j++) {
-				$fraction = $n > 0 ? $j / $n : 0.0;
-				$price = $startPrice + ($endPrice - $startPrice) * $fraction;
-				$time = $candleTime + (int)(($tickNumber / $totalIntervals) * ($candleDuration - 1));
-				$ticks[] = [$time, $price];
-				$tickNumber++;
-			}
-		}
-		// Final tick: the last waypoint (close).
-		$ticks[] = [$candleTime + $candleDuration - 1, $waypoints[3]];
-
-		return $ticks;
 	}
 }

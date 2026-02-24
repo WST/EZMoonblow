@@ -480,6 +480,82 @@ class Bybit extends AbstractExchangeDriver
 	/**
 	 * @inheritDoc
 	 */
+	public static function tickerToPair(string $exchangeTicker, MarketTypeEnum $marketType): string {
+		if (!str_ends_with($exchangeTicker, 'USDT')) {
+			return $exchangeTicker;
+		}
+		$body = substr($exchangeTicker, 0, -4);
+
+		if ($marketType->isFutures()) {
+			// SHIB1000USDT → SHIB/USDT (multiplier after base)
+			if (str_starts_with($body, 'SHIB') && $body === 'SHIB1000') {
+				return 'SHIB/USDT';
+			}
+
+			// Multiplied tickers: 1000000BABYDOGEUSDT, 10000SATSUSDT, 1000PEPEUSDT, etc.
+			$multipliedMap = [
+				'1000000' => ['BABYDOGE'],
+				'10000' => ['SATS'],
+				'1000' => ['PEPE', 'RATS', 'BONK', 'CAT', 'FLOKI', 'LUNC', 'TOSHI', 'TURBO', 'XEC'],
+			];
+			foreach ($multipliedMap as $prefix => $coins) {
+				if (str_starts_with($body, $prefix)) {
+					$base = substr($body, strlen($prefix));
+					if (in_array($base, $coins, true)) {
+						return "$base/USDT";
+					}
+				}
+			}
+		}
+
+		return "$body/USDT";
+	}
+
+	/**
+	 * @inheritDoc
+	 */
+	public function getTopPairsByVolume(int $limit, string $category = 'linear'): array {
+		$marketType = $category === 'spot' ? MarketTypeEnum::SPOT : MarketTypeEnum::FUTURES;
+
+		try {
+			$response = $this->api->marketApi()->getTickers([
+				BybitParam::Category => $category,
+			]);
+		} catch (\Throwable $e) {
+			$this->logger->error("Failed to fetch tickers: " . $e->getMessage());
+			return [];
+		}
+
+		if (empty($response[BybitParam::List])) {
+			return [];
+		}
+
+		$tickers = $response[BybitParam::List];
+		usort($tickers, fn(array $a, array $b) =>
+			(float) ($b[BybitParam::Turnover24h] ?? 0) <=> (float) ($a[BybitParam::Turnover24h] ?? 0)
+		);
+
+		$pairs = [];
+		foreach ($tickers as $ticker) {
+			$symbol = $ticker[BybitParam::Symbol] ?? '';
+			if (!str_ends_with($symbol, 'USDT') || str_ends_with($symbol, 'USDTUSDT')) {
+				continue;
+			}
+			$pair = static::tickerToPair($symbol, $marketType);
+			if ($pair !== '' && !in_array($pair, $pairs, true)) {
+				$pairs[] = $pair;
+			}
+			if (count($pairs) >= $limit) {
+				break;
+			}
+		}
+
+		return $pairs;
+	}
+
+	/**
+	 * @inheritDoc
+	 */
 	public function getOrderById(IMarket $market, string $orderIdOnExchange): Order|false {
 		$pair = $market->getPair();
 		$params = [

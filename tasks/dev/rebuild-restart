@@ -1,0 +1,10 @@
+#!/bin/bash
+
+# Get project’s root directory.
+IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+cd "$IZZY_ROOT"
+
+docker compose down && \
+  docker compose build --no-cache --pull && \
+  docker compose up -d --force-recreate

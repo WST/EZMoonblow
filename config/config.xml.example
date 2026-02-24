@@ -41,6 +41,27 @@
 		</optimizable_params>
 	</optimizer>
 
+	<screener>
+		<interval_minutes>30</interval_minutes>
+		<ticks_per_candle>10</ticks_per_candle>
+		<initial_balance>1000</initial_balance>
+		<top_pairs>30</top_pairs>
+		<market_type>futures</market_type>
+		<timeframe>1h</timeframe>
+		<strategies>
+			<strategy name="EZMoonblowSEBoll">
+				<param name="EntryVolume" value="50%"/>
+				<param name="StopLossPercent" value="3"/>
+				<param name="TakeProfitPercent" value="10"/>
+				<param name="BreakevenLockEnabled" value="true"/>
+				<param name="BreakevenLockTriggerPercent" value="50"/>
+				<param name="BreakevenLockClosePercent" value="50"/>
+				<param name="BBPeriod" value="20"/>
+				<param name="BBMultiplier" value="2"/>
+			</strategy>
+		</strategies>
+	</screener>
+
 	<exchanges>
 		<exchange name="Bybit" key="******" secret="******" enabled="yes" demo="yes" max-positions="3">
 			<spot>

@@ -1,0 +1,8 @@
+#!/bin/bash
+
+# Get project’s root directory.
+IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+
+cd "$IZZY_ROOT"
+
+docker compose stop web-nginx web-php

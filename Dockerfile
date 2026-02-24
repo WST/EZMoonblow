@@ -50,7 +50,7 @@ RUN mkdir -p logs charts rrd cache && \
     chmod -R 777 logs charts rrd cache
 
 # Set execute permissions for PHP scripts.
-RUN chmod +x trader.php analyzer.php notifier.php
+RUN chmod +x trader.php analyzer.php notifier.php optimizer.php screener.php
 
 # Set execute permissions for migration scripts.
 RUN chmod +x tasks/docker/wait-for-migrations.sh tasks/docker/run-migrations.sh
