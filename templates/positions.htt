@@ -75,35 +75,6 @@
         color: #f44336;
     }
 
-    /* Positions Table */
-    .positions-table {
-        width: 100%;
-        border-collapse: collapse;
-        background-color: white;
-        border-radius: 8px;
-        overflow: hidden;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-    }
-
-    .positions-table th,
-    .positions-table td {
-        text-align: center;
-        vertical-align: middle;
-        border: 0px none;
-        font-size: 11px;
-    }
-
-    .positions-table th {
-        background-color: #5c7589;
-        color: #dfefff;
-        font-weight: bold;
-        white-space: nowrap;
-    }
-
-    .positions-table tr:hover td {
-        background-color: #f8f9fa;
-    }
-
     /* Direction badges */
     .direction-badge {
         display: inline-block;
@@ -280,7 +251,7 @@
         <h2>All Positions</h2>
 
         {% if positions|length > 0 %}
-        <table class="positions-table">
+        <table class="data-table">
             <thead>
                 <tr>
                     <th style="width: 1%;" nowrap="nowrap">ID</th>

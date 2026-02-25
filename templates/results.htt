@@ -1,16 +1,5 @@
 {% extends 'base-page.htt' %}
 
-{% block extracss %}
-<style>
-	.results-page .data-table th,
-	.results-page .data-table td {
-		font-size: 11px;
-		padding: 6px 8px;
-		border: 0 none;
-	}
-</style>
-{% endblock %}
-
 {% block content %}
 <div class="results-page">
 	<h1>Backtest Results</h1>

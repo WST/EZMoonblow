@@ -3,6 +3,7 @@
 namespace Izzy\Web\Viewers;
 
 use Izzy\Enums\TableViewerColumnTypeEnum;
+use Izzy\Financial\Money;
 use Izzy\Web\Table\TableAction;
 use Izzy\Web\Table\TablePagination;
 
@@ -83,6 +84,7 @@ class TableViewer
 		$this->columns[$key] = array_merge([
 			'title' => $title,
 			'align' => $defaultAlign,
+			'headerAlign' => null,
 			'width' => 'auto',
 			'type' => $type,
 			'class' => '',
@@ -158,7 +160,8 @@ class TableViewer
 	private function renderHead(): string {
 		$html = '<thead><tr>';
 		foreach ($this->columns as $column) {
-			$style = 'text-align:' . $column['align'] . ';';
+			$thAlign = $column['headerAlign'] ?? $column['align'];
+			$style = 'text-align:' . $thAlign . ';';
 			if ($column['width'] !== 'auto') {
 				$style .= 'width:' . $column['width'] . ';';
 			}
@@ -267,7 +270,7 @@ class TableViewer
 	}
 
 	protected function formatMoneyValue(mixed $value): string {
-		if ($value instanceof \Izzy\Financial\Money) {
+		if ($value instanceof Money) {
 			return number_format($value->getAmount(), 2) . ' ' . $value->getCurrency();
 		}
 		if (is_numeric($value)) {

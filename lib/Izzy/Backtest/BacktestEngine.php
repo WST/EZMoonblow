@@ -22,6 +22,21 @@ use Izzy\System\Logger;
  * Encapsulates tick generation, the simulation loop (processTrading, DCA fills,
  * TP/SL checks, liquidation), and result collection. Used by Backtester,
  * Optimizer, and Screener to avoid code duplication.
+ *
+ * NOTE ON METHOD SIZE: runSimulation() and collectResults() are intentionally
+ * kept as single large methods rather than decomposed into smaller ones.
+ *
+ * runSimulation() is a performance-critical hot loop executed millions of times
+ * per backtest. Its inner phases (TP/SL checks, DCA fills, liquidation, UI
+ * events) share ~15 local variables and are tightly coupled via `break 2` for
+ * liquidation. Extracting them into private methods would require either bulky
+ * signatures or a context object, adding PHP method-call overhead on every tick
+ * and hurting the readability it was supposed to improve.
+ *
+ * collectResults() is a linear data-gathering pipeline (load from DB, iterate,
+ * build DTO) that runs once per backtest. Splitting it would scatter related
+ * logic across methods and force intermediate data structures with no practical
+ * benefit.
  */
 class BacktestEngine
 {
@@ -113,16 +128,14 @@ class BacktestEngine
 		$log = Logger::getLogger();
 		$initialBalance = $backtestExchange->getVirtualBalance()->getAmount();
 
-		if ($writer !== null) {
-			$writer->writeInit(
-				pair: $ticker,
-				timeframe: $pair->getTimeframe()->value,
-				strategy: $pair->getStrategyName() ?? '',
-				params: $pair->getStrategyParams(),
-				initialBalance: $initialBalance,
-				totalCandles: $n,
-			);
-		}
+		$writer?->writeInit(
+			pair: $ticker,
+			timeframe: $pair->getTimeframe()->value,
+			strategy: $pair->getStrategyName() ?? '',
+			params: $pair->getStrategyParams(),
+			initialBalance: $initialBalance,
+			totalCandles: $n,
+		);
 
 		$liquidated = false;
 		$aborted = false;
