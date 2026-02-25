@@ -92,4 +92,54 @@ class GateParam
 	const string CrossLeverageLimit = 'cross_leverage_limit';
 
 	const string Turnover24h = 'volume_24h_settle';
+
+	const string InDualMode = 'in_dual_mode';
+
+	const string FinishAs = 'finish_as';
+
+	const string OrderType = 'order_type';
+
+	const string Initial = 'initial';
+
+	const string Trigger = 'trigger';
+
+	const string StrategyType = 'strategy_type';
+
+	const string PriceType = 'price_type';
+
+	const string Rule = 'rule';
+
+	const string Expiration = 'expiration';
+
+	const string TypeMarket = 'market';
+
+	const string TypeLimit = 'limit';
+
+	const string SideBuy = 'buy';
+
+	const string SideSell = 'sell';
+
+	const string CandleTime = 't';
+
+	const string CandleOpen = 'o';
+
+	const string CandleHigh = 'h';
+
+	const string CandleLow = 'l';
+
+	const string CandleClose = 'c';
+
+	const string CandleVolume = 'v';
+
+	const int SpotCandleTime = 0;
+
+	const int SpotCandleVolume = 1;
+
+	const int SpotCandleClose = 2;
+
+	const int SpotCandleHigh = 3;
+
+	const int SpotCandleLow = 4;
+
+	const int SpotCandleOpen = 5;
 }

@@ -186,12 +186,12 @@ class Gate extends AbstractExchangeDriver
 			if ($pair->isFutures()) {
 				$candles = array_map(
 					fn(array $item) => new Candle(
-						timestamp: (int) $item['t'],
-						open: (float) $item['o'],
-						high: (float) $item['h'],
-						low: (float) $item['l'],
-						close: (float) $item['c'],
-						volume: (float) $item['v'],
+						timestamp: (int) $item[GateParam::CandleTime],
+						open: (float) $item[GateParam::CandleOpen],
+						high: (float) $item[GateParam::CandleHigh],
+						low: (float) $item[GateParam::CandleLow],
+						close: (float) $item[GateParam::CandleClose],
+						volume: (float) $item[GateParam::CandleVolume],
 					),
 					$response
 				);
@@ -199,12 +199,12 @@ class Gate extends AbstractExchangeDriver
 				// Spot candles: array of [timestamp, volume, close, high, low, open, ...]
 				$candles = array_map(
 					fn(array $item) => new Candle(
-						timestamp: (int) $item[0],
-						open: (float) $item[5],
-						high: (float) $item[3],
-						low: (float) $item[4],
-						close: (float) $item[2],
-						volume: (float) $item[1],
+						timestamp: (int) $item[GateParam::SpotCandleTime],
+						open: (float) $item[GateParam::SpotCandleOpen],
+						high: (float) $item[GateParam::SpotCandleHigh],
+						low: (float) $item[GateParam::SpotCandleLow],
+						close: (float) $item[GateParam::SpotCandleClose],
+						volume: (float) $item[GateParam::SpotCandleVolume],
 					),
 					$response
 				);
@@ -313,19 +313,15 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Contract => $ticker,
 					GateParam::Size => $direction->isLong() ? $contracts : -$contracts,
 					GateParam::Price => '0',
-					GateParam::Tif => 'ioc',
+					GateParam::Tif => GateOrderTifEnum::IOC->value,
 				];
-
-				if ($this->isDualMode()) {
-					// In dual mode no reduce_only needed for opening; size sign determines direction.
-				}
 
 				$response = $this->api->post("/futures/" . self::SETTLE . "/orders", $body);
 			} else {
 				$body = [
 					GateParam::CurrencyPair => $ticker,
 					GateParam::Side => strtolower($direction->getBuySell()),
-					GateParam::Type => 'market',
+					GateParam::Type => GateParam::TypeMarket,
 					GateParam::Amount => (string) $amount->getAmount(),
 				];
 
@@ -396,14 +392,14 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Contract => $ticker,
 					GateParam::Size => $contracts,
 					GateParam::Price => '0',
-					GateParam::Tif => 'ioc',
+					GateParam::Tif => GateOrderTifEnum::IOC->value,
 				];
 				$response = $this->api->post("/futures/" . self::SETTLE . "/orders", $body);
 			} else {
 				$body = [
 					GateParam::CurrencyPair => $ticker,
-					GateParam::Side => 'buy',
-					GateParam::Type => 'market',
+					GateParam::Side => GateParam::SideBuy,
+					GateParam::Type => GateParam::TypeMarket,
 					GateParam::Amount => (string) $amount->getAmount(),
 				];
 				$response = $this->api->post("/spot/orders", $body);
@@ -442,7 +438,7 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Contract => $ticker,
 					GateParam::Size => -$contracts,
 					GateParam::Price => '0',
-					GateParam::Tif => 'ioc',
+					GateParam::Tif => GateOrderTifEnum::IOC->value,
 				];
 				$response = $this->api->post("/futures/" . self::SETTLE . "/orders", $body);
 			} else {
@@ -454,8 +450,8 @@ class Gate extends AbstractExchangeDriver
 
 				$body = [
 					GateParam::CurrencyPair => $ticker,
-					GateParam::Side => 'sell',
-					GateParam::Type => 'market',
+					GateParam::Side => GateParam::SideSell,
+					GateParam::Type => GateParam::TypeMarket,
 					GateParam::Amount => $qty->formatForOrder($this->getQtyStep($market)),
 				];
 				$response = $this->api->post("/spot/orders", $body);
@@ -498,7 +494,7 @@ class Gate extends AbstractExchangeDriver
 	 */
 	public function getTopPairsByVolume(int $limit, string $category = 'linear'): array {
 		try {
-			if ($category === 'spot') {
+			if ($category === MarketTypeEnum::SPOT->value) {
 				$response = $this->api->publicGet("/spot/tickers");
 				$marketType = MarketTypeEnum::SPOT;
 			} else {
@@ -518,7 +514,7 @@ class Gate extends AbstractExchangeDriver
 
 			$pairs = [];
 			foreach ($response as $ticker) {
-				$nameField = $category === 'spot' ? GateParam::CurrencyPair : GateParam::Contract;
+				$nameField = $category === MarketTypeEnum::SPOT->value ? GateParam::CurrencyPair : GateParam::Contract;
 				$symbol = $ticker[$nameField] ?? '';
 				if (empty($symbol) || !str_contains($symbol, '_USDT')) {
 					continue;
@@ -669,7 +665,7 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Contract => $ticker,
 					GateParam::Size => $direction->isLong() ? $contracts : -$contracts,
 					GateParam::Price => $price->formatForOrder($this->getTickSize($market)),
-					GateParam::Tif => 'gtc',
+					GateParam::Tif => GateOrderTifEnum::GTC->value,
 				];
 
 				$response = $this->api->post("/futures/" . self::SETTLE . "/orders", $body);
@@ -677,7 +673,7 @@ class Gate extends AbstractExchangeDriver
 				$body = [
 					GateParam::CurrencyPair => $ticker,
 					GateParam::Side => strtolower($direction->getBuySell()),
-					GateParam::Type => 'limit',
+					GateParam::Type => GateParam::TypeLimit,
 					GateParam::Amount => $amount->formatForOrder($this->getQtyStep($market)),
 					GateParam::Price => $price->formatForOrder($this->getTickSize($market)),
 				];
@@ -738,7 +734,7 @@ class Gate extends AbstractExchangeDriver
 			if ($pair->isFutures()) {
 				$orders = $this->api->get("/futures/" . self::SETTLE . "/orders", [
 					GateParam::Contract => $ticker,
-					GateParam::Status => 'open',
+					GateParam::Status => GateOrderStatusEnum::Open->value,
 				]);
 
 				foreach ($orders as $order) {
@@ -752,7 +748,7 @@ class Gate extends AbstractExchangeDriver
 			} else {
 				$orders = $this->api->get("/spot/orders", [
 					GateParam::CurrencyPair => $ticker,
-					GateParam::Status => 'open',
+					GateParam::Status => GateOrderStatusEnum::Open->value,
 				]);
 
 				$targetSide = strtolower($direction->getBuySell());
@@ -784,30 +780,30 @@ class Gate extends AbstractExchangeDriver
 
 		try {
 			// Cancel existing TP orders for this direction first.
-			$this->cancelPriceOrdersByType($ticker, $direction, 'take_profit');
+			$this->cancelPriceOrdersByType($ticker, $direction);
 
 			// TP trigger: for long, trigger when price >= TP; for short, when price <= TP.
 			$rule = $direction->isLong() ? 1 : 2;
-			$autoSize = $direction->isLong() ? 'close_long' : 'close_short';
+			$autoSize = GateAutoSizeEnum::fromDirection($direction);
 
 			$body = [
-				'initial' => [
+				GateParam::Initial => [
 					GateParam::Contract => $ticker,
 					GateParam::Size => 0,
 					GateParam::Price => '0',
-					GateParam::Tif => 'ioc',
+					GateParam::Tif => GateOrderTifEnum::IOC->value,
 					GateParam::Close => false,
 					GateParam::ReduceOnly => true,
-					GateParam::AutoSize => $this->isDualMode() ? $autoSize : '',
+					GateParam::AutoSize => $this->isDualMode() ? $autoSize->value : '',
 				],
-				'trigger' => [
-					'strategy_type' => 0,
-					'price_type' => 0,
+				GateParam::Trigger => [
+					GateParam::StrategyType => 0,
+					GateParam::PriceType => 0,
 					GateParam::Price => $expectedPrice->formatForOrder($this->getTickSize($market)),
-					'rule' => $rule,
-					'expiration' => 86400,
+					GateParam::Rule => $rule,
+					GateParam::Expiration => 86400,
 				],
-				'order_type' => $direction->isLong() ? 'close-long-position' : 'close-short-position',
+				GateParam::OrderType => GatePositionCloseTypeEnum::fromDirection($direction)->value,
 			];
 
 			$this->api->post("/futures/" . self::SETTLE . "/price_orders", $body);
@@ -828,30 +824,30 @@ class Gate extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 
 		try {
-			$this->cancelPriceOrdersByType($ticker, $direction, 'stop_loss');
+			$this->cancelPriceOrdersByType($ticker, $direction);
 
 			// SL trigger: for long, trigger when price <= SL; for short, when price >= SL.
 			$rule = $direction->isLong() ? 2 : 1;
-			$autoSize = $direction->isLong() ? 'close_long' : 'close_short';
+			$autoSize = GateAutoSizeEnum::fromDirection($direction);
 
 			$body = [
-				'initial' => [
+				GateParam::Initial => [
 					GateParam::Contract => $ticker,
 					GateParam::Size => 0,
 					GateParam::Price => '0',
-					GateParam::Tif => 'ioc',
+					GateParam::Tif => GateOrderTifEnum::IOC->value,
 					GateParam::Close => false,
 					GateParam::ReduceOnly => true,
-					GateParam::AutoSize => $this->isDualMode() ? $autoSize : '',
+					GateParam::AutoSize => $this->isDualMode() ? $autoSize->value : '',
 				],
-				'trigger' => [
-					'strategy_type' => 0,
-					'price_type' => 0,
+				GateParam::Trigger => [
+					GateParam::StrategyType => 0,
+					GateParam::PriceType => 0,
 					GateParam::Price => $expectedPrice->formatForOrder($this->getTickSize($market)),
-					'rule' => $rule,
-					'expiration' => 86400,
+					GateParam::Rule => $rule,
+					GateParam::Expiration => 86400,
 				],
-				'order_type' => $direction->isLong() ? 'close-long-position' : 'close-short-position',
+				GateParam::OrderType => GatePositionCloseTypeEnum::fromDirection($direction)->value,
 			];
 
 			$this->api->post("/futures/" . self::SETTLE . "/price_orders", $body);
@@ -887,12 +883,12 @@ class Gate extends AbstractExchangeDriver
 				GateParam::Contract => $ticker,
 				GateParam::Size => $closeSize,
 				GateParam::Price => '0',
-				GateParam::Tif => 'ioc',
+				GateParam::Tif => GateOrderTifEnum::IOC->value,
 				GateParam::ReduceOnly => true,
 			];
 
 			if ($this->isDualMode()) {
-				$body[GateParam::AutoSize] = $direction->isLong() ? 'close_long' : 'close_short';
+				$body[GateParam::AutoSize] = GateAutoSizeEnum::fromDirection($direction)->value;
 			}
 
 			$response = $this->api->post("/futures/" . self::SETTLE . "/orders", $body);
@@ -930,12 +926,12 @@ class Gate extends AbstractExchangeDriver
 				GateParam::Contract => $ticker,
 				GateParam::Size => $closeSize,
 				GateParam::Price => $price->formatForOrder($this->getTickSize($market)),
-				GateParam::Tif => 'gtc',
+				GateParam::Tif => GateOrderTifEnum::GTC->value,
 				GateParam::ReduceOnly => true,
 			];
 
 			if ($this->isDualMode()) {
-				$body[GateParam::AutoSize] = $direction->isLong() ? 'close_long' : 'close_short';
+				$body[GateParam::AutoSize] = GateAutoSizeEnum::fromDirection($direction)->value;
 			}
 
 			$response = $this->api->post("/futures/" . self::SETTLE . "/orders", $body);
@@ -1168,7 +1164,7 @@ class Gate extends AbstractExchangeDriver
 
 		try {
 			$response = $this->api->get("/futures/" . self::SETTLE . "/accounts");
-			$this->dualModeCache = (bool) ($response['in_dual_mode'] ?? false);
+			$this->dualModeCache = (bool) ($response[GateParam::InDualMode] ?? false);
 		} catch (Throwable $e) {
 			$this->logger->warning("Failed to check dual mode on Gate: " . $e->getMessage());
 			$this->dualModeCache = false;
@@ -1211,7 +1207,7 @@ class Gate extends AbstractExchangeDriver
 			$order->setVolume(Money::from($orderInfo[GateParam::Amount] ?? '0'));
 		}
 
-		$gateStatus = $orderInfo[GateParam::Status] ?? 'finished';
+		$gateStatus = $orderInfo[GateParam::Status] ?? GateOrderStatusEnum::Finished->value;
 		$order->setStatus($this->mapGateOrderStatus($gateStatus, $orderInfo));
 
 		$price = $orderInfo[GateParam::Price] ?? '0';
@@ -1226,16 +1222,16 @@ class Gate extends AbstractExchangeDriver
 	 */
 	private function mapGateOrderStatus(string $status, array $orderInfo): OrderStatusEnum {
 		return match ($status) {
-			'open' => match (true) {
+			GateOrderStatusEnum::Open->value => match (true) {
 				((int) ($orderInfo[GateParam::Left] ?? 0)) < abs((int) ($orderInfo[GateParam::Size] ?? 0))
 					=> OrderStatusEnum::PartiallyFilled,
 				default => OrderStatusEnum::NewOrder,
 			},
-			'finished' => match ($orderInfo['finish_as'] ?? 'filled') {
-				'filled' => OrderStatusEnum::Filled,
-				'cancelled' => OrderStatusEnum::Cancelled,
-				'ioc' => OrderStatusEnum::Cancelled,
-				'reduce_only' => OrderStatusEnum::Cancelled,
+			GateOrderStatusEnum::Finished->value => match ($orderInfo[GateParam::FinishAs] ?? GateFinishAsEnum::Filled->value) {
+				GateFinishAsEnum::Filled->value => OrderStatusEnum::Filled,
+				GateFinishAsEnum::Cancelled->value => OrderStatusEnum::Cancelled,
+				GateFinishAsEnum::IOC->value => OrderStatusEnum::Cancelled,
+				GateFinishAsEnum::ReduceOnly->value => OrderStatusEnum::Cancelled,
 				default => OrderStatusEnum::Filled,
 			},
 			default => OrderStatusEnum::NewOrder,
@@ -1245,17 +1241,17 @@ class Gate extends AbstractExchangeDriver
 	/**
 	 * Cancel existing price orders (TP/SL) of a given type for a direction.
 	 */
-	private function cancelPriceOrdersByType(string $ticker, PositionDirectionEnum $direction, string $type): void {
+	private function cancelPriceOrdersByType(string $ticker, PositionDirectionEnum $direction): void {
 		try {
 			$orders = $this->api->get("/futures/" . self::SETTLE . "/price_orders", [
 				GateParam::Contract => $ticker,
-				GateParam::Status => 'open',
+				GateParam::Status => GateOrderStatusEnum::Open->value,
 			]);
 
-			$targetOrderType = $direction->isLong() ? 'close-long-position' : 'close-short-position';
+			$targetOrderType = GatePositionCloseTypeEnum::fromDirection($direction)->value;
 
 			foreach ($orders as $order) {
-				if (($order['order_type'] ?? '') === $targetOrderType) {
+				if (($order[GateParam::OrderType] ?? '') === $targetOrderType) {
 					$this->api->delete("/futures/" . self::SETTLE . "/price_orders/" . $order[GateParam::Id]);
 				}
 			}
