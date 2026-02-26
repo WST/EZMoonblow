@@ -508,7 +508,7 @@ footer a:hover {
 
 /* Styles for DetailViewer - key-value tables */
 .detail-viewer-table {
-    /* Inherits from .data-table */
+    border-radius: 0px !important;
 }
 
 .detail-viewer-table td {

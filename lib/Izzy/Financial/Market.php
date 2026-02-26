@@ -1038,11 +1038,13 @@ class Market implements IMarket
 	 * @return TradingContext
 	 */
 	public function getTradingContext(): TradingContext {
-		$balance = method_exists($this->exchange, 'getVirtualBalance')
-			? $this->exchange->getVirtualBalance()->getAmount()
-			: $this->getDatabase()->getTotalBalance()->getAmount();
-		// For margin, we use balance with 1x leverage for now.
-		// This can be enhanced later to get actual available margin from exchange.
+		if (method_exists($this->exchange, 'getVirtualBalance')) {
+			$balance = $this->exchange->getVirtualBalance()->getAmount();
+		} else {
+			$balance = $this->getDatabase()
+				->getExchangeBalance($this->getExchangeName())
+				->getAmount();
+		}
 		$margin = $balance;
 		$currentPrice = $this->getCurrentPrice();
 

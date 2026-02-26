@@ -98,7 +98,7 @@ class Gate extends AbstractExchangeDriver
 	 * Check if an exception is a "position not found" response from Gate.
 	 * This is normal when no position is open — not a real error.
 	 */
-	private function isPositionNotFound(Exception $e): bool {
+	private function isPositionNotFound(Throwable $e): bool {
 		return str_contains($e->getMessage(), 'POSITION_NOT_FOUND');
 	}
 
@@ -779,11 +779,11 @@ class Gate extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 
 		try {
-			// Cancel existing TP orders for this direction first.
-			$this->cancelPriceOrdersByType($ticker, $direction);
-
 			// TP trigger: for long, trigger when price >= TP; for short, when price <= TP.
 			$rule = $direction->isLong() ? 1 : 2;
+
+			// Cancel only existing TP orders (same rule), leave SL intact.
+			$this->cancelPriceOrdersByRule($ticker, $direction, $rule);
 			$autoSize = GateAutoSizeEnum::fromDirection($direction);
 
 			$body = [
@@ -824,10 +824,11 @@ class Gate extends AbstractExchangeDriver
 		$ticker = $pair->getExchangeTicker($this);
 
 		try {
-			$this->cancelPriceOrdersByType($ticker, $direction);
-
 			// SL trigger: for long, trigger when price <= SL; for short, when price >= SL.
 			$rule = $direction->isLong() ? 2 : 1;
+
+			// Cancel only existing SL orders (same rule), leave TP intact.
+			$this->cancelPriceOrdersByRule($ticker, $direction, $rule);
 			$autoSize = GateAutoSizeEnum::fromDirection($direction);
 
 			$body = [
@@ -998,9 +999,7 @@ class Gate extends AbstractExchangeDriver
 
 		try {
 			$response = $this->api->get("/futures/" . self::SETTLE . "/positions/$ticker");
-			$mode = $response[GateParam::Mode] ?? 'single';
 
-			// Gate modes: "single" (cross), "dual_long"/"dual_short" (dual), plus leverage field.
 			// Cross vs isolated is determined by leverage: 0 = cross.
 			$leverage = (int) ($response[GateParam::Leverage] ?? 0);
 			$marginMode = ($leverage === 0) ? MarginModeEnum::CROSS : MarginModeEnum::ISOLATED;
@@ -1008,6 +1007,10 @@ class Gate extends AbstractExchangeDriver
 			$this->marginModeCache[$ticker] = $marginMode;
 			return $marginMode;
 		} catch (Throwable $e) {
+			if ($this->isPositionNotFound($e)) {
+				$this->marginModeCache[$ticker] = MarginModeEnum::CROSS;
+				return MarginModeEnum::CROSS;
+			}
 			$this->logger->error("Failed to get margin mode for $ticker on Gate: " . $e->getMessage());
 			return null;
 		}
@@ -1054,7 +1057,9 @@ class Gate extends AbstractExchangeDriver
 			// Gate uses 0 for cross margin; return actual leverage or null.
 			return $leverage > 0 ? $leverage : null;
 		} catch (Throwable $e) {
-			$this->logger->error("Failed to get leverage for $ticker on Gate: " . $e->getMessage());
+			if (!$this->isPositionNotFound($e)) {
+				$this->logger->error("Failed to get leverage for $ticker on Gate: " . $e->getMessage());
+			}
 			return null;
 		}
 	}
@@ -1239,9 +1244,16 @@ class Gate extends AbstractExchangeDriver
 	}
 
 	/**
-	 * Cancel existing price orders (TP/SL) of a given type for a direction.
+	 * Cancel existing price orders matching a specific trigger rule for a direction.
+	 *
+	 * Gate uses the same order_type for both TP and SL; the only distinguishing
+	 * factor is the trigger rule (1 = price >=, 2 = price <=).
+	 *
+	 * @param string $ticker Exchange ticker.
+	 * @param PositionDirectionEnum $direction Position direction.
+	 * @param int $triggerRule Trigger rule to match (1 or 2).
 	 */
-	private function cancelPriceOrdersByType(string $ticker, PositionDirectionEnum $direction): void {
+	private function cancelPriceOrdersByRule(string $ticker, PositionDirectionEnum $direction, int $triggerRule): void {
 		try {
 			$orders = $this->api->get("/futures/" . self::SETTLE . "/price_orders", [
 				GateParam::Contract => $ticker,
@@ -1251,7 +1263,11 @@ class Gate extends AbstractExchangeDriver
 			$targetOrderType = GatePositionCloseTypeEnum::fromDirection($direction)->value;
 
 			foreach ($orders as $order) {
-				if (($order[GateParam::OrderType] ?? '') === $targetOrderType) {
+				if (($order[GateParam::OrderType] ?? '') !== $targetOrderType) {
+					continue;
+				}
+				$orderRule = (int) ($order[GateParam::Trigger][GateParam::Rule] ?? 0);
+				if ($orderRule === $triggerRule) {
 					$this->api->delete("/futures/" . self::SETTLE . "/price_orders/" . $order[GateParam::Id]);
 				}
 			}

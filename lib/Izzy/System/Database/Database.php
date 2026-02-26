@@ -584,7 +584,7 @@ class Database
 
 	/**
 	 * Get the total balance across all exchanges.
-	 * Sums up all balance values from the exchange_balances table.
+	 * Sums up all balance values from the exchanges table.
 	 *
 	 * @return Money Total balance as Money object, or zero if no data found.
 	 */
@@ -594,6 +594,23 @@ class Database
 
 		if ($result && isset($result['total'])) {
 			return Money::from($result['total']);
+		}
+
+		return Money::from(0.0);
+	}
+
+	/**
+	 * Get the balance for a specific exchange.
+	 *
+	 * @param string $exchangeName Exchange name (e.g., "Gate", "Bybit").
+	 * @return Money Balance for the exchange, or zero if not found.
+	 */
+	public function getExchangeBalance(string $exchangeName): Money {
+		$sql = "SELECT exchange_balance FROM exchanges WHERE exchange_name = " . $this->quote($exchangeName);
+		$result = $this->queryOneRow($sql);
+
+		if ($result && isset($result['exchange_balance'])) {
+			return Money::from($result['exchange_balance']);
 		}
 
 		return Money::from(0.0);

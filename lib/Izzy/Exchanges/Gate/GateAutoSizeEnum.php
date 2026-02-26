@@ -2,6 +2,8 @@
 
 namespace Izzy\Exchanges\Gate;
 
+use Izzy\Enums\PositionDirectionEnum;
+
 /**
  * Auto-size values for closing positions in Gate.io dual mode.
  */
@@ -14,7 +16,7 @@ enum GateAutoSizeEnum: string
 	/**
 	 * Get the auto_size value for a position direction.
 	 */
-	public static function fromDirection(\Izzy\Enums\PositionDirectionEnum $direction): self {
+	public static function fromDirection(PositionDirectionEnum $direction): self {
 		return $direction->isLong() ? self::CloseLong : self::CloseShort;
 	}
 }
