@@ -12,6 +12,7 @@ require __DIR__.'/lib/common.php';
 
 $testedExchange = 'Gate';
 
+/** @var Backtester $app */
 $app = Backtester::getInstance();
 $config = $app->getConfiguration();
 
