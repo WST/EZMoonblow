@@ -361,6 +361,15 @@ class Gate extends AbstractExchangeDriver
 				$this->setTakeProfit($market, $takeProfitPrice, $direction);
 			}
 
+			if ($stopLossPercent && $pair->isFutures()) {
+				$stopLossPrice = $currentPrice->modifyByPercentWithDirection(-$stopLossPercent, $direction);
+				$position->setExpectedStopLossPercent($stopLossPercent);
+				$position->setStopLossPrice($stopLossPrice);
+
+				// Gate requires a separate call to set SL.
+				$this->setStopLoss($market, $stopLossPrice, $direction);
+			}
+
 			$saved = $position->save();
 			if (!$saved) {
 				$this->logger->error("Position opened on Gate but failed to save to DB for $market");
@@ -785,6 +794,8 @@ class Gate extends AbstractExchangeDriver
 
 			// Cancel only existing TP orders (same rule), leave SL intact.
 			$this->cancelPriceOrdersByRule($ticker, $direction, $rule);
+
+			$isDualMode = $this->isDualMode();
 			$autoSize = GateAutoSizeEnum::fromDirection($direction);
 
 			$body = [
@@ -793,9 +804,9 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Size => 0,
 					GateParam::Price => '0',
 					GateParam::Tif => GateOrderTifEnum::IOC->value,
-					GateParam::Close => false,
+					GateParam::Close => !$isDualMode,
 					GateParam::ReduceOnly => true,
-					GateParam::AutoSize => $this->isDualMode() ? $autoSize->value : '',
+					GateParam::AutoSize => $isDualMode ? $autoSize->value : '',
 				],
 				GateParam::Trigger => [
 					GateParam::StrategyType => 0,
@@ -830,6 +841,8 @@ class Gate extends AbstractExchangeDriver
 
 			// Cancel only existing SL orders (same rule), leave TP intact.
 			$this->cancelPriceOrdersByRule($ticker, $direction, $rule);
+
+			$isDualMode = $this->isDualMode();
 			$autoSize = GateAutoSizeEnum::fromDirection($direction);
 
 			$body = [
@@ -838,9 +851,9 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Size => 0,
 					GateParam::Price => '0',
 					GateParam::Tif => GateOrderTifEnum::IOC->value,
-					GateParam::Close => false,
+					GateParam::Close => !$isDualMode,
 					GateParam::ReduceOnly => true,
-					GateParam::AutoSize => $this->isDualMode() ? $autoSize->value : '',
+					GateParam::AutoSize => $isDualMode ? $autoSize->value : '',
 				],
 				GateParam::Trigger => [
 					GateParam::StrategyType => 0,

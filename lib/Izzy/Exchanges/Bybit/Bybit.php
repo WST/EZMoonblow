@@ -359,10 +359,14 @@ class Bybit extends AbstractExchangeDriver
 		$params[BybitParam::Qty] = $properVolume;
 
 		if ($market->isFutures()) {
-			// If we have a TP defined.
 			if ($takeProfitPercent) {
 				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
 				$params[BybitParam::TakeProfit] = $takeProfitPrice->formatForOrder($this->getTickSize($market));
+			}
+
+			if ($stopLossPercent) {
+				$stopLossPrice = $currentPrice->modifyByPercentWithDirection(-$stopLossPercent, $direction);
+				$params[BybitParam::StopLoss] = $stopLossPrice->formatForOrder($this->getTickSize($market));
 			}
 
 			$params[BybitParam::PositionIdx] = $this->getPositionIdxByDirection($direction);
@@ -371,7 +375,7 @@ class Bybit extends AbstractExchangeDriver
 			}
 		}
 
-		// NOTE: For spot, we cannot assign TP in the same API call.
+		// NOTE: For spot, we cannot assign TP/SL in the same API call.
 
 		try {
 			// Make an API call.
@@ -401,13 +405,19 @@ class Bybit extends AbstractExchangeDriver
 			);
 			$position->setAverageEntryPrice($currentPrice);
 
-			// Store TP metadata on the position object.
-			// The actual TP order was already included in the placeOrder params above,
-			// so there is no need to call setTakeProfit() again (Bybit returns "not modified").
+			// Store TP/SL metadata on the position object.
+			// The actual TP/SL orders were already included in the placeOrder params above,
+			// so there is no need to call setTakeProfit()/setStopLoss() again.
 			if ($takeProfitPercent) {
 				$position->setExpectedProfitPercent($takeProfitPercent);
 				$takeProfitPrice = $currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction);
 				$position->setTakeProfitPrice($takeProfitPrice);
+			}
+
+			if ($stopLossPercent) {
+				$position->setExpectedStopLossPercent($stopLossPercent);
+				$stopLossPrice = $currentPrice->modifyByPercentWithDirection(-$stopLossPercent, $direction);
+				$position->setStopLossPrice($stopLossPrice);
 			}
 
 			// Save the position to the database.

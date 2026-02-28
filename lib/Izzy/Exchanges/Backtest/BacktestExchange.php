@@ -119,7 +119,7 @@ class BacktestExchange implements IExchangeDriver
 		return $this->currentPriceByMarketKey[$key] ?? null;
 	}
 
-	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool {
+	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null, ?float $stopLossPercent = null): bool {
 		$currentPrice = $price ?? $this->getCurrentPrice($market);
 		if (!$currentPrice) {
 			return false;
@@ -146,6 +146,10 @@ class BacktestExchange implements IExchangeDriver
 		if ($takeProfitPercent !== null) {
 			$position->setExpectedProfitPercent($takeProfitPercent);
 			$position->setTakeProfitPrice($currentPrice->modifyByPercentWithDirection($takeProfitPercent, $direction));
+		}
+		if ($stopLossPercent !== null) {
+			$position->setExpectedStopLossPercent($stopLossPercent);
+			$position->setStopLossPrice($currentPrice->modifyByPercentWithDirection(-$stopLossPercent, $direction));
 		}
 		$position->save();
 		$this->deductTradeFee($volumeBase->getAmount() * $currentPrice->getAmount());

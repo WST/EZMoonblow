@@ -166,22 +166,30 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		$volumeQuote = $this->volumeMode->resolve($this->entryVolume, $market->getTradingContext());
 		$currentPrice = $market->getCurrentPrice();
 
-		// Open the position at market price.
-		$position = $market->openPosition($volumeQuote, $direction, $this->takeProfitPercent);
+		// Open the position at market price with both TP and SL.
+		// The exchange driver sets TP/SL on the exchange and stores
+		// metadata on the position atomically (for Bybit) or immediately
+		// after the order fill (for Gate/KuCoin).
+		$position = $market->openPosition(
+			$volumeQuote,
+			$direction,
+			$this->takeProfitPercent,
+			$this->stopLossPercent
+		);
 		if (!$position) {
 			return false;
 		}
 
-		// Calculate and set SL price.
-		$slPrice = $currentPrice->modifyByPercentWithDirection(-$this->stopLossPercent, $direction);
-		$market->setStopLoss($slPrice, $direction);
-		$position->setStopLossPrice($slPrice);
-		$position->setExpectedStopLossPercent($this->stopLossPercent);
-
-		// Calculate and set TP price.
+		// Ensure TP/SL metadata is persisted on the position record.
+		// The driver already set these, but we re-apply to guarantee
+		// consistency even if the driver's SL/TP exchange call failed.
 		$tpPrice = $currentPrice->modifyByPercentWithDirection($this->takeProfitPercent, $direction);
 		$position->setTakeProfitPrice($tpPrice);
 		$position->setExpectedProfitPercent($this->takeProfitPercent);
+
+		$slPrice = $currentPrice->modifyByPercentWithDirection(-$this->stopLossPercent, $direction);
+		$position->setStopLossPrice($slPrice);
+		$position->setExpectedStopLossPercent($this->stopLossPercent);
 
 		$position->save();
 		return $position;

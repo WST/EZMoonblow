@@ -445,6 +445,13 @@ class KuCoin extends AbstractExchangeDriver
 				$this->setTakeProfit($market, $takeProfitPrice, $direction);
 			}
 
+			if ($stopLossPercent && $pair->isFutures()) {
+				$stopLossPrice = $currentPrice->modifyByPercentWithDirection(-$stopLossPercent, $direction);
+				$position->setExpectedStopLossPercent($stopLossPercent);
+				$position->setStopLossPrice($stopLossPrice);
+				$this->setStopLoss($market, $stopLossPrice, $direction);
+			}
+
 			$saved = $position->save();
 			if (!$saved) {
 				$this->logger->error("Position opened on KuCoin but failed to save to DB for $market");
