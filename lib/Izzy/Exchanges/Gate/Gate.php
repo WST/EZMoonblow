@@ -815,7 +815,7 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Rule => $rule,
 					GateParam::Expiration => 86400,
 				],
-				GateParam::OrderType => GatePositionCloseTypeEnum::fromDirection($direction)->value,
+				GateParam::OrderType => GatePositionCloseTypeEnum::entireClose($direction)->value,
 			];
 
 			$this->api->post("/futures/" . self::SETTLE . "/price_orders", $body);
@@ -862,7 +862,7 @@ class Gate extends AbstractExchangeDriver
 					GateParam::Rule => $rule,
 					GateParam::Expiration => 86400,
 				],
-				GateParam::OrderType => GatePositionCloseTypeEnum::fromDirection($direction)->value,
+				GateParam::OrderType => GatePositionCloseTypeEnum::entireClose($direction)->value,
 			];
 
 			$this->api->post("/futures/" . self::SETTLE . "/price_orders", $body);
@@ -1274,10 +1274,10 @@ class Gate extends AbstractExchangeDriver
 				GateParam::Status => GateOrderStatusEnum::Open->value,
 			]);
 
-			$targetOrderType = GatePositionCloseTypeEnum::fromDirection($direction)->value;
+			$targetOrderTypes = GatePositionCloseTypeEnum::allValuesForDirection($direction);
 
 			foreach ($orders as $order) {
-				if (($order[GateParam::OrderType] ?? '') !== $targetOrderType) {
+				if (!in_array($order[GateParam::OrderType] ?? '', $targetOrderTypes, true)) {
 					continue;
 				}
 				$orderRule = (int) ($order[GateParam::Trigger][GateParam::Rule] ?? 0);
