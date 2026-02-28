@@ -6,6 +6,7 @@ use Izzy\AbstractApplications\WebApplication;
 use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Configuration\StrategyConfiguration;
 use Izzy\Web\Filters\BacktestResultsFilter;
+use Izzy\Web\Table\ClearAllGlobalAction;
 use Izzy\Web\Table\DeleteAction;
 use Izzy\Web\Table\TableFilter;
 use Izzy\Web\Table\TablePagination;
@@ -59,6 +60,11 @@ class ResultsViewer extends PageViewer
 		$table = BacktestResultsTable::create();
 		$table->setPagination($pagination);
 		$table->addAction(new DeleteAction('/cgi-bin/api.pl?action=delete_result'));
+		$table->addGlobalAction(new ClearAllGlobalAction(
+			'/cgi-bin/api.pl?action=clear_all_results',
+			'Clear All Results',
+			'Delete ALL backtest results? This cannot be undone.',
+		));
 		$table->setRowClassCallback(fn($row) => ($row['matchesCurrentConfig'] ?? false) ? 'config-match' : '');
 		$table->setRowDataAttributes(fn($row, $i) => ['data-idx' => $i]);
 

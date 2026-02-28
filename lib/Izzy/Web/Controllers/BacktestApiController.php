@@ -62,6 +62,7 @@ class BacktestApiController
 			'request_candles' => $this->requestCandles($request, $response),
 			'delete_candle_set' => $this->deleteCandleSet($request, $response),
 			'clear_all_candles' => $this->clearAllCandles($response),
+			'clear_all_results' => $this->clearAllResults($response),
 			'delete_result' => $this->deleteResult($request, $response),
 			'delete_position' => $this->deletePosition($request, $response),
 			'update_suggestion_status' => $this->updateSuggestionStatus($request, $response),
@@ -332,6 +333,11 @@ class BacktestApiController
 	private function clearAllCandles(Response $response): Response {
 		$repo = new CandleRepository($this->app->getDatabase());
 		$repo->truncateAll();
+		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	private function clearAllResults(Response $response): Response {
+		$this->app->getDatabase()->delete(BacktestResultRecord::getTableName(), '1');
 		return $this->jsonResponse($response, ['ok' => true]);
 	}
 

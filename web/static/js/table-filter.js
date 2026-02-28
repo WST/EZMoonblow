@@ -80,19 +80,21 @@
 		}
 	});
 
-	// ─── Delete action handler ───
+	// ─── Delete action handler (supports data-payload for composite keys) ───
 	document.addEventListener('click', function(e) {
 		var btn = e.target.closest('[data-action="delete"]');
 		if (!btn) return;
 		e.stopPropagation();
-		var id = btn.dataset.id;
 		var endpoint = btn.dataset.endpoint;
 		var msg = btn.dataset.confirm || 'Delete this record?';
 		if (!confirm(msg)) return;
+		var body = btn.dataset.payload
+			? btn.dataset.payload
+			: JSON.stringify({id: parseInt(btn.dataset.id, 10)});
 		fetch(endpoint, {
 			method: 'POST',
 			headers: {'Content-Type': 'application/json'},
-			body: JSON.stringify({id: parseInt(id, 10)})
+			body: body
 		}).then(function(resp) { return resp.json(); })
 		.then(function(data) {
 			if (data.ok) {
@@ -100,6 +102,29 @@
 				if (row) row.remove();
 			} else {
 				alert(data.error || 'Delete failed');
+			}
+		}).catch(function() { alert('Network error'); });
+	});
+
+	// ─── Global action handler (table-wide actions in footer) ───
+	document.addEventListener('click', function(e) {
+		var btn = e.target.closest('[data-action="global-action"]');
+		if (!btn) return;
+		e.stopPropagation();
+		var endpoint = btn.dataset.endpoint;
+		var msg = btn.dataset.confirm || 'Are you sure?';
+		if (!confirm(msg)) return;
+		var body = btn.dataset.payload || '{}';
+		fetch(endpoint, {
+			method: 'POST',
+			headers: {'Content-Type': 'application/json'},
+			body: body
+		}).then(function(resp) { return resp.json(); })
+		.then(function(data) {
+			if (data.ok) {
+				window.location.reload();
+			} else {
+				alert(data.error || 'Action failed');
 			}
 		}).catch(function() { alert('Network error'); });
 	});

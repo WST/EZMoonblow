@@ -939,6 +939,37 @@ footer a:hover {
     box-sizing: border-box;
 }
 
+/* ───────── Table global actions (footer row) ───────── */
+.table-global-actions-row td {
+	background-color: #f0f2f5 !important;
+	padding: 10px 14px;
+	text-align: right;
+}
+.table-global-action {
+	padding: 6px 16px;
+	border: none;
+	border-radius: 4px;
+	font-size: 12px;
+	font-family: inherit;
+	font-weight: bold;
+	cursor: pointer;
+	margin-left: 8px;
+}
+.table-global-action-danger {
+	background: #c62828;
+	color: #fff;
+}
+.table-global-action-danger:hover {
+	background: #8e0000;
+}
+.table-global-action-primary {
+	background: #005599;
+	color: #fff;
+}
+.table-global-action-primary:hover {
+	background: #003366;
+}
+
 /* ───────── Table action buttons ───────── */
 .table-actions-cell { white-space: nowrap; }
 .table-action-btn {
@@ -957,6 +988,113 @@ footer a:hover {
     padding: 0;
 }
 .table-action-btn:hover { border-color: #c62828; color: #c62828; background: #fff5f5; }
+
+/* ───────── Candles page layout ───────── */
+.candles-page {
+	text-align: left;
+	max-width: 1500px;
+	margin: 0 auto;
+}
+.candles-page h1 {
+	text-align: center;
+	margin-bottom: 20px;
+}
+.candles-columns {
+	display: flex;
+	gap: 20px;
+	align-items: flex-start;
+}
+.candles-col-left {
+	flex: 1 1 0;
+	min-width: 0;
+}
+.candles-col-right {
+	flex: 1 1 0;
+	min-width: 0;
+}
+.candles-section {
+	background: #fff;
+	border: 1px solid #ddd;
+	border-radius: 8px;
+	box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+	padding: 20px;
+	margin-bottom: 20px;
+}
+.candles-section h2 {
+	margin: 0 0 16px 0;
+	font-size: 17px;
+	color: #003366;
+	border-bottom: 1px solid #eee;
+	padding-bottom: 8px;
+}
+
+/* ───────── Download form ───────── */
+.download-form {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px;
+	align-items: flex-end;
+}
+.download-form-vertical {
+	flex-direction: column;
+	align-items: stretch;
+}
+.download-form-row {
+	display: flex;
+	gap: 10px;
+	align-items: flex-end;
+}
+.download-form .form-group {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+}
+.download-form .form-group-grow {
+	flex: 1 1 0;
+	min-width: 0;
+}
+.download-form .form-group-grow select,
+.download-form .form-group-grow input[type="text"] {
+	width: 100%;
+	box-sizing: border-box;
+}
+.download-form label {
+	font-size: 11px;
+	font-weight: bold;
+	color: #555;
+}
+.download-form select,
+.download-form input[type="text"],
+.download-form input[type="number"] {
+	padding: 6px 8px;
+	border: 1px solid #ccc;
+	border-radius: 4px;
+	font-size: 13px;
+	font-family: inherit;
+}
+.download-form select:focus,
+.download-form input:focus {
+	border-color: #005599;
+	outline: none;
+}
+#btn-download-candles {
+	padding: 8px 18px;
+	background: #005599;
+	color: #fff;
+	border: none;
+	border-radius: 4px;
+	font-size: 13px;
+	cursor: pointer;
+	font-family: inherit;
+	white-space: nowrap;
+}
+#btn-download-candles:hover { background: #003366; }
+#btn-download-candles:disabled { background: #999; cursor: not-allowed; }
+.empty-message {
+	color: #888;
+	font-style: italic;
+	padding: 12px 0;
+}
 
 /* ───────── Results page layout ───────── */
 .results-page {

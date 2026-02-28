@@ -171,6 +171,65 @@ abstract class AbstractCandleRepository
 	}
 
 	/**
+	 * Get distinct non-empty values for a column (without prefix).
+	 *
+	 * @param string $shortName Column name without table prefix (e.g. "exchange_name").
+	 * @return array<string, string> Value => label map for filter dropdowns.
+	 */
+	public function getDistinctColumnValues(string $shortName): array {
+		$p = $this->getColumnPrefix();
+		$column = $p . $shortName;
+		$table = $this->getTable();
+		$sql = "SELECT DISTINCT `$column` AS val FROM `$table` WHERE `$column` IS NOT NULL AND `$column` != '' ORDER BY `$column`";
+		$rows = $this->database->queryAllRows($sql);
+		$result = [];
+		foreach ($rows as $row) {
+			$result[$row['val']] = $row['val'];
+		}
+		return $result;
+	}
+
+	/**
+	 * Get candle sets grouped by series key, optionally filtered.
+	 *
+	 * @param array<string, string|string[]> $filters Map of short column names to values (string or array for IN).
+	 * @return array<int, array{exchange: string, ticker: string, marketType: string, timeframe: string, from: int, to: int, count: int}>
+	 */
+	public function getFilteredGroupedSets(array $filters = []): array {
+		$p = $this->getColumnPrefix();
+		$table = $this->getTable();
+
+		$conditions = [];
+		foreach ($filters as $shortName => $values) {
+			$column = $p . $shortName;
+			if (is_array($values) && !empty($values)) {
+				$escaped = array_map(fn($v) => "'" . addslashes((string)$v) . "'", $values);
+				$conditions[] = "`$column` IN (" . implode(', ', $escaped) . ")";
+			} elseif (is_string($values) && $values !== '') {
+				$conditions[] = "`$column` = '" . addslashes($values) . "'";
+			}
+		}
+
+		$whereClause = empty($conditions) ? '' : 'WHERE ' . implode(' AND ', $conditions);
+
+		$sql = "SELECT {$p}exchange_name AS exchange_name, {$p}ticker AS ticker, "
+			. "{$p}market_type AS market_type, {$p}timeframe AS timeframe, "
+			. "MIN({$p}open_time) AS min_time, MAX({$p}open_time) AS max_time, COUNT(*) AS cnt "
+			. "FROM {$table} $whereClause "
+			. "GROUP BY {$p}exchange_name, {$p}ticker, {$p}market_type, {$p}timeframe "
+			. "ORDER BY {$p}exchange_name, {$p}ticker, {$p}timeframe";
+		return array_map(fn(array $row) => [
+			'exchange' => $row['exchange_name'],
+			'ticker' => $row['ticker'],
+			'marketType' => $row['market_type'],
+			'timeframe' => $row['timeframe'],
+			'from' => (int)$row['min_time'],
+			'to' => (int)$row['max_time'],
+			'count' => (int)$row['cnt'],
+		], $this->database->queryAllRows($sql));
+	}
+
+	/**
 	 * Delete candles older than the given timestamp.
 	 *
 	 * @param int $olderThan Unix timestamp (seconds). Candles with open_time < this value are deleted.

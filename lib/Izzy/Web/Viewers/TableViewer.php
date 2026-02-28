@@ -5,6 +5,7 @@ namespace Izzy\Web\Viewers;
 use Izzy\Enums\TableViewerColumnTypeEnum;
 use Izzy\Financial\Money;
 use Izzy\Web\Table\TableAction;
+use Izzy\Web\Table\TableGlobalAction;
 use Izzy\Web\Table\TablePagination;
 
 class TableViewer
@@ -17,6 +18,8 @@ class TableViewer
 	protected ?TablePagination $pagination = null;
 	/** @var TableAction[] */
 	protected array $actions = [];
+	/** @var TableGlobalAction[] */
+	protected array $globalActions = [];
 	/** @var ?callable */
 	protected $rowClassCallback = null;
 	/** @var ?callable */
@@ -147,6 +150,11 @@ class TableViewer
 		return $this;
 	}
 
+	public function addGlobalAction(TableGlobalAction $action): self {
+		$this->globalActions[] = $action;
+		return $this;
+	}
+
 	public function setRowClassCallback(callable $callback): self {
 		$this->rowClassCallback = $callback;
 		return $this;
@@ -168,6 +176,7 @@ class TableViewer
 
 		$html .= $this->renderHead();
 		$html .= $this->renderBody();
+		$html .= $this->renderFoot();
 		$html .= '</table>';
 
 		return $html;
@@ -250,6 +259,20 @@ class TableViewer
 			$html .= '</tr>';
 		}
 		$html .= '</tbody>';
+		return $html;
+	}
+
+	private function renderFoot(): string {
+		if (empty($this->globalActions)) {
+			return '';
+		}
+		$colspan = count($this->columns) + (empty($this->actions) ? 0 : 1);
+		$html = '<tfoot><tr class="table-global-actions-row">';
+		$html .= '<td colspan="' . $colspan . '">';
+		foreach ($this->globalActions as $action) {
+			$html .= $action->render();
+		}
+		$html .= '</td></tr></tfoot>';
 		return $html;
 	}
 

@@ -78,7 +78,7 @@ final class IzzyWeb extends WebApplication
 
 	public function candlesPage(Request $request, Response $response): Response {
 		$pageViewer = new CandlesViewer($this);
-		return $pageViewer->render($response);
+		return $pageViewer->render($response, $request);
 	}
 
 	public function backtestPage(Request $request, Response $response): Response {
