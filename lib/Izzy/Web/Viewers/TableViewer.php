@@ -316,7 +316,7 @@ class TableViewer
 			return '—';
 		}
 		if ($value instanceof Money) {
-			return number_format($value->getAmount(), 2) . ' ' . $value->getCurrency();
+			return $value->format("%.2f", true);
 		}
 		if (is_numeric($value)) {
 			return number_format((float)$value, 2) . ' USDT';
