@@ -121,7 +121,7 @@ class Gate extends AbstractExchangeDriver
 			$this->logger->error("Failed to update balance on Gate: " . $e->getMessage());
 
 			if ($this->isApiKeyError($e)) {
-				$this->logger->fatal("Invalid API credentials for Gate. Terminating process to prevent API abuse.");
+				$this->logger->fatal("Invalid API credentials for Gate. Terminating process to prevent API abuse.", 0);
 			}
 		}
 	}
@@ -1285,8 +1285,12 @@ class Gate extends AbstractExchangeDriver
 					$this->api->delete("/futures/" . self::SETTLE . "/price_orders/" . $order[GateParam::Id]);
 				}
 			}
-		} catch (Throwable) {
-			// Silently ignore — old price orders may already be cancelled.
+		} catch (Throwable $e) {
+			$this->logger->warning(
+				"Failed to cancel existing price orders on Gate for $ticker "
+				. "(direction={$direction->value}, trigger_rule=$triggerRule): "
+				. $e->getMessage()
+			);
 		}
 	}
 }

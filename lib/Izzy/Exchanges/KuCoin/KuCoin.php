@@ -123,7 +123,7 @@ class KuCoin extends AbstractExchangeDriver
 			$this->logger->error("Failed to update balance on KuCoin: " . $e->getMessage());
 
 			if ($this->isApiKeyError($e)) {
-				$this->logger->fatal("Invalid API credentials for KuCoin. Terminating process to prevent API abuse.");
+				$this->logger->fatal("Invalid API credentials for KuCoin. Terminating process to prevent API abuse.", 0);
 			}
 		}
 	}

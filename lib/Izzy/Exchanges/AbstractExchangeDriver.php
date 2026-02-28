@@ -15,6 +15,7 @@ use Izzy\Interfaces\IPair;
 use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 use Izzy\System\SystemHeartbeat;
+use Throwable;
 
 /**
  * Abstract cryptocurrency exchange driver class.
@@ -182,12 +183,17 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 */
 	public function run(): int {
 		$pid = pcntl_fork();
-		if ($pid) {
+		if ($pid > 0) {
 			return $pid;
+		}
+		if ($pid === -1) {
+			$this->logger->error("Failed to fork updater process for exchange {$this->getName()}");
+			return -1;
 		}
 
 		if (!$this->connect()) {
-			return -1;
+			$this->logger->error("Failed to connect to exchange {$this->getName()} in child process");
+			exit(1);
 		}
 
 		// Connect to database in the new process.
@@ -200,7 +206,7 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		// We return success, because this is completely OK.
 		if (!$this->config->isEnabled()) {
 			$this->logger->warning("Exchange {$this->getName()} is disabled in the configuration.");
-			return 0;
+			exit(0);
 		}
 
 		// Start heartbeat monitoring for Trader component.
@@ -221,17 +227,26 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 		pcntl_signal(SIGTERM, $shutdownHandler);
 
 		// Main loop.
-		while (!$shouldStop) {
-			// Update heartbeat with exchange info.
-			$heartbeat->beat(['exchange' => $this->getName()]);
+		try {
+			while (!$shouldStop) {
+				// Update heartbeat with exchange info.
+				$heartbeat->beat(['exchange' => $this->getName()]);
 
-			$timeout = $this->update();
+				$timeout = $this->update();
 
-			// Interruptible sleep - check for shutdown signal every second.
-			for ($i = 0; $i < $timeout && !$shouldStop; $i++) {
-				sleep(1);
+				// Interruptible sleep - check for shutdown signal every second.
+				for ($i = 0; $i < $timeout && !$shouldStop; $i++) {
+					sleep(1);
+				}
 			}
+		} catch (Throwable $throwable) {
+			$heartbeat->stop();
+			$this->logger->error("Unhandled exception in updater for exchange {$this->getName()}: " . $throwable->getMessage());
+			exit(1);
 		}
+
+		$heartbeat->stop();
+		exit(0);
 	}
 
 	/**

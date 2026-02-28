@@ -139,7 +139,7 @@ class Bybit extends AbstractExchangeDriver
 			$this->logger->error("Unexpected error while updating balance on $this->exchangeName: ".$e->getMessage());
 
 			if ($this->isApiKeyError($e)) {
-				$this->logger->fatal("Invalid API credentials for {$this->exchangeName}. Terminating process to prevent API abuse.");
+				$this->logger->fatal("Invalid API credentials for {$this->exchangeName}. Terminating process to prevent API abuse.", 0);
 			}
 		}
 	}
