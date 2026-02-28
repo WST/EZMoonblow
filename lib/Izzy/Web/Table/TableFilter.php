@@ -27,6 +27,15 @@ class TableFilter
 	}
 
 	/**
+	 * Add a date condition filter (before / on / after a given date).
+	 * The value is stored as "operator:YYYY-MM-DD" string.
+	 */
+	public function addDateCondition(string $key, string $label): self {
+		$this->fields[] = new TableFilterField($key, $label, FilterFieldTypeEnum::DATE_CONDITION);
+		return $this;
+	}
+
+	/**
 	 * Create a populated filter from the request query parameters.
 	 */
 	public static function fromRequest(Request $request, self $template): self {
@@ -48,6 +57,8 @@ class TableFilter
 				}
 			} elseif ($field->type === FilterFieldTypeEnum::NUMBER_INPUT) {
 				$filter->values[$field->key] = is_numeric($raw) ? (float)$raw : null;
+			} elseif ($field->type === FilterFieldTypeEnum::DATE_CONDITION) {
+				$filter->values[$field->key] = self::parseDateCondition($raw);
 			} else {
 				$filter->values[$field->key] = (string)$raw;
 			}
@@ -75,7 +86,13 @@ class TableFilter
 			if ($val === null || $val === '' || $val === []) {
 				continue;
 			}
-			if (is_array($val)) {
+			if ($field->type === FilterFieldTypeEnum::DATE_CONDITION && is_array($val)) {
+				$op = $val['op'] ?? '';
+				$date = $val['date'] ?? '';
+				if ($op !== '' && $date !== '') {
+					$params[$field->key] = $op . ':' . $date;
+				}
+			} elseif (is_array($val)) {
 				$params[$field->key] = implode(',', $val);
 			} else {
 				$params[$field->key] = (string)$val;
@@ -110,6 +127,7 @@ class TableFilter
 			FilterFieldTypeEnum::MULTI_SELECT => $this->renderMultiSelect($field, $currentValue),
 			FilterFieldTypeEnum::SELECT => $this->renderSelect($field, $currentValue),
 			FilterFieldTypeEnum::NUMBER_INPUT => $this->renderNumberInput($field, $currentValue),
+			FilterFieldTypeEnum::DATE_CONDITION => $this->renderDateCondition($field, $currentValue),
 		};
 	}
 
@@ -164,5 +182,74 @@ class TableFilter
 		$val = ($value !== null) ? htmlspecialchars((string)$value) : '';
 		$placeholder = $field->placeholder ? ' placeholder="' . htmlspecialchars($field->placeholder) . '"' : '';
 		return '<input type="number" name="' . $name . '" value="' . $val . '" class="table-filter-number"' . $placeholder . '>';
+	}
+
+	private function renderDateCondition(TableFilterField $field, mixed $value): string {
+		$name = htmlspecialchars($field->key);
+		$operator = '';
+		$date = '';
+		if (is_array($value)) {
+			$operator = $value['op'] ?? '';
+			$date = $value['date'] ?? '';
+		}
+
+		$operators = [
+			'' => 'Any',
+			'before' => 'Before',
+			'on' => 'On',
+			'after' => 'After',
+		];
+
+		$triggerText = 'Any';
+		if ($operator !== '' && $date !== '') {
+			$triggerText = $operators[$operator] . ' ' . $date;
+		}
+
+		$hiddenVal = ($operator !== '' && $date !== '') ? $operator . ':' . $date : '';
+
+		$html = '<div class="date-condition" data-name="' . $name . '">';
+		$html .= '<button type="button" class="date-condition-trigger" title="' . htmlspecialchars($triggerText) . '">';
+		$html .= htmlspecialchars($triggerText);
+		$html .= '</button>';
+		$html .= '<div class="date-condition-dropdown">';
+
+		foreach ($operators as $val => $label) {
+			$checked = ($val === $operator) ? ' checked' : '';
+			$html .= '<label class="date-condition-option">';
+			$html .= '<input type="radio" name="' . $name . '_op" value="' . htmlspecialchars($val) . '"' . $checked . '>';
+			$html .= ' ' . htmlspecialchars($label);
+			$html .= '</label>';
+		}
+
+		$html .= '<div class="date-condition-input">';
+		$html .= '<input type="date" class="date-condition-date" value="' . htmlspecialchars($date) . '">';
+		$html .= '</div>';
+
+		$html .= '</div>';
+		$html .= '<input type="hidden" name="' . $name . '" value="' . htmlspecialchars($hiddenVal) . '">';
+		$html .= '</div>';
+
+		return $html;
+	}
+
+	/**
+	 * Parse a date condition value from the query string ("operator:YYYY-MM-DD").
+	 *
+	 * @return array{op: string, date: string}|null Parsed condition or null.
+	 */
+	private static function parseDateCondition(mixed $raw): ?array {
+		if (!is_string($raw) || $raw === '') {
+			return null;
+		}
+		$parts = explode(':', $raw, 2);
+		if (count($parts) !== 2) {
+			return null;
+		}
+		$op = $parts[0];
+		$date = $parts[1];
+		if (!in_array($op, ['before', 'on', 'after'], true) || !preg_match('/^\d{4}-\d{2}-\d{2}$/', $date)) {
+			return null;
+		}
+		return ['op' => $op, 'date' => $date];
 	}
 }

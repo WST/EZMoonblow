@@ -287,12 +287,8 @@ class BacktestResultRecord extends SurrogatePKDatabaseRecord
 	 * Load a single backtest result by ID (includes chart blob).
 	 */
 	public static function loadById(Database $database, int $id): ?self {
-		$table = self::getTableName();
-		$rows = $database->selectAllRows($table, '*', [self::FId => $id], '', 1);
-		if (empty($rows)) {
-			return null;
-		}
-		return new self($database, $rows[0]);
+		$result = $database->selectOneObject(self::class, [self::FId => $id]);
+		return $result !== false ? $result : null;
 	}
 
 	/**

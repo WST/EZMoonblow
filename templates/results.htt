@@ -25,73 +25,10 @@
 	</div>
 </div>
 
+{% block extrajs %}
 <script>
 (function() {
 	var results = {{ results|json_encode|raw }};
-
-	// ─── Multi-select widget logic ───
-	document.querySelectorAll('.multi-select').forEach(function(ms) {
-		var trigger = ms.querySelector('.multi-select-trigger');
-		var hidden = ms.querySelector('input[type="hidden"]');
-		var checkboxes = ms.querySelectorAll('.multi-select-dropdown input[type="checkbox"]');
-
-		trigger.addEventListener('click', function(e) {
-			e.preventDefault();
-			e.stopPropagation();
-			document.querySelectorAll('.multi-select.open').forEach(function(other) {
-				if (other !== ms) other.classList.remove('open');
-			});
-			ms.classList.toggle('open');
-		});
-
-		checkboxes.forEach(function(cb) {
-			cb.addEventListener('change', function() {
-				var selected = [];
-				var labels = [];
-				checkboxes.forEach(function(c) {
-					if (c.checked) {
-						selected.push(c.value);
-						labels.push(c.parentElement.textContent.trim());
-					}
-				});
-				hidden.value = selected.join(',');
-				trigger.textContent = labels.length > 0 ? labels.join(', ') : 'All';
-				trigger.title = trigger.textContent;
-			});
-		});
-	});
-
-	document.addEventListener('click', function(e) {
-		if (!e.target.closest('.multi-select')) {
-			document.querySelectorAll('.multi-select.open').forEach(function(ms) {
-				ms.classList.remove('open');
-			});
-		}
-	});
-
-	// ─── Delete action handler ───
-	document.addEventListener('click', function(e) {
-		var btn = e.target.closest('[data-action="delete"]');
-		if (!btn) return;
-		e.stopPropagation();
-		var id = btn.dataset.id;
-		var endpoint = btn.dataset.endpoint;
-		var msg = btn.dataset.confirm || 'Delete this record?';
-		if (!confirm(msg)) return;
-		fetch(endpoint, {
-			method: 'POST',
-			headers: {'Content-Type': 'application/json'},
-			body: JSON.stringify({id: parseInt(id, 10)})
-		}).then(function(resp) { return resp.json(); })
-		.then(function(data) {
-			if (data.ok) {
-				var row = btn.closest('tr');
-				if (row) row.remove();
-			} else {
-				alert(data.error || 'Delete failed');
-			}
-		}).catch(function() { alert('Network error'); });
-	});
 
 	// ─── Detail modal helpers ───
 	function esc(s) {
@@ -317,4 +254,5 @@
 	});
 })();
 </script>
+{% endblock extrajs %}
 {% endblock %}

@@ -112,7 +112,27 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 	 * @return string ORDER BY clause.
 	 */
 	private static function getDefaultOrder(): string {
+		return self::getDefaultSortOrder();
+	}
+
+	/**
+	 * Get default sort order for position queries.
+	 * @return string SQL ORDER BY clause.
+	 */
+	public static function getDefaultSortOrder(): string {
 		return PositionStatusEnum::getSqlSortOrder(self::FStatus) . ', ' . self::FUpdatedAt . ' DESC';
+	}
+
+	/**
+	 * Load a single position by its primary key.
+	 *
+	 * @param Database $database Database connection.
+	 * @param int $id Position ID.
+	 * @return static|null Position object or null if not found.
+	 */
+	public static function loadById(Database $database, int $id): ?static {
+		$result = $database->selectOneObject(static::class, [self::FId => $id]);
+		return $result !== false ? $result : null;
 	}
 
 	/**
@@ -161,6 +181,86 @@ class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPositio
 		}
 
 		return $stats;
+	}
+
+	/**
+	 * Load positions with optional filtering, ordering and pagination.
+	 *
+	 * @param Database $database Database connection.
+	 * @param string|array $where WHERE conditions.
+	 * @param string $order ORDER BY clause.
+	 * @param int|null $limit Maximum number of rows.
+	 * @param int|null $offset Row offset.
+	 * @return static[] Array of StoredPosition objects.
+	 */
+	public static function loadFiltered(
+		Database $database,
+		string|array $where = [],
+		string $order = '',
+		?int $limit = null,
+		?int $offset = null,
+	): array {
+		if (empty($order)) {
+			$order = self::getDefaultOrder();
+		}
+		$rows = $database->selectAllRows(static::getTableName(), '*', $where, $order, $limit, $offset);
+		return array_map(fn(array $row) => new static($database, $row), $rows);
+	}
+
+	/**
+	 * Count positions matching the given conditions.
+	 *
+	 * @param Database $database Database connection.
+	 * @param string|array $where WHERE conditions.
+	 * @return int Number of matching rows.
+	 */
+	public static function countFiltered(Database $database, string|array $where = []): int {
+		return $database->countRows(static::getTableName(), $where);
+	}
+
+	/**
+	 * Get distinct values for a column, useful for building filter options.
+	 *
+	 * @param Database $database Database connection.
+	 * @param string $column Column name.
+	 * @return array<string, string> value => label map.
+	 */
+	public static function getDistinctValues(Database $database, string $column): array {
+		$table = static::getTableName();
+		$rows = $database->selectAllRows($table, "DISTINCT `$column`", [], "`$column` ASC");
+		$result = [];
+		foreach ($rows as $row) {
+			$val = $row[$column] ?? '';
+			$result[$val] = $val;
+		}
+		return $result;
+	}
+
+	/**
+	 * Convert position to an associative array for TableViewer.
+	 *
+	 * @return array<string, mixed> Position data as flat array.
+	 */
+	public function toArray(): array {
+		return [
+			'positionId' => $this->getPositionId(),
+			'direction' => $this->getDirection()->value,
+			'marketType' => $this->getMarketType()->value,
+			'exchangeName' => $this->getExchangeName(),
+			'ticker' => $this->getTicker(),
+			'volume' => $this->getVolume(),
+			'averageEntryPrice' => $this->getAverageEntryPrice(),
+			'currentPrice' => $this->getCurrentPrice(),
+			'stopLossPrice' => $this->getStopLossPrice(),
+			'takeProfitPrice' => $this->getTakeProfitPrice(),
+			'unrealizedPnLPercent' => $this->getUnrealizedPnLPercent(),
+			'unrealizedPnL' => $this->getUnrealizedPnL(),
+			'status' => $this->getStatus()->value,
+			'breakevenLocked' => $this->isBreakevenLocked(),
+			'createdAt' => $this->getCreatedAt(),
+			'updatedAt' => $this->getUpdatedAt(),
+			'finishedAt' => $this->getFinishedAt(),
+		];
 	}
 
 	/**

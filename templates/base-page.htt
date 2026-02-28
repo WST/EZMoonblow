@@ -25,6 +25,8 @@
         EZMoonblow&nbsp;— crypto trading toolbox<br/>© {{ "now"|date("Y") }} Ilya Averkov<br/>
         <a href="https://github.com/WST/EZMoonblow">Github</a>
     </footer>
+    <script src="/static/js/table-filter.js"></script>
+    {% block extrajs %}{% endblock %}
 {% endblock %}
 </body>
 </html>

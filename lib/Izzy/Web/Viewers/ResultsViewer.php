@@ -83,9 +83,9 @@ class ResultsViewer extends PageViewer
 	}
 
 	/**
-	 * Translate filter values into a WHERE array and ORDER BY string.
+	 * Translate filter values into a WHERE clause and ORDER BY string.
 	 *
-	 * @return array{0: array, 1: string}
+	 * @return array{0: string|array, 1: string}
 	 */
 	private function buildQuery(TableFilter $filter): array {
 		$where = [];
@@ -113,6 +113,14 @@ class ResultsViewer extends PageViewer
 		$strategy = $filter->getValue('strategy');
 		if (!empty($strategy)) {
 			$where[BacktestResultRecord::FStrategy] = $strategy;
+		}
+
+		$dateConditions = static::buildDateConditionSql(
+			BacktestResultRecord::FCreatedAt, $filter->getValue('date')
+		);
+
+		if (!empty($dateConditions)) {
+			$where = static::mergeWhereWithRawConditions($where, $dateConditions);
 		}
 
 		$orderBy = match ($filter->getValue('sortBy')) {

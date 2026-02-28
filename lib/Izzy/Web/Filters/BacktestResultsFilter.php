@@ -16,9 +16,12 @@ class BacktestResultsFilter
 		$timeframes = BacktestResultRecord::getDistinctValues($database, BacktestResultRecord::FTimeframe);
 		$strategies = BacktestResultRecord::getDistinctStrategyNames($database);
 
+		$marketTypes = BacktestResultRecord::getDistinctValues($database, BacktestResultRecord::FMarketType);
+
 		$filter->addMultiSelect('exchange', 'Exchange', $exchanges);
 		$filter->addMultiSelect('ticker', 'Pair', $tickers);
-		$filter->addSelect('marketType', 'Market', ['' => 'All', 'spot' => 'Spot', 'futures' => 'Futures']);
+		$filter->addMultiSelect('marketType', 'Market Type', $marketTypes);
+		$filter->addDateCondition('date', 'Date');
 		$filter->addMultiSelect('timeframe', 'Timeframe', $timeframes);
 		$filter->addMultiSelect('strategy', 'Strategy', $strategies);
 		$filter->addNumberInput('minDuration', 'Min days', 'e.g. 7');

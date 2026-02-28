@@ -882,6 +882,63 @@ footer a:hover {
 .multi-select-option:hover { background: #f0f5fa; }
 .multi-select-option input { margin-right: 4px; vertical-align: middle; }
 
+/* ───────── Date condition dropdown ───────── */
+.date-condition {
+    position: relative;
+    display: inline-block;
+}
+.date-condition-trigger {
+    padding: 4px 22px 4px 6px;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    background: #fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23666'/%3E%3C/svg%3E") right 6px center no-repeat;
+    cursor: pointer;
+    min-width: 80px;
+    max-width: 180px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: left;
+}
+.date-condition-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 500;
+    min-width: 100%;
+    background: #fff;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    padding: 4px 0;
+}
+.date-condition.open .date-condition-dropdown { display: block; }
+.date-condition-option {
+    display: block;
+    padding: 4px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.date-condition-option:hover { background: #f0f5fa; }
+.date-condition-option input { margin-right: 4px; vertical-align: middle; }
+.date-condition-input {
+    padding: 6px 10px 4px;
+    border-top: 1px solid #eee;
+}
+.date-condition-date {
+    width: 100%;
+    padding: 3px 5px;
+    border: 1px solid #bbb;
+    border-radius: 3px;
+    font-size: 12px;
+    font-family: inherit;
+    box-sizing: border-box;
+}
+
 /* ───────── Table action buttons ───────── */
 .table-actions-cell { white-space: nowrap; }
 .table-action-btn {

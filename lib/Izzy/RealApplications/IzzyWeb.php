@@ -68,7 +68,7 @@ final class IzzyWeb extends WebApplication
 
 	public function positionsPage(Request $request, Response $response): Response {
 		$pageViewer = new PositionsViewer($this);
-		return $pageViewer->render($response);
+		return $pageViewer->render($response, $request);
 	}
 
 	public function statusPage(Request $request, Response $response): Response {

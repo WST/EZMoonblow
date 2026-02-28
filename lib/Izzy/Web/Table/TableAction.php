@@ -12,8 +12,4 @@ abstract class TableAction
 	abstract public function getCssClass(): string;
 
 	abstract public function renderButton(array $row): string;
-
-	public function getColumnWidth(): string {
-		return '80px';
-	}
 }

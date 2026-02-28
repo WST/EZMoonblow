@@ -136,11 +136,8 @@ class OptimizationSuggestionRecord extends SurrogatePKDatabaseRecord
 	 * Load a single suggestion by ID.
 	 */
 	public static function loadById(Database $database, int $id): ?self {
-		$rows = $database->selectAllRows(self::getTableName(), '*', [self::FId => $id], '', 1);
-		if (empty($rows)) {
-			return null;
-		}
-		return new self($database, $rows[0]);
+		$result = $database->selectOneObject(self::class, [self::FId => $id]);
+		return $result !== false ? $result : null;
 	}
 
 	/**

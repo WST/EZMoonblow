@@ -15,6 +15,9 @@ enum TableViewerColumnTypeEnum: string
 	case DATE = 'date';
 	case BADGE = 'badge';
 	case MARKET_TYPE = 'market_type';
+	case DIRECTION = 'direction';
+	case PAIR = 'pair';
+	case POSITION_STATUS = 'position_status';
 	case PNL = 'pnl';
 	case HTML = 'html';
 	case CUSTOM = 'custom';
@@ -27,6 +30,9 @@ enum TableViewerColumnTypeEnum: string
 	public function isDate(): bool { return $this === self::DATE; }
 	public function isBadge(): bool { return $this === self::BADGE; }
 	public function isMarketType(): bool { return $this === self::MARKET_TYPE; }
+	public function isDirection(): bool { return $this === self::DIRECTION; }
+	public function isPair(): bool { return $this === self::PAIR; }
+	public function isPositionStatus(): bool { return $this === self::POSITION_STATUS; }
 	public function isPnl(): bool { return $this === self::PNL; }
 	public function isHtml(): bool { return $this === self::HTML; }
 	public function isCustom(): bool { return $this === self::CUSTOM; }
@@ -36,7 +42,8 @@ enum TableViewerColumnTypeEnum: string
 	 */
 	public function rendersHtml(): bool {
 		return match ($this) {
-			self::HTML, self::CUSTOM, self::BADGE, self::MARKET_TYPE, self::PNL => true,
+			self::HTML, self::CUSTOM, self::BADGE, self::MARKET_TYPE,
+			self::DIRECTION, self::POSITION_STATUS, self::PNL => true,
 			default => false,
 		};
 	}

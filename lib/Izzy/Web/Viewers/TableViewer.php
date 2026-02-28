@@ -67,6 +67,29 @@ class TableViewer
 		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::MARKET_TYPE, 'center', $options);
 	}
 
+	/**
+	 * Insert a direction column aware of PositionDirectionEnum values.
+	 */
+	public function insertDirectionColumn(string $key, string $title, array $options = []): self {
+		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::DIRECTION, 'center', $options);
+	}
+
+	/**
+	 * Insert a pair/ticker column with bold display.
+	 */
+	public function insertPairColumn(string $key, string $title, array $options = []): self {
+		$options['bold'] = true;
+		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::PAIR, 'left', $options);
+	}
+
+	/**
+	 * Insert a position status column aware of PositionStatusEnum values.
+	 * Option 'breakevenLockedKey' specifies the row key for the BL flag.
+	 */
+	public function insertPositionStatusColumn(string $key, string $title, array $options = []): self {
+		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::POSITION_STATUS, 'center', $options);
+	}
+
 	public function insertPnlColumn(string $key, string $title, array $options = []): self {
 		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::PNL, 'right', $options);
 	}
@@ -170,14 +193,7 @@ class TableViewer
 			$html .= '</th>';
 		}
 		if (!empty($this->actions)) {
-			$maxWidth = '80px';
-			foreach ($this->actions as $action) {
-				$w = $action->getColumnWidth();
-				if ((int)$w > (int)$maxWidth) {
-					$maxWidth = $w;
-				}
-			}
-			$html .= '<th style="width:' . $maxWidth . ';text-align:center;"></th>';
+			$html .= '<th style="width:1%;white-space:nowrap;text-align:center;"></th>';
 		}
 		$html .= '</tr></thead>';
 		return $html;
@@ -224,7 +240,7 @@ class TableViewer
 			}
 
 			if (!empty($this->actions)) {
-				$html .= '<td class="table-actions-cell" style="text-align:center;">';
+				$html .= '<td class="table-actions-cell" style="text-align:center;white-space:nowrap;">';
 				foreach ($this->actions as $action) {
 					$html .= $action->renderButton($row);
 				}
@@ -263,6 +279,9 @@ class TableViewer
 			$type->isInteger() => $this->formatIntegerValue($value),
 			$type->isDate() => $this->formatDateValue($value, $column),
 			$type->isMarketType() => $this->formatMarketTypeValue($value),
+			$type->isDirection() => $this->formatDirectionValue($value),
+			$type->isPair() => $this->formatPairValue($value),
+			$type->isPositionStatus() => $this->formatPositionStatusValue($value, $column, $row),
 			$type->isPnl() => $this->formatPnlValue($value, $column, $row),
 			$type->isHtml() => $this->formatHtmlValue($value),
 			default => $this->formatTextValue($value),
@@ -270,13 +289,16 @@ class TableViewer
 	}
 
 	protected function formatMoneyValue(mixed $value): string {
+		if ($value === null) {
+			return '—';
+		}
 		if ($value instanceof Money) {
 			return number_format($value->getAmount(), 2) . ' ' . $value->getCurrency();
 		}
 		if (is_numeric($value)) {
 			return number_format((float)$value, 2) . ' USDT';
 		}
-		return '';
+		return '—';
 	}
 
 	protected function formatPercentValue(mixed $value, array $column): string {
@@ -340,6 +362,9 @@ class TableViewer
 	}
 
 	protected function formatPnlValue(mixed $value, array $column, array $row): string {
+		if ($value instanceof Money) {
+			$value = $value->getAmount();
+		}
 		if (!is_numeric($value)) {
 			return '—';
 		}
@@ -360,6 +385,39 @@ class TableViewer
 			return '<span class="pnl-negative">-' . $formatted . $pctSuffix . '</span>';
 		}
 		return '<span class="pnl-zero">' . $formatted . $pctSuffix . '</span>';
+	}
+
+	protected function formatDirectionValue(mixed $value): string {
+		$v = strtoupper((string)$value);
+		return match ($v) {
+			'LONG' => '<span class="badge badge-success">L</span>',
+			'SHORT' => '<span class="badge badge-danger">S</span>',
+			default => '<span class="badge badge-default">' . htmlspecialchars($v) . '</span>',
+		};
+	}
+
+	protected function formatPairValue(mixed $value): string {
+		return (string)$value;
+	}
+
+	protected function formatPositionStatusValue(mixed $value, array $column, array $row): string {
+		$v = strtoupper((string)$value);
+		$blKey = $column['breakevenLockedKey'] ?? null;
+		$isBreakevenLocked = $blKey !== null && !empty($row[$blKey]);
+
+		if ($v === 'OPEN' && $isBreakevenLocked) {
+			return '<span class="badge badge-info">Locked</span>';
+		}
+
+		[$label, $variant] = match ($v) {
+			'OPEN' => ['Open', 'success'],
+			'PENDING' => ['Pending', 'warning'],
+			'FINISHED' => ['Finished', 'info'],
+			'ERROR' => ['Error', 'danger'],
+			'CANCELED' => ['Cancelled', 'secondary'],
+			default => [$value, 'default'],
+		};
+		return '<span class="badge badge-' . $variant . '">' . htmlspecialchars($label) . '</span>';
 	}
 
 	protected function formatCustomValue(mixed $value, callable $formatter, array $row): string {

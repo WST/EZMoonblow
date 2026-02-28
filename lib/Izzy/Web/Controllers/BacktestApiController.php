@@ -11,6 +11,7 @@ use Izzy\Enums\TaskStatusEnum;
 use Izzy\Enums\TaskTypeEnum;
 use Izzy\Financial\AbstractDCAStrategy;
 use Izzy\Financial\CandleRepository;
+use Izzy\Financial\StoredPosition;
 use Izzy\RealApplications\Backtester;
 use Izzy\Financial\StrategyFactory;
 use Izzy\System\QueueTask;
@@ -62,6 +63,7 @@ class BacktestApiController
 			'delete_candle_set' => $this->deleteCandleSet($request, $response),
 			'clear_all_candles' => $this->clearAllCandles($response),
 			'delete_result' => $this->deleteResult($request, $response),
+			'delete_position' => $this->deletePosition($request, $response),
 			'update_suggestion_status' => $this->updateSuggestionStatus($request, $response),
 			'abort_backtest' => $this->abortBacktest($request, $response),
 			default => $this->jsonResponse($response, ['error' => 'Unknown action'], 400),
@@ -378,6 +380,28 @@ class BacktestApiController
 		}
 
 		$record->remove();
+		return $this->jsonResponse($response, ['ok' => true]);
+	}
+
+	/**
+	 * POST /cgi-bin/api.pl?action=delete_position
+	 * Deletes a single stored position by ID.
+	 *
+	 * Expected JSON body: { "id": 123 }
+	 */
+	private function deletePosition(Request $request, Response $response): Response {
+		$body = json_decode((string) $request->getBody(), true);
+		$id = (int)($body['id'] ?? 0);
+		if ($id <= 0) {
+			return $this->jsonResponse($response, ['error' => 'Missing or invalid id'], 400);
+		}
+
+		$position = StoredPosition::loadById($this->app->getDatabase(), $id);
+		if ($position === null) {
+			return $this->jsonResponse($response, ['error' => 'Position not found'], 404);
+		}
+
+		$position->remove();
 		return $this->jsonResponse($response, ['ok' => true]);
 	}
 
