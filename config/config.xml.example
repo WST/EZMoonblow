@@ -121,12 +121,18 @@
 				<!-- Your Gate.io futures pairs here -->
 			</futures>
 		</exchange>
-		<exchange name="KuCoin" key="..." secret="..." password="..." enabled="yes" demo="no">
+		<exchange name="KuCoin" key="..." secret="..." password="..." enabled="no" demo="no">
 			<spot>
 				<pair ticker="ETH/USDT" timeframe="4h" trade="no" />
 			</spot>
 			<futures>
-				<!-- Your KuCoin futures pairs here -->
+				<pair ticker="BTC/USDT" timeframe="1h" trade="no" leverage="10">
+					<strategy name="EZMoonblowSE" backtest_days="365" backtest_initial_balance="10000">
+						<param name="EntryVolume" value="5%"/>
+						<param name="StopLossPercent" value="2%"/>
+						<param name="TakeProfitPercent" value="3%"/>
+					</strategy>
+				</pair>
 			</futures>
 		</exchange>
 	</exchanges>

@@ -259,6 +259,7 @@ class Gate extends AbstractExchangeDriver
 		Money $amount,
 		?Money $price = null,
 		?float $takeProfitPercent = null,
+		?float $stopLossPercent = null
 	): bool {
 		$currentPrice = $this->getCurrentPrice($market);
 		if ($currentPrice === null) {

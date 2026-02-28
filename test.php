@@ -3,21 +3,26 @@
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\TimeFrameEnum;
+use Izzy\Exchanges\Gate\Gate;
 use Izzy\Financial\Money;
 use Izzy\Financial\Pair;
 use Izzy\RealApplications\Backtester;
 
 require __DIR__.'/lib/common.php';
 
+$testedExchange = 'Gate';
+
 $app = Backtester::getInstance();
 $config = $app->getConfiguration();
-$bybit = $config->connectExchange($app, 'Bybit');
 
-$pair = new Pair("XRP/USDT", TimeFrameEnum::TF_1HOUR, 'Bybit', MarketTypeEnum::FUTURES);
-$market = $bybit->createMarket($pair);
+/** @var Gate $ex */
+$ex = $config->connectExchange($app, $testedExchange);
 
-$amount = Money::from(20);
-$direction = PositionDirectionEnum::SHORT;
+$pair = new Pair("WIF/USDT", TimeFrameEnum::TF_1HOUR, $ex->getName(), MarketTypeEnum::FUTURES);
+$market = $ex->createMarket($pair);
+
+$amount = Money::from(10);
+$direction = PositionDirectionEnum::LONG;
 $takeProfitPercent = 2.0;
 
 $position = $market->openPosition($amount, $direction, $takeProfitPercent);

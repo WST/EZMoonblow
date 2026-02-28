@@ -59,10 +59,16 @@ interface IMarket
 	 *
 	 * @param Money $volume Position volume in quote currency.
 	 * @param PositionDirectionEnum $direction Position direction (LONG or SHORT).
-	 * @param float $takeProfitPercent Take profit percentage from entry price.
+	 * @param float|null $takeProfitPercent Take profit percentage from entry price.
+	 * @param float|null $stopLossPercent Stop loss percentage from entry price.
 	 * @return IStoredPosition|false Created position or false on failure.
 	 */
-	public function openPosition(Money $volume, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false;
+	public function openPosition(
+		Money $volume,
+		PositionDirectionEnum $direction,
+		?float $takeProfitPercent = null,
+		?float $stopLossPercent = null
+	): IStoredPosition|false;
 
 	/**
 	 * Get the database instance associated with this market.

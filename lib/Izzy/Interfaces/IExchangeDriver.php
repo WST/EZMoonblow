@@ -58,9 +58,17 @@ interface IExchangeDriver
 	 * @param Money $amount Amount to invest.
 	 * @param Money|null $price
 	 * @param float|null $takeProfitPercent
+	 * @param float|null $stopLossPercent
 	 * @return bool True if order placed successfully, false otherwise.
 	 */
-	public function openPosition(IMarket $market, PositionDirectionEnum $direction, Money $amount, ?Money $price = null, ?float $takeProfitPercent = null): bool;
+	public function openPosition(
+		IMarket $market,
+		PositionDirectionEnum $direction,
+		Money $amount,
+		?Money $price = null,
+		?float $takeProfitPercent = null,
+		?float $stopLossPercent = null
+	): bool;
 
 	/**
 	 * Buy additional volume (market).

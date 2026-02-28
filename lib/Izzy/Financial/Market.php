@@ -647,13 +647,19 @@ class Market implements IMarket
 	/**
 	 * Open a new position.
 	 *
-	 * @param Money $volume Position volume.
-	 * @param PositionDirectionEnum $direction Position direction.
-	 * @param float $takeProfitPercent Take profit percentage.
+	 * @param Money $volume
+	 * @param PositionDirectionEnum $direction
+	 * @param float|null $takeProfitPercent
+	 * @param float|null $stopLossPercent
 	 * @return IStoredPosition|false Created position or false on failure.
 	 */
-	public function openPosition(Money $volume, PositionDirectionEnum $direction, float $takeProfitPercent): IStoredPosition|false {
-		$success = $this->exchange->openPosition($this, $direction, $volume, null, $takeProfitPercent);
+	public function openPosition(
+		Money $volume,
+		PositionDirectionEnum $direction,
+		?float $takeProfitPercent = null,
+		?float $stopLossPercent = null
+	): IStoredPosition|false {
+		$success = $this->exchange->openPosition($this, $direction, $volume, null, $takeProfitPercent, $stopLossPercent);
 		if (!$success) {
 			return false;
 		}
@@ -815,7 +821,7 @@ class Market implements IMarket
 		if ($currentPosition) {
 			$this->updatePosition($currentPosition);
 		} else {
-			$this->exchange->getLogger()->debug("[DEBUG] No position found for $this, positionRecordClass: {$this->positionRecordClass}");
+			$this->exchange->getLogger()->debug("[DEBUG] No position found for $this");
 			$this->checkEntrySignals();
 		}
 	}

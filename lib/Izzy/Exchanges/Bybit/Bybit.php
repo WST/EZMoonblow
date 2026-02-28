@@ -285,6 +285,7 @@ class Bybit extends AbstractExchangeDriver
 		Money $amount,
 		?Money $price = null,
 		?float $takeProfitPercent = null,
+		?float $stopLossPercent = null
 	): bool {
 		// Current price.
 		$currentPrice = $this->getCurrentPrice($market);
