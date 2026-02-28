@@ -12,8 +12,9 @@ logs/*
 charts/*
 rrd/*
 cache/*
+docker/data
+config/*
 !logs/.gitkeep
 !charts/.gitkeep
 !rrd/.gitkeep
 !cache/.gitkeep
-

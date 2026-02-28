@@ -67,6 +67,9 @@ class TableViewer
 	}
 
 	public function insertMarketTypeColumn(string $key, string $title, array $options = []): self {
+		if(!isset($options['width'])) {
+			$options['width'] = '1%';
+		}
 		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::MARKET_TYPE, 'center', $options);
 	}
 
@@ -74,6 +77,9 @@ class TableViewer
 	 * Insert a direction column aware of PositionDirectionEnum values.
 	 */
 	public function insertDirectionColumn(string $key, string $title, array $options = []): self {
+		if(!isset($options['width'])) {
+			$options['width'] = '1%';
+		}
 		return $this->insertColumn($key, $title, TableViewerColumnTypeEnum::DIRECTION, 'center', $options);
 	}
 

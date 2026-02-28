@@ -18,6 +18,9 @@ $config = $app->getConfiguration();
 
 /** @var Gate $ex */
 $ex = $config->connectExchange($app, $testedExchange);
+if(!$ex) {
+	die("Exchange is disabled\n");
+}
 
 $pair = new Pair("XRP/USDT", TimeFrameEnum::TF_1HOUR, $ex->getName(), MarketTypeEnum::FUTURES);
 $market = $ex->createMarket($pair);

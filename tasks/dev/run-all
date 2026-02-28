@@ -5,4 +5,4 @@ IZZY_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 
 cd "$IZZY_ROOT"
 
-docker compose up -d
+docker compose up -d --force-recreate

@@ -84,7 +84,7 @@ table caption {
 
 table th, table td {
     border: 1px solid #999;
-    padding: 8px 12px;
+    padding: 8px;
     text-align: left;
     vertical-align: top;
 }
@@ -492,7 +492,7 @@ footer a:hover {
     vertical-align: middle;
     border: 0px none;
     font-size: 11px;
-    padding: 8px 12px;
+    padding: 8px;
 }
 
 .data-table th {
