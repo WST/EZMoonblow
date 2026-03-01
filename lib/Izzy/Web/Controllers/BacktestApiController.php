@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Controllers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Backtest\OptimizationSuggestionRecord;
 use Izzy\Configuration\StrategyConfiguration;
@@ -25,9 +25,9 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  */
 class BacktestApiController
 {
-	private WebApplication $app;
+	private AbstractWebApplication $app;
 
-	public function __construct(WebApplication $app) {
+	public function __construct(AbstractWebApplication $app) {
 		$this->app = $app;
 	}
 

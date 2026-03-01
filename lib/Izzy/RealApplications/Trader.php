@@ -2,14 +2,14 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 use Izzy\Interfaces\IExchangeDriver;
 
 /**
  * Main class of the Trader application.
  * This application is responsible for the actual trading process.
  */
-class Trader extends ConsoleApplication
+class Trader extends AbstractConsoleApplication
 {
 	private const int RESTART_DELAY_INITIAL_SEC = 1;
 	private const int RESTART_DELAY_MAX_SEC = 3600;

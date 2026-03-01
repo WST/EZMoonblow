@@ -6,7 +6,7 @@ namespace Izzy\Web\Table;
  * Delete action for rows identified by a composite key (multiple fields).
  * The payload is sent as a JSON object containing all mapped fields.
  */
-class CompositeDeleteAction extends TableAction
+class CompositeDeleteAction extends AbstractTableAction
 {
 	/**
 	 * @param string $endpoint API endpoint URL.

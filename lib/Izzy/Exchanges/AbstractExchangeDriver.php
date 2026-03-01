@@ -2,7 +2,7 @@
 
 namespace Izzy\Exchanges;
 
-use Izzy\AbstractApplications\IzzyApplication;
+use Izzy\AbstractApplications\AbstractIzzyApplication;
 use Izzy\Configuration\ExchangeConfiguration;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
@@ -60,9 +60,9 @@ abstract class AbstractExchangeDriver implements IExchangeDriver
 	 * Constructor for the exchange driver.
 	 *
 	 * @param ExchangeConfiguration $config Exchange configuration settings.
-	 * @param IzzyApplication $application Application instance.
+	 * @param AbstractIzzyApplication $application Application instance.
 	 */
-	public function __construct(ExchangeConfiguration $config, IzzyApplication $application) {
+	public function __construct(ExchangeConfiguration $config, AbstractIzzyApplication $application) {
 		$this->config = $config;
 		$this->logger = Logger::getLogger();
 		$this->database = $application->getDatabase();

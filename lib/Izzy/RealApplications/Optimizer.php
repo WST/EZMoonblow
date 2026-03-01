@@ -2,7 +2,7 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 use Izzy\Backtest\BacktestBalanceChart;
 use Izzy\Backtest\BacktestEngine;
 use Izzy\Backtest\BacktestResultRecord;
@@ -22,7 +22,7 @@ use Izzy\System\Logger;
  * Periodically backtests traded pairs with randomly mutated strategy parameters.
  * When a mutation improves PnL, an optimization suggestion is saved to the database.
  */
-class Optimizer extends ConsoleApplication
+class Optimizer extends AbstractConsoleApplication
 {
 	private const float DEFAULT_INITIAL_BALANCE = 10000.0;
 	private const int BASELINE_FRESHNESS_DAYS = 7;

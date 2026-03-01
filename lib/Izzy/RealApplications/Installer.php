@@ -2,9 +2,9 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 
-class Installer extends ConsoleApplication
+class Installer extends AbstractConsoleApplication
 {
 	public function __construct() {
 		parent::__construct();

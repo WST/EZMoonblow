@@ -13,7 +13,7 @@ use Twig\Loader\FilesystemLoader;
 /**
  * Base class for all web applications.
  */
-abstract class WebApplication extends IzzyApplication
+abstract class AbstractWebApplication extends AbstractIzzyApplication
 {
 	protected App $slimApp;
 

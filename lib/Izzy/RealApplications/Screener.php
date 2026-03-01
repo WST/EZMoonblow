@@ -2,7 +2,7 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 use Izzy\Backtest\BacktestBalanceChart;
 use Izzy\Backtest\BacktestEngine;
 use Izzy\Backtest\BacktestResultRecord;
@@ -24,7 +24,7 @@ use Izzy\System\Logger;
  * loads candles, and runs a backtest with a randomly chosen strategy
  * from the configured list. Results are saved with Auto mode.
  */
-class Screener extends ConsoleApplication
+class Screener extends AbstractConsoleApplication
 {
 	private const int BACKTEST_DAYS = 100;
 	private const float DEFAULT_INITIAL_BALANCE = 1000.0;

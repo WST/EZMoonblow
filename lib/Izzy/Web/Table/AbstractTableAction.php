@@ -5,7 +5,7 @@ namespace Izzy\Web\Table;
 /**
  * Abstract base for row-level actions rendered in the Actions column.
  */
-abstract class TableAction
+abstract class AbstractTableAction
 {
 	abstract public function getLabel(): string;
 

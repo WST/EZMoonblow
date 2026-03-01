@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Financial\StoredPosition;
 use Izzy\Web\Filters\PositionsFilter;
 use Izzy\Web\Table\DeleteAction;
@@ -18,7 +18,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
  */
 class PositionsViewer extends PageViewer
 {
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 

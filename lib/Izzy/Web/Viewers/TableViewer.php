@@ -4,8 +4,8 @@ namespace Izzy\Web\Viewers;
 
 use Izzy\Enums\TableViewerColumnTypeEnum;
 use Izzy\Financial\Money;
-use Izzy\Web\Table\TableAction;
-use Izzy\Web\Table\TableGlobalAction;
+use Izzy\Web\Table\AbstractTableAction;
+use Izzy\Web\Table\AbstractTableGlobalAction;
 use Izzy\Web\Table\TablePagination;
 
 class TableViewer
@@ -16,9 +16,9 @@ class TableViewer
 	protected array $options = [];
 	protected array $extraCSSClasses = [];
 	protected ?TablePagination $pagination = null;
-	/** @var TableAction[] */
+	/** @var AbstractTableAction[] */
 	protected array $actions = [];
-	/** @var TableGlobalAction[] */
+	/** @var AbstractTableGlobalAction[] */
 	protected array $globalActions = [];
 	/** @var ?callable */
 	protected $rowClassCallback = null;
@@ -151,12 +151,12 @@ class TableViewer
 		return $this;
 	}
 
-	public function addAction(TableAction $action): self {
+	public function addAction(AbstractTableAction $action): self {
 		$this->actions[] = $action;
 		return $this;
 	}
 
-	public function addGlobalAction(TableGlobalAction $action): self {
+	public function addGlobalAction(AbstractTableGlobalAction $action): self {
 		$this->globalActions[] = $action;
 		return $this;
 	}

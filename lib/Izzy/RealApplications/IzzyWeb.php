@@ -2,7 +2,7 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Traits\SingletonTrait;
 use Izzy\Web\Controllers\BacktestApiController;
 use Izzy\Web\Middleware\AuthMiddleware;
@@ -18,7 +18,7 @@ use Izzy\Web\Viewers\PairsViewer;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
-final class IzzyWeb extends WebApplication
+final class IzzyWeb extends AbstractWebApplication
 {
 	use SingletonTrait;
 

@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Table;
 
-class ClearAllGlobalAction extends TableGlobalAction
+class ClearAllGlobalAction extends AbstractTableGlobalAction
 {
 	public function __construct(
 		private string $endpoint,

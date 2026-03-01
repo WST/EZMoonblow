@@ -3,13 +3,13 @@
 namespace Izzy\Backtest;
 
 use Izzy\System\Database\Database;
-use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
+use Izzy\System\Database\ORM\AbstractSurrogatePKDatabaseRecord;
 
 /**
  * Persisted optimization suggestion record.
  * Stores each improvement found by the Optimizer daemon.
  */
-class OptimizationSuggestionRecord extends SurrogatePKDatabaseRecord
+class OptimizationSuggestionRecord extends AbstractSurrogatePKDatabaseRecord
 {
 	const string FId = 'os_id';
 	const string FTicker = 'os_ticker';

@@ -2,7 +2,7 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 use Izzy\Enums\CandleStorageEnum;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
@@ -20,7 +20,7 @@ use Throwable;
  * Analyzer application for monitoring and analyzing exchange balances.
  * Provides balance tracking, logging, and chart generation capabilities.
  */
-class Analyzer extends ConsoleApplication
+class Analyzer extends AbstractConsoleApplication
 {
 	/** @var string RRD database file path for balance tracking. */
 	private string $balanceRrdFile;

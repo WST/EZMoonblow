@@ -9,7 +9,7 @@ use Izzy\System\Database\Database;
 /**
  * Database record.
  */
-abstract class DatabaseRecord implements ArrayAccess, IDatabaseEntity
+abstract class AbstractDatabaseRecord implements ArrayAccess, IDatabaseEntity
 {
 	/**
 	 * Link with the database.

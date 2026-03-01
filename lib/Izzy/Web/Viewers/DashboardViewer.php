@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
@@ -14,7 +14,7 @@ class DashboardViewer extends PageViewer
 		'year' => 'Year'
 	];
 
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 

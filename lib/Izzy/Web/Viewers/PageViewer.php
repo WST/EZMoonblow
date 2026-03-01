@@ -2,13 +2,13 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Psr\Http\Message\ResponseInterface as Response;
 use Psr\Http\Message\ServerRequestInterface as Request;
 
 class PageViewer
 {
-	protected WebApplication $webApp;
+	protected AbstractWebApplication $webApp;
 
 	protected array $menu = [
 		['title' => 'Balance', 'url' => '/'],
@@ -22,7 +22,7 @@ class PageViewer
 		['title' => 'Log Out', 'url' => '/logout.jsp'],
 	];
 
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		$this->webApp = $webApp;
 	}
 
