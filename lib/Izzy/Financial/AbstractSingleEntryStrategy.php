@@ -723,6 +723,69 @@ abstract class AbstractSingleEntryStrategy extends AbstractStrategy
 		return $result;
 	}
 
+	/**
+	 * @inheritDoc
+	 *
+	 * Config-only validation for the web UI (no exchange API calls).
+	 * Uses leverage from the XML config instead of querying the exchange.
+	 */
+	public function validateConfigSettings(Pair $pair): StrategyValidationResult {
+		$result = parent::validateConfigSettings($pair);
+
+		if ($this->partialCloseEnabled) {
+			if ($this->partialCloseTriggerPercent < 10 || $this->partialCloseTriggerPercent > 95) {
+				$result->addError(
+					"Partial Close trigger ({$this->partialCloseTriggerPercent}%) must be between 10% and 95%."
+				);
+			}
+		}
+
+		if ($this->breakevenLockEnabled) {
+			if ($this->breakevenLockTriggerPercent < 10 || $this->breakevenLockTriggerPercent > 90) {
+				$result->addError(
+					"Breakeven Lock trigger ({$this->breakevenLockTriggerPercent}%) must be between 10% and 90%. "
+					. 'Values outside this range are either too risky or impractical.'
+				);
+			}
+		}
+
+		if (!$pair->getMarketType()->isFutures()) {
+			return $result;
+		}
+
+		if ($this->useIsolatedMargin) {
+			$result->addWarning(
+				'Strategy expects Isolated margin mode. Verified at runtime before trading.'
+			);
+		}
+
+		$leverage = $pair->getLeverage();
+		if ($leverage === null) {
+			$result->addWarning(
+				'Leverage is not specified in config. '
+				. 'Cannot check if stop-loss distance is safe for the current leverage.'
+			);
+		} elseif ($leverage > 0) {
+			$maxLossBeforeLiquidation = 100.0 / $leverage;
+			if ($this->stopLossPercent >= $maxLossBeforeLiquidation) {
+				$result->addError(
+					"Stop-loss distance ({$this->stopLossPercent}%) exceeds maximum allowed by leverage ({$leverage}x). "
+					. "At {$leverage}x leverage, liquidation occurs at ~"
+					. number_format($maxLossBeforeLiquidation, 2) . '% loss. '
+					. 'Please reduce the stop-loss distance or decrease leverage.'
+				);
+			} elseif ($this->stopLossPercent > $maxLossBeforeLiquidation * 0.8) {
+				$result->addWarning(
+					"Stop-loss distance ({$this->stopLossPercent}%) is close to the liquidation threshold "
+					. '(' . number_format($maxLossBeforeLiquidation, 2) . "% at {$leverage}x leverage). "
+					. 'Consider reducing leverage for safer operation.'
+				);
+			}
+		}
+
+		return $result;
+	}
+
 	// ------------------------------------------------------------------
 	// Parameter definitions
 	// ------------------------------------------------------------------

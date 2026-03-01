@@ -124,6 +124,19 @@ abstract class AbstractStrategy implements IStrategy
 	}
 
 	/**
+	 * Validate strategy settings using only config/pair data (no exchange API calls).
+	 * Suitable for web UI where live exchange queries are undesirable.
+	 *
+	 * Subclasses should override to add specific config-only checks.
+	 *
+	 * @param Pair $pair Configured pair with leverage and other static settings.
+	 * @return StrategyValidationResult Validation result with errors and warnings.
+	 */
+	public function validateConfigSettings(Pair $pair): StrategyValidationResult {
+		return new StrategyValidationResult();
+	}
+
+	/**
 	 * Timeframes needed by this strategy beyond the market's native timeframe.
 	 * Used by the backtester to pre-load historical candles.
 	 *

@@ -129,7 +129,7 @@ class PairsViewer extends PageViewer
 
 			$strategy = StrategyFactory::create($market, $pair->getStrategyName(), $pair->getStrategyParams());
 
-			$validation = $strategy->validateExchangeSettings($market);
+			$validation = $strategy->validateConfigSettings($pair);
 			if (!$validation->isValid()) {
 				$data['validationErrors'] = $validation->getErrors();
 			}

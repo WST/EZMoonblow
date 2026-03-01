@@ -342,6 +342,23 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 		return $result;
 	}
 
+	/**
+	 * @inheritDoc
+	 *
+	 * Config-only validation for the web UI (no exchange API calls).
+	 */
+	public function validateConfigSettings(Pair $pair): StrategyValidationResult {
+		$result = parent::validateConfigSettings($pair);
+
+		if ($pair->getMarketType()->isFutures()) {
+			$result->addWarning(
+				'DCA strategy requires Hedge mode (Two-Way). Verified at runtime before trading.'
+			);
+		}
+
+		return $result;
+	}
+
 	abstract public function doesLong(): bool;
 	abstract public function doesShort(): bool;
 
