@@ -5,7 +5,7 @@ namespace Izzy\System\Database\ORM;
 use Izzy\Interfaces\IDatabaseEntityWithSurrogatePK;
 use Izzy\System\Database\Database;
 
-abstract class SurrogatePKDatabaseRecord extends DatabaseRecord implements IDatabaseEntityWithSurrogatePK
+abstract class AbstractSurrogatePKDatabaseRecord extends AbstractDatabaseRecord implements IDatabaseEntityWithSurrogatePK
 {
 	/**
 	 * Primary key column name.

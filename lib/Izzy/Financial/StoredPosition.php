@@ -9,7 +9,7 @@ use Izzy\Enums\PositionStatusEnum;
 use Izzy\Interfaces\IMarket;
 use Izzy\Interfaces\IStoredPosition;
 use Izzy\System\Database\Database;
-use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
+use Izzy\System\Database\ORM\AbstractSurrogatePKDatabaseRecord;
 use Izzy\System\Logger;
 use Izzy\System\QueueTask;
 use Izzy\Traits\PositionTrait;
@@ -17,7 +17,7 @@ use Izzy\Traits\PositionTrait;
 /**
  * Stored position in the local database.
  */
-class StoredPosition extends SurrogatePKDatabaseRecord implements IStoredPosition
+class StoredPosition extends AbstractSurrogatePKDatabaseRecord implements IStoredPosition
 {
 	use PositionTrait;
 

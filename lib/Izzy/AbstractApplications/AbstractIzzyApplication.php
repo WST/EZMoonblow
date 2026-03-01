@@ -7,7 +7,7 @@ use Izzy\System\Database\Database;
 use Izzy\System\Logger;
 use Izzy\Traits\SingletonTrait;
 
-abstract class IzzyApplication
+abstract class AbstractIzzyApplication
 {
 	use SingletonTrait;
 

@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Backtest\BacktestResultRecord;
 use Izzy\Configuration\StrategyConfiguration;
 use Izzy\Web\Filters\BacktestResultsFilter;
@@ -16,7 +16,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class ResultsViewer extends PageViewer
 {
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 

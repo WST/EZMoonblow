@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Enums\TaskStatusEnum;
 use Izzy\System\SystemHeartbeat;
 use Psr\Http\Message\ResponseInterface as Response;
@@ -17,7 +17,7 @@ class StatusViewer extends PageViewer
 	/** @var array Expected system components. */
 	private const EXPECTED_COMPONENTS = ['Trader', 'Analyzer', 'Notifier', 'Optimizer'];
 
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 

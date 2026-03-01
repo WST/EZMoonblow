@@ -3,7 +3,7 @@
 namespace Izzy\RealApplications;
 
 use Exception;
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\PositionDirectionEnum;
 use Izzy\Enums\PositionFinishReasonEnum;
@@ -14,7 +14,7 @@ use Izzy\Financial\Pair;
 use Izzy\System\QueueTask;
 use Telegram\Bot\Api as TelegramApi;
 
-class Notifier extends ConsoleApplication
+class Notifier extends AbstractConsoleApplication
 {
 	private string $telegramToken;
 	private int $telegramChatId;

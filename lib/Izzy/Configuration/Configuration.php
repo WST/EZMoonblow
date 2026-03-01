@@ -5,7 +5,7 @@ namespace Izzy\Configuration;
 use DOMDocument;
 use DOMElement;
 use DOMXPath;
-use Izzy\AbstractApplications\IzzyApplication;
+use Izzy\AbstractApplications\AbstractIzzyApplication;
 use Izzy\Enums\MarketTypeEnum;
 use Izzy\Enums\TimeFrameEnum;
 use Izzy\Financial\Pair;
@@ -46,10 +46,10 @@ class Configuration
 	/**
 	 * Connect to all configured exchanges.
 	 *
-	 * @param IzzyApplication $application Application instance for dependency injection.
+	 * @param AbstractIzzyApplication $application Application instance for dependency injection.
 	 * @return IExchangeDriver[] Array of connected exchange drivers, keyed by exchange name.
 	 */
-	public function connectExchanges(IzzyApplication $application): array {
+	public function connectExchanges(AbstractIzzyApplication $application): array {
 		$exchanges = $this->xpath->query('//exchanges/exchange');
 		$result = [];
 		foreach ($exchanges as $exchangeConfigurationNode) {
@@ -65,11 +65,11 @@ class Configuration
 	/**
 	 * Connect to a specific exchange by name.
 	 *
-	 * @param IzzyApplication $application Application instance for dependency injection.
+	 * @param AbstractIzzyApplication $application Application instance for dependency injection.
 	 * @param string $exchangeName Name of the exchange to connect to.
 	 * @return IExchangeDriver|false Connected exchange driver or false if not found/disabled.
 	 */
-	public function connectExchange(IzzyApplication $application, string $exchangeName): IExchangeDriver|false {
+	public function connectExchange(AbstractIzzyApplication $application, string $exchangeName): IExchangeDriver|false {
 		$exchangeConfig = $this->getExchangeConfiguration($exchangeName);
 		if (!$exchangeConfig) {
 			return false;

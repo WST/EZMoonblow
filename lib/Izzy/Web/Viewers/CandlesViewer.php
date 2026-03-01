@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Financial\CandleRepository;
 use Izzy\Web\Filters\CandlesFilter;
 use Izzy\Web\Table\ClearAllGlobalAction;
@@ -15,7 +15,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class CandlesViewer extends PageViewer
 {
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 

@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Table;
 
-class DeleteAction extends TableAction
+class DeleteAction extends AbstractTableAction
 {
 	public function __construct(
 		private string $endpoint,

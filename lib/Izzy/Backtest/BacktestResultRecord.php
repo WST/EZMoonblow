@@ -6,13 +6,13 @@ use Izzy\Enums\BacktestModeEnum;
 use Izzy\Financial\Pair;
 use Izzy\Financial\StrategyFactory;
 use Izzy\System\Database\Database;
-use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
+use Izzy\System\Database\ORM\AbstractSurrogatePKDatabaseRecord;
 
 /**
  * Persisted backtest result record.
  * Stores all summary metrics so they can be displayed on the Results page.
  */
-class BacktestResultRecord extends SurrogatePKDatabaseRecord
+class BacktestResultRecord extends AbstractSurrogatePKDatabaseRecord
 {
 	const string FId = 'br_id';
 	const string FExchangeName = 'br_exchange_name';

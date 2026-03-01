@@ -14,9 +14,9 @@ use Izzy\Interfaces\IStoredPosition;
 use Izzy\RealApplications\Analyzer;
 use Izzy\RealApplications\Notifier;
 use Izzy\System\Database\Database;
-use Izzy\System\Database\ORM\SurrogatePKDatabaseRecord;
+use Izzy\System\Database\ORM\AbstractSurrogatePKDatabaseRecord;
 
-class QueueTask extends SurrogatePKDatabaseRecord
+class QueueTask extends AbstractSurrogatePKDatabaseRecord
 {
 	const FId = 'task_id';
 	const FRecipient = 'task_recipient';

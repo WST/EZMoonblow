@@ -2,7 +2,7 @@
 
 namespace Izzy\RealApplications;
 
-use Izzy\AbstractApplications\ConsoleApplication;
+use Izzy\AbstractApplications\AbstractConsoleApplication;
 use Izzy\Backtest\BacktestBalanceChart;
 use Izzy\Backtest\BacktestEngine;
 use Izzy\Backtest\BacktestEventWriter;
@@ -16,7 +16,7 @@ use Izzy\Financial\Pair;
 use Izzy\Financial\StrategyFactory;
 use Izzy\System\Logger;
 
-class Backtester extends ConsoleApplication
+class Backtester extends AbstractConsoleApplication
 {
 	private const float DEFAULT_INITIAL_BALANCE = 10000.0;
 	private const int DEFAULT_TICKS_PER_CANDLE = 4;

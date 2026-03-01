@@ -7,7 +7,7 @@ use Izzy\System\SystemHeartbeat;
 /**
  * Base class for all CLI applications.
  */
-abstract class ConsoleApplication extends IzzyApplication
+abstract class AbstractConsoleApplication extends AbstractIzzyApplication
 {
 	/** @var SystemHeartbeat|null Heartbeat manager for health monitoring. */
 	protected ?SystemHeartbeat $heartbeat = null;

@@ -2,7 +2,7 @@
 
 namespace Izzy\Web\Viewers;
 
-use Izzy\AbstractApplications\WebApplication;
+use Izzy\AbstractApplications\AbstractWebApplication;
 use Izzy\Backtest\OptimizationSuggestionRecord;
 use Izzy\Web\Table\TablePagination;
 use Izzy\Web\Tables\OptimizationSuggestionsTable;
@@ -11,7 +11,7 @@ use Psr\Http\Message\ServerRequestInterface as Request;
 
 class OptimizationsViewer extends PageViewer
 {
-	public function __construct(WebApplication $webApp) {
+	public function __construct(AbstractWebApplication $webApp) {
 		parent::__construct($webApp);
 	}
 
