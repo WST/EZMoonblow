@@ -1,5 +1,23 @@
 # EZMoonblow Docker Compose configuration.
 
+x-php-cli: &php-cli
+  image: ezmoonblow-php-cli
+  restart: "no"
+  volumes:
+    - .:/app
+    - migration_marker:/app/migration_marker
+  depends_on:
+    mysql:
+      condition: service_healthy
+    migrator:
+      condition: service_completed_successfully
+  networks:
+    - ezmoonblow-network
+  environment:
+    - TZ=Asia/Yerevan
+  extra_hosts:
+    - "host.docker.internal:host-gateway"
+
 services:
   # MySQL database server.
   mysql:
@@ -26,156 +44,45 @@ services:
   # Database migrations service.
   # This service runs migrations once before other services start.
   migrator:
+    <<: *php-cli
     build:
       context: .
       dockerfile: Dockerfile
     container_name: ezmoonblow-migrator
-    restart: "no"
     command: /app/tasks/docker/run-migrations.sh
-    volumes:
-      - ./config:/app/config:ro
-      - ./migrations:/app/migrations:ro
-      - migration_marker:/app/migration_marker
     depends_on:
       mysql:
         condition: service_healthy
-    networks:
-      - ezmoonblow-network
-    environment:
-      - TZ=Asia/Yerevan
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Trading component.
   trader:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *php-cli
     container_name: ezmoonblow-trader
-    restart: "no"
     command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/trader.php"]
-    volumes:
-      - ./config:/app/config:ro
-      - ./logs:/app/logs
-      - ./charts:/app/charts
-      - ./rrd:/app/rrd
-      - ./cache:/app/cache
-      - migration_marker:/app/migration_marker
-    depends_on:
-      mysql:
-        condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
-    networks:
-      - ezmoonblow-network
-    environment:
-      - TZ=Asia/Yerevan
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Analysis component.
   analyzer:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *php-cli
     container_name: ezmoonblow-analyzer
-    restart: "no"
     command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/analyzer.php"]
-    volumes:
-      - ./config:/app/config:ro
-      - ./logs:/app/logs
-      - ./charts:/app/charts
-      - ./rrd:/app/rrd
-      - ./cache:/app/cache
-      - migration_marker:/app/migration_marker
-    depends_on:
-      mysql:
-        condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
-    networks:
-      - ezmoonblow-network
-    environment:
-      - TZ=Asia/Yerevan
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Notifications component.
   notifier:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *php-cli
     container_name: ezmoonblow-notifier
-    restart: "no"
     command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/notifier.php"]
-    volumes:
-      - ./config:/app/config:ro
-      - ./logs:/app/logs
-      - ./charts:/app/charts
-      - ./rrd:/app/rrd
-      - ./cache:/app/cache
-      - migration_marker:/app/migration_marker
-    depends_on:
-      mysql:
-        condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
-    networks:
-      - ezmoonblow-network
-    environment:
-      - TZ=Asia/Yerevan
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Optimizer component.
   optimizer:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *php-cli
     container_name: ezmoonblow-optimizer
-    restart: "no"
     command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/optimizer.php"]
-    volumes:
-      - ./config:/app/config:ro
-      - ./logs:/app/logs
-      - ./cache:/app/cache
-      - migration_marker:/app/migration_marker
-    depends_on:
-      mysql:
-        condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
-    networks:
-      - ezmoonblow-network
-    environment:
-      - TZ=Asia/Yerevan
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Screener component.
   screener:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    <<: *php-cli
     container_name: ezmoonblow-screener
-    restart: "no"
     command: ["/app/tasks/docker/wait-for-migrations.sh", "/app/screener.php"]
-    volumes:
-      - ./config:/app/config:ro
-      - ./logs:/app/logs
-      - ./cache:/app/cache
-      - migration_marker:/app/migration_marker
-    depends_on:
-      mysql:
-        condition: service_healthy
-      migrator:
-        condition: service_completed_successfully
-    networks:
-      - ezmoonblow-network
-    environment:
-      - TZ=Asia/Yerevan
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
 
   # Web interface — PHP-FPM backend.
   # Handles concurrent requests (admin panel + SSE streaming + backtest API).
@@ -183,16 +90,12 @@ services:
     build:
       context: .
       dockerfile: docker/web/Dockerfile
+    image: ezmoonblow-php-fpm
     container_name: ezmoonblow-web-php
     restart: "no"
     command: ["/app/tasks/docker/wait-for-migrations.sh", "php-fpm"]
     volumes:
-      - ./config:/app/config:ro
-      - ./logs:/app/logs
-      - ./charts:/app/charts
-      - ./rrd:/app/rrd
-      - ./cache:/app/cache
-      - ./templates:/app/templates:ro
+      - .:/app
       - migration_marker:/app/migration_marker
     depends_on:
       mysql:
@@ -232,4 +135,3 @@ volumes:
 networks:
   ezmoonblow-network:
     driver: bridge
-
