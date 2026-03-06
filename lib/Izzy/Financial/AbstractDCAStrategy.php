@@ -412,11 +412,9 @@ abstract class AbstractDCAStrategy extends AbstractStrategy
 		}
 
 		$filtered = array_diff_key($this->params, array_flip($excluded));
-		$raw = [];
-		foreach ($filtered as $name => $param) {
-			$raw[$name] = $param->getRawValue();
-		}
-		return $raw;
+		return array_map(function ($param) {
+			return $param->getRawValue();
+		}, $filtered);
 	}
 
 	public static function getStrategySettingGroupTitle(): string {
