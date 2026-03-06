@@ -12,6 +12,13 @@ use Izzy\Traits\HasMarketTypeTrait;
 /**
  * Trading pair representation.
  * Contains information about a specific trading pair including ticker, timeframe, exchange, and market type.
+ *
+ * Futures are only supported for linear contracts where settle currency = quote currency
+ * (e.g. BTCUSDT where both quote and settle are USDT). Not supported:
+ *  - Inverse contracts where settle = base currency (e.g. BTCUSD settled in BTC).
+ *  - Contracts where settle currency differs from both base and quote (e.g. GBPUSD
+ *    settled in USDT, seen on Gate).
+ * This could be revisited in the future if needed.
  */
 class Pair implements IPair
 {
