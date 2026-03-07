@@ -76,7 +76,7 @@ enum EntryVolumeModeEnum: string
 	 *
 	 * @param float $rawVolume Raw volume value (interpretation depends on this mode).
 	 * @param TradingContext $context Runtime trading context providing balance, price, etc.
-	 * @return float Resolved volume in quote currency.
+	 * @return Money Resolved volume in quote currency.
 	 */
 	public function resolve(float $rawVolume, TradingContext $context): Money {
 		$amount = match ($this) {
@@ -85,7 +85,7 @@ enum EntryVolumeModeEnum: string
 			self::PERCENT_BALANCE => $context->getBalance() * ($rawVolume / 100),
 			self::PERCENT_NOTIONAL => $context->getNotional() * ($rawVolume / 100),
 		};
-		return new Money($amount);
+		return Money::from($amount);
 	}
 
 	/**
